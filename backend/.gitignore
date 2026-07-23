@@ -1,0 +1,39 @@
+# === Entorno de Python y Caché ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# === Variables de entorno y Seguridad ===
+.env
+.env.local
+*.pem
+*.key
+
+# === Almacenamiento local y datos pesados ===
+# Ignora archivos temporales o GeoJSON pesados de prueba, 
+# pero mantiene la carpeta usando el .gitkeep
+storage/geojson/*.geojson
+storage/geojson/*.gpkg
+storage/geojson/*.shp
+storage/geojson/*.dbf
+storage/geojson/*.prj
+storage/geojson/*.shx
+!storage/geojson/.gitkeep
+storage/logs/*.log
+
+# === Entornos de Desarrollo e IDEs ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Sistema Operativo ===
+.DS_Store
+Thumbs.db

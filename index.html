@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Geoportal-BSD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- MapLibre GL JS CSS y JS -->
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<link rel="stylesheet" href="frontend/css/style.css">
+<script src="frontend/js/main.js"></script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <img src="frontend/img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo">
+    </div>
+ 
+    <div class="brand-text">
+      <span class="name">Geoportal de uso estratégico</span>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="icon-btn active" title="Capas" aria-label="Capas">
+        <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 12 22 7 12 12 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      </button>
+      <button class="icon-btn" title="Imprimir" aria-label="Imprimir">
+        <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      </button>
+      <button class="icon-btn" title="Ajustes" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+
+      <!-- DB_DATA: Iniciales o avatar del usuario autenticado -->
+      <div class="avatar">JD</div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR (PANEL IZQUIERDO) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="panel-heading">
+      <span class="eyebrow">Capas del mapa</span>
+      <span class="count" id="layerCount">0 activas</span>
+    </div>
+
+    <div class="layer-list" id="layerList">
+      <!-- Carga dinámica de capas -->
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <!-- Botón Toggle Sidebar Izquierdo (Capas) -->
+    <button type="button" class="panel-toggle-btn toggle-left" id="sidebarToggleBtn" aria-label="Alternar capas">
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+
+    <!-- Botón Toggle Panel Derecho (Información) -->
+    <button type="button" class="panel-toggle-btn toggle-right" id="infoToggleBtn" aria-label="Alternar información">
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+
+    <div class="graticule">
+      <div class="grat-edge top" id="gratTop"></div>
+      <div class="grat-edge bottom" id="gratBottom"></div>
+      <div class="grat-edge left" id="gratLeft"></div>
+      <div class="grat-edge right" id="gratRight"></div>
+    </div>
+
+    <!-- Switch de mapa base -->
+    <div class="basemap-switch">
+      <button type="button" class="basemap-btn" id="basemapToggleBtn" title="Cambiar mapa base">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+          <line x1="8" y1="2" x2="8" y2="18"></line>
+          <line x1="16" y1="6" x2="16" y2="22"></line>
+        </svg>
+      </button>
+
+      <div class="basemap-dropdown" id="basemapDropdown">
+        <div class="basemap-title">Mapa Base</div>
+        <div class="basemap-option active" data-basemap="clara">
+          <div class="basemap-preview bm-light"></div>
+          <div class="basemap-info">
+            <span class="bm-name">Estándar</span>
+            <span class="bm-desc">Vectorial Claro</span>
+          </div>
+        </div>
+        <div class="basemap-option" data-basemap="satelite">
+          <div class="basemap-preview bm-sat"></div>
+          <div class="basemap-info">
+            <span class="bm-name">Satélite</span>
+            <span class="bm-desc">Imágenes Esri + Híbrido</span>
+          </div>
+        </div>
+        <!-- Opción añadida para ocultar el mapa base -->
+        <div class="basemap-option" data-basemap="ninguno">
+          <div class="basemap-preview" style="background: var(--bg-surface, #1e222a);"></div>
+          <div class="basemap-info">
+            <span class="bm-name">Sin Mapa Base</span>
+            <span class="bm-desc">Solo capas vectoriales</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón y Ventana Flotante de Leyenda dentro del Mapa -->
+    <div class="legend-switch">
+      <div class="legend-popover" id="legendPopover">
+        <div class="legend-popover-header">
+          <span>Leyenda</span>
+          <button type="button" class="close-popover-btn" id="closeLegendBtn">&times;</button>
+        </div>
+        <div class="legend-list" id="legendList">
+          <!-- Se puebla dinámicamente -->
+        </div>
+      </div>
+
+      <button type="button" class="legend-toggle-btn" id="legendToggleBtn" title="Ver Leyenda">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="6 3 3 8.5 6 7 9 8.5 6 3" />
+          <rect x="3" y="10.5" width="6" height="5.5" rx="1" fill="currentColor" />
+          <circle cx="6" cy="19.5" r="2.8" fill="none" />
+          <line x1="12" y1="5.5" x2="21" y2="5.5" />
+          <line x1="12" y1="13.2" x2="21" y2="13.2" />
+          <line x1="12" y1="19.5" x2="21" y2="19.5" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Controles de Zoom -->
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomIn">+</button>
+      <button class="zoom-btn" id="zoomOut">–</button>
+    </div>
+  </div> 
+
+  <!-- PANEL DERECHO: PANEL DE INFORMACIÓN / DETALLES -->
+  <aside class="info-panel" id="infoPanel">
+    <div class="panel-heading">
+      <span class="eyebrow">Información</span>
+    </div>
+
+    <div class="info-panel-content" id="infoPanelContent">
+      <div class="info-card">
+        <div class="ic-label">Detalles del elemento</div>
+        <p>Selecciona una entidad del mapa para desplegar su información técnica y atributos aquí.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- STATUS BAR / FOOTER -->
+  <footer class="statusbar">
+    <div class="stat">LAT/LON <b id="statCoord">0.00000° N 0.00000° W</b></div>
+    <div class="divider"></div>
+    <div class="stat">ANCHO <b id="statScale">-- km</b></div>
+    <div class="divider"></div>
+    <div class="stat">ZOOM <b id="statZoom">6.8</b></div>
+    <div class="divider"></div>
+    <div class="stat">DATUM <b>WGS84 (EPSG:4326)</b></div>
+    <div class="grow"></div>
+    <div class="stat">GEOPORTAL v0.1</div>
+  </footer>
+
+</div>
+</body>
+</html>
