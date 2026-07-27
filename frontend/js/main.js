@@ -1,6 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // =========================================================================
+  // VARIABLES GLOBALES DE ESTADO DE SELECCIÓN
+  // =========================================================================
+  let selectedFeatureId = null;
+  let selectedSourceId = null;
+
+  // =========================================================================
   // 1. INICIALIZACIÓN CON ESTILO BASE CLARO
   // =========================================================================
   let activeBasemap = 'clara';
@@ -85,16 +91,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2.1. CARGA DINÁMICA DE CAPAS DESDE FASTAPI (POSTGIS)
     // =========================================================================
     const availableLayers = [
-      { id: 'Bloques_Campos_petroleros', name: 'Bloques y Campos Petroleros', type: 'fill', color: '#ff9800' },
-      { id: 'Distrito_Anaco', name: 'Distrito Anaco', type: 'fill', color: '#4caf50' },
-      { id: 'Distrito_San_Tome', name: 'Distrito San Tomé', type: 'fill', color: '#2196f3' },
       { id: 'Estaciones', name: 'Estaciones', type: 'circle', color: '#f44336' },
       { id: 'Fosas_estaciones', name: 'Fosas Estaciones', type: 'circle', color: '#9c27b0' },
       { id: 'Fosas_plantas', name: 'Fosas Plantas', type: 'circle', color: '#673ab7' },
       { id: 'Plantas', name: 'Plantas', type: 'circle', color: '#3ab7ad' },
       { id: 'Fosas_pozos', name: 'Fosas Pozos', type: 'circle', color: '#3f51b5' },
-      { id: 'Limite_FPO_2012', name: 'Límite FPO 2012', type: 'fill', color: '#e91e63' },
-      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Oleoductos y Gasoductos FPO', type: 'line', color: '#795548' }
+      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Oleoductos y Gasoductos FPO', type: 'line', color: '#795548' },
+      { id: 'Bloques_Campos_petroleros', name: 'Bloques y Campos Petroleros', type: 'fill', color: '#ff9800' },
+      { id: 'Distrito_Anaco', name: 'Distrito Anaco', type: 'fill', color: '#4caf50' },
+      { id: 'Distrito_San_Tome', name: 'Distrito San Tomé', type: 'fill', color: '#2196f3' },
+      { id: 'Limite_FPO_2012', name: 'Límite FPO 2012', type: 'fill', color: '#e91e63' }
     ];
 
     const layerListContainer = document.getElementById('layerList');
@@ -124,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
       
       if (activeToggles.length === 0) {
-        legendList.innerHTML = '<div style="font-size: 0.8rem; color: #6c757d; padding: 8px;">No hay capas activas en el mapa.</div>';
+        legendList.innerHTML = '<div style="font-size: 0.8rem; color: #ffffff; padding: 8px;">No hay capas activas en el mapa.</div>';
         return;
       }
 
@@ -150,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         item.innerHTML = `
           ${symbolHTML}
-          <span style="font-size: 0.8rem; color: var(--text-main, #333);">${layerConfig.name}</span>
+          <span style="font-size: 0.8rem; color: #ffffff;">${layerConfig.name}</span>
         `;
         legendList.appendChild(item);
       });
@@ -192,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             map.addSource(sourceId, {
               type: 'geojson',
               data: data,
-              generateId: true // Importante para que MapLibre gestione los estados de hover/click por ID
+              generateId: true 
             });
           }
 
@@ -205,6 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (row) row.classList.add('off');
         }
       } else {
+        if (selectedSourceId === sourceId) {
+          selectedFeatureId = null;
+          selectedSourceId = null;
+        }
         if (map.getLayer(layerId)) {
           map.removeLayer(layerId);
         }
@@ -217,9 +227,26 @@ document.addEventListener('DOMContentLoaded', () => {
       updateLegendUI();
     });
 
+    // Manejador general de clics en el mapa para deseleccionar si se hace clic fuera de una entidad
+    map.on('click', (e) => {
+      const features = map.queryRenderedFeatures(e.point);
+      const clickedOnLayerFeature = features.some(f => f.layer.id.startsWith('layer-'));
+
+      if (!clickedOnLayerFeature) {
+        if (selectedFeatureId !== null && selectedSourceId !== null) {
+          map.setFeatureState(
+            { source: selectedSourceId, id: selectedFeatureId },
+            { selected: false }
+          );
+          selectedFeatureId = null;
+          selectedSourceId = null;
+        }
+      }
+    });
+
   }); // Fin de map.on('load')
 
-  // Función auxiliar para inyectar la capa con soporte interactivo de Hover
+  // Función auxiliar para inyectar la capa con soporte interactivo de Hover y Selección
   function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers) {
     const layerConfig = availableLayers.find(l => l.id === tableName);
     const geomType = layerConfig ? layerConfig.type : 'circle';
@@ -234,13 +261,15 @@ document.addEventListener('DOMContentLoaded', () => {
           paint: {
             'circle-radius': [
               'case',
-              ['boolean', ['feature-state', 'hover'], false], 9, // Crece al hacer hover
+              ['boolean', ['feature-state', 'selected'], false], 10, 
+              ['boolean', ['feature-state', 'hover'], false], 9, 
               6
             ],
             'circle-color': geomColor,
             'circle-stroke-width': [
               'case',
-              ['boolean', ['feature-state', 'hover'], false], 3, // Borde negro grueso al pasar el ratón
+              ['boolean', ['feature-state', 'selected'], false], 4, 
+              ['boolean', ['feature-state', 'hover'], false], 3, 
               1
             ],
             'circle-stroke-color': '#000000'
@@ -255,10 +284,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'fill-color': geomColor,
             'fill-opacity': [
               'case',
-              ['boolean', ['feature-state', 'hover'], false], 0.8, // Se vuelve más opaco al hacer hover
+              ['boolean', ['feature-state', 'selected'], false], 0.9, 
+              ['boolean', ['feature-state', 'hover'], false], 0.8, 
               0.4
             ],
-            'fill-outline-color': '#000000' // Contorno negro visible al hacer hover o normal
+            'fill-outline-color': '#000000' 
           }
         });
       } else if (geomType === 'line') {
@@ -270,7 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'line-color': geomColor,
             'line-width': [
               'case',
-              ['boolean', ['feature-state', 'hover'], false], 5, // Línea más gruesa al pasar el ratón
+              ['boolean', ['feature-state', 'selected'], false], 6, 
+              ['boolean', ['feature-state', 'hover'], false], 5, 
               2
             ]
           }
@@ -315,10 +346,29 @@ document.addEventListener('DOMContentLoaded', () => {
         hoveredStateId = null;
       });
 
-      // Evento Click (Panel de Información)
+      // Evento Click (Panel de Información y Selección Persistente)
       map.on('click', layerId, (ev) => {
         if (!ev.features || ev.features.length === 0) return;
-        const props = ev.features[0].properties;
+        const clickedFeature = ev.features[0];
+        const props = clickedFeature.properties;
+        const clickedId = clickedFeature.id;
+
+        // Gestionar estado seleccionado anterior y actual
+        if (selectedFeatureId !== null && selectedSourceId !== null) {
+          map.setFeatureState(
+            { source: selectedSourceId, id: selectedFeatureId },
+            { selected: false }
+          );
+        }
+
+        selectedFeatureId = clickedId;
+        selectedSourceId = sourceId;
+
+        map.setFeatureState(
+          { source: selectedSourceId, id: selectedFeatureId },
+          { selected: true }
+        );
+
         const infoContent = document.getElementById('infoPanelContent');
         
         if (infoContent) {

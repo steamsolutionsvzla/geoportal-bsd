@@ -1,0 +1,26 @@
+
+
+services:
+  backend:
+    build: ./backend  # Ajusta esta ruta según la carpeta donde esté tu backend
+    container_name: backend-geoportal
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=host.docker.internal  # Permite conectar a la BD en tu máquina host si usas el puerto 5433 local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+frontend:
+    build: ./frontend
+    container_name: frontend-geoportal
+    restart: always
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html  # <- Esto mapea tu carpeta en tiempo real
+    depends_on:
+      - backend
