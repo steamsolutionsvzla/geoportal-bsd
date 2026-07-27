@@ -6,11 +6,11 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     DEBUG: bool = True
 
-    DB_HOST: str = "127.0.0.1"
+    DB_HOST: str = "10.100.0.1"
     DB_PORT: int = 5432
-    DB_NAME: str
-    DB_USER: str
-    DB_PASSWORD: str
+    DB_NAME: str = "geoportal_db"
+    DB_USER: str = "odoo"
+    DB_PASSWORD: str = "odoo@2026_postgis"
 
     @computed_field
     @property

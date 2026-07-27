@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isVisible) {
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+          const response = await fetch(`/api/v1/layers/${tableName}`);
           const data = await response.json();
 
           if (!data.features || data.features.length === 0) {
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
           console.error("Error al cargar la capa geográfica:", error);
-          alert("No se pudo conectar con el backend de FastAPI en http://localhost:8000");
+          alert("No se pudo conectar con el backend de FastAPI en el servidor");
           toggleBtn.classList.remove('on');
           if (row) row.classList.add('off');
         }
