@@ -14,13 +14,3 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-frontend:
-    build: ./frontend
-    container_name: frontend-geoportal
-    restart: always
-    ports:
-      - "3000:80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html  # <- Esto mapea tu carpeta en tiempo real
-    depends_on:
-      - backend
