@@ -5,7 +5,7 @@ from app.db.session import get_db_connection
 class SpatialService:
 
     @staticmethod
-    async def get_layer_geojson(table_name: str = "Limite_FPO_2012", geom_column: str = "geom"):
+    async def get_layer_geojson(table_name: str = "", geom_column: str = "geom"):
         conn = await get_db_connection()
         try:
             if "." in table_name:

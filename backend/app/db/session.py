@@ -5,4 +5,6 @@ async def get_db_connection():
     """
     Crea y retorna una conexión asíncrona con la base de datos PostGIS.
     """
+
+    print(f"DEBUG URL DE CONEXIÓN: {settings.DATABASE_URL}")
     return await asyncpg.connect(settings.DATABASE_URL)

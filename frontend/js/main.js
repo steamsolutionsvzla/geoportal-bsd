@@ -90,37 +90,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
     // 2.1. CARGA DINÁMICA DE CAPAS DESDE FASTAPI (POSTGIS)
     // =========================================================================
+    // Nota: Separamos Oleoductos y Gasoductos para que aparezcan individualmente en la leyenda
     const availableLayers = [
       { id: 'Estaciones', name: 'Estaciones', type: 'circle', color: '#f44336' },
       { id: 'Fosas_estaciones', name: 'Fosas Estaciones', type: 'circle', color: '#9c27b0' },
       { id: 'Fosas_plantas', name: 'Fosas Plantas', type: 'circle', color: '#673ab7' },
       { id: 'Plantas', name: 'Plantas', type: 'circle', color: '#3ab7ad' },
       { id: 'Fosas_pozos', name: 'Fosas Pozos', type: 'circle', color: '#3f51b5' },
-      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Oleoductos y Gasoductos FPO', type: 'line', color: '#795548' },
+      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Oleoductos', type: 'line', subtype: 'Oleoducto', color: '#ff7043' },
+      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Gasoductos', type: 'line', subtype: 'Gasducto', color: '#ffeb3b' },
       { id: 'Bloques_Campos_petroleros', name: 'Bloques y Campos Petroleros', type: 'fill', color: '#ff9800' },
       { id: 'Distrito_Anaco', name: 'Distrito Anaco', type: 'fill', color: '#4caf50' },
       { id: 'Distrito_San_Tome', name: 'Distrito San Tomé', type: 'fill', color: '#2196f3' },
       { id: 'Limite_FPO_2012', name: 'Límite FPO 2012', type: 'fill', color: '#e91e63' }
     ];
-
     const layerListContainer = document.getElementById('layerList');
 
     if (layerListContainer) {
       layerListContainer.innerHTML = ''; 
       
-      availableLayers.forEach(layerInfo => {
+      // Renderizamos solo las capas únicas en el menú lateral de selección
+      const uniqueLayers = availableLayers.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+      uniqueLayers.forEach(layerInfo => {
         const row = document.createElement('div');
         row.className = 'layer-row off';
         row.innerHTML = `
           <div class="swatch" style="background: ${layerInfo.color};"></div>
-          <div class="lname">${layerInfo.name}</div>
+          <div class="lname">${layerInfo.id === 'Tuberias_oleoductos_gasoductos_FPO' ? 'Oleoductos y Gasoductos FPO' : layerInfo.name}</div>
           <div class="toggle" data-table="${layerInfo.id}"></div>
         `;
         layerListContainer.appendChild(row);
       });
     }
 
-    // Función para actualizar dinámicamente la leyenda flotante según las capas activas
+    // Función para actualizar dinámicamente la leyenda flotante con estilo cartográfico
     function updateLegendUI() {
       const legendList = document.getElementById('legendList') || document.querySelector('.legend-content');
       if (!legendList) return;
@@ -130,35 +133,46 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
       
       if (activeToggles.length === 0) {
-        legendList.innerHTML = '<div style="font-size: 0.8rem; color: #ffffff; padding: 8px;">No hay capas activas en el mapa.</div>';
+        legendList.innerHTML = '<div style="font-size: 0.8rem; color: #a0a0a0; padding: 8px; text-align: center;">No hay capas activas en el mapa.</div>';
         return;
       }
 
+      const categoryTitle = document.createElement('div');
+      categoryTitle.style.cssText = 'font-size: 0.75rem; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;';
+      categoryTitle.textContent = 'Petróleo y gas / Capas Activas';
+      legendList.appendChild(categoryTitle);
+
       activeToggles.forEach(toggle => {
         const tableName = toggle.getAttribute('data-table');
-        const layerConfig = availableLayers.find(l => l.id === tableName);
-        if (!layerConfig) return;
-
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        item.style.display = 'flex';
-        item.style.alignItems = 'center';
-        item.style.marginBottom = '6px';
         
-        let symbolHTML = '';
-        if (layerConfig.type === 'fill') {
-          symbolHTML = `<div style="width: 14px; height: 14px; background: ${layerConfig.color}; border: 1px solid #000; border-radius: 2px; margin-right: 8px; flex-shrink: 0;"></div>`;
-        } else if (layerConfig.type === 'line') {
-          symbolHTML = `<div style="width: 14px; height: 4px; background: ${layerConfig.color}; border: 1px solid #000; margin-right: 8px; flex-shrink: 0; align-self: center;"></div>`;
-        } else {
-          symbolHTML = `<div style="width: 12px; height: 12px; background: ${layerConfig.color}; border: 1.5px solid #000; border-radius: 50%; margin-right: 8px; flex-shrink: 0;"></div>`;
-        }
+        // Buscamos todas las configuraciones asociadas a este ID de tabla (para separar tuberías)
+        const matchingLayers = availableLayers.filter(l => l.id === tableName);
+        
+        matchingLayers.forEach(layerConfig => {
+          const item = document.createElement('div');
+          item.className = 'legend-item';
+          item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05);';
+          
+          let symbolHTML = '';
 
-        item.innerHTML = `
-          ${symbolHTML}
-          <span style="font-size: 0.8rem; color: #ffffff;">${layerConfig.name}</span>
-        `;
-        legendList.appendChild(item);
+          if (layerConfig.type === 'fill') {
+            symbolHTML = `<div style="width: 20px; height: 14px; background: ${layerConfig.color}; opacity: 0.8; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
+          } else if (layerConfig.type === 'line') {
+            symbolHTML = `<div style="width: 24px; height: 4px; background: ${layerConfig.color}; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
+          } else {
+            symbolHTML = `
+              <div style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0;">
+                <div style="width: 10px; height: 10px; background: ${layerConfig.color}; border: 1.5px solid #ffffff; border-radius: 50%; box-shadow: 0 0 0 1px #000;"></div>
+              </div>`;
+          }
+
+          item.innerHTML = `
+            <span style="font-size: 0.8rem; color: #e0e0e0; font-weight: 500;">${layerConfig.name}</span>
+            ${symbolHTML}
+          `;
+          
+          legendList.appendChild(item);
+        });
       });
     }
 
@@ -180,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isVisible) {
         try {
-          const response = await fetch(`/api/v1/layers/${tableName}`);
+          const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
           const data = await response.json();
 
           if (!data.features || data.features.length === 0) {
@@ -206,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
           console.error("Error al cargar la capa geográfica:", error);
-          alert("No se pudo conectar con el backend de FastAPI en el servidor");
+          alert("No se pudo conectar con el backend de FastAPI en http://localhost:8000");
           toggleBtn.classList.remove('on');
           if (row) row.classList.add('off');
         }
@@ -246,13 +260,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }); // Fin de map.on('load')
 
-  // Función auxiliar para inyectar la capa con soporte interactivo de Hover y Selección
+  // Función auxiliar para inyectar la capa ordenando por jerarquía
   function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers) {
     const layerConfig = availableLayers.find(l => l.id === tableName);
     const geomType = layerConfig ? layerConfig.type : 'circle';
     const geomColor = layerConfig ? layerConfig.color : '#ff5722';
 
     if (!map.getLayer(layerId)) {
+      
+      let beforeLayerId = undefined;
+      const existingLayers = map.getStyle().layers;
+
+      if (geomType === 'fill') {
+        for (let l of existingLayers) {
+          if (l.id.startsWith('layer-')) {
+            const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
+            if (t && (t.type === 'line' || t.type === 'circle')) {
+              beforeLayerId = l.id;
+              break;
+            }
+          }
+        }
+      } else if (geomType === 'line') {
+        for (let l of existingLayers) {
+          if (l.id.startsWith('layer-')) {
+            const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
+            if (t && t.type === 'circle') {
+              beforeLayerId = l.id;
+              break;
+            }
+          }
+        }
+      }
+
       if (geomType === 'circle') {
         map.addLayer({
           id: layerId,
@@ -274,7 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ],
             'circle-stroke-color': '#000000'
           }
-        });
+        }, beforeLayerId);
+
       } else if (geomType === 'fill') {
         map.addLayer({
           id: layerId,
@@ -290,14 +331,24 @@ document.addEventListener('DOMContentLoaded', () => {
             ],
             'fill-outline-color': '#000000' 
           }
-        });
+        }, beforeLayerId);
+
       } else if (geomType === 'line') {
+        // Filtramos y aplicamos colores separados para Oleoducto y Gasducto
+        const lineColorExpression = [
+          'match',
+          ['get', 'tipo'],
+          'Oleoducto', '#ff7043', 
+          'Gasducto', '#ffeb3b', 
+          geomColor
+        ];
+
         map.addLayer({
           id: layerId,
           type: 'line',
           source: sourceId,
           paint: {
-            'line-color': geomColor,
+            'line-color': lineColorExpression,
             'line-width': [
               'case',
               ['boolean', ['feature-state', 'selected'], false], 6, 
@@ -309,74 +360,48 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Configurar eventos de hover, clic e interactividad una sola vez por capa
     if (!map.listenedClicks) map.listenedClicks = new Set();
     if (!map.listenedClicks.has(layerId)) {
       map.listenedClicks.add(layerId);
-      
       let hoveredStateId = null;
 
-      // Evento Mouse Enter (Efecto Hover)
       map.on('mousemove', layerId, (e) => {
         map.getCanvas().style.cursor = 'pointer';
         if (e.features.length > 0) {
           if (hoveredStateId !== null) {
-            map.setFeatureState(
-              { source: sourceId, id: hoveredStateId },
-              { hover: false }
-            );
+            map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: false });
           }
           hoveredStateId = e.features[0].id;
-          map.setFeatureState(
-            { source: sourceId, id: hoveredStateId },
-            { hover: true }
-          );
+          map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: true });
         }
       });
 
-      // Evento Mouse Leave (Quitar Efecto Hover)
       map.on('mouseleave', layerId, () => {
         map.getCanvas().style.cursor = '';
         if (hoveredStateId !== null) {
-          map.setFeatureState(
-            { source: sourceId, id: hoveredStateId },
-            { hover: false }
-          );
+          map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: false });
         }
         hoveredStateId = null;
       });
 
-      // Evento Click (Panel de Información y Selección Persistente)
       map.on('click', layerId, (ev) => {
         if (!ev.features || ev.features.length === 0) return;
         const clickedFeature = ev.features[0];
         const props = clickedFeature.properties;
         const clickedId = clickedFeature.id;
 
-        // Gestionar estado seleccionado anterior y actual
         if (selectedFeatureId !== null && selectedSourceId !== null) {
-          map.setFeatureState(
-            { source: selectedSourceId, id: selectedFeatureId },
-            { selected: false }
-          );
+          map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: false });
         }
 
         selectedFeatureId = clickedId;
         selectedSourceId = sourceId;
 
-        map.setFeatureState(
-          { source: selectedSourceId, id: selectedFeatureId },
-          { selected: true }
-        );
+        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: true });
 
         const infoContent = document.getElementById('infoPanelContent');
-        
         if (infoContent) {
-          let html = `
-            <div class="info-card">
-              <div class="ic-label">Capa: ${tableName}</div>
-              <hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">
-          `;
+          let html = `<div class="info-card"><div class="ic-label">Capa: ${tableName}</div><hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
           for (let key in props) {
             html += `<p style="margin: 4px 0; font-size: 0.75rem;"><b>${key}:</b> ${props[key]}</p>`;
           }
