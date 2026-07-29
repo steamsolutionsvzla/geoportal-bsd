@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     box.appendChild(resultLine);
 
     // URL que usa tu app actualmente
-    const testUrl = 'http://localhost:8000/api/v1/layers/Estaciones';
+    const testUrl = "/api/v1/layers/Estaciones";
 
     fetch(testUrl)
       .then(async (response) => {
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isVisible) {
         try {
-          const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+          const response = await fetch(`/api/v1/layers/${tableName}`);
           const data = await response.json();
 
           if (!data.features || data.features.length === 0) {
