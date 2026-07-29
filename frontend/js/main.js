@@ -1,73 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
   // =========================================================================
-  // 0. DIAGNÓSTICO AUTOMÁTICO DE CONEXIÓN AL BACKEND (FASTAPI)
-  //    Esto corre solo al cargar la página y muestra el resultado en pantalla,
-  //    sin necesidad de usar la consola del navegador.
-  //    PODÉS BORRAR ESTE BLOQUE UNA VEZ QUE HAYAS RESUELTO EL PROBLEMA.
-  // =========================================================================
-  (function diagnosticoBackend() {
-    const box = document.createElement('div');
-    box.id = 'diag-backend-box';
-    box.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      z-index: 999999;
-      background: #111;
-      color: #0f0;
-      font-family: monospace;
-      font-size: 12px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      max-width: 420px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      white-space: pre-wrap;
-      line-height: 1.5;
-    `;
-    box.textContent = '🔍 Probando conexión al backend FastAPI...';
-    document.body.appendChild(box);
-
-    const closeBtn = document.createElement('div');
-    closeBtn.textContent = '✕ cerrar';
-    closeBtn.style.cssText = 'position:absolute; top:6px; right:8px; cursor:pointer; color:#ff5555; font-weight:bold;';
-    closeBtn.onclick = () => box.remove();
-    box.appendChild(closeBtn);
-
-    const resultLine = document.createElement('div');
-    box.appendChild(resultLine);
-
-    // URL que usa tu app actualmente
-    const testUrl = "/api/v1/layers/Estaciones";
-
-    fetch(testUrl)
-      .then(async (response) => {
-        const data = await response.json();
-        const nFeatures = data.features ? data.features.length : 'N/A';
-        resultLine.textContent =
-          `✅ CONEXIÓN EXITOSA\n` +
-          `URL: ${testUrl}\n` +
-          `Status: ${response.status}\n` +
-          `Features recibidas: ${nFeatures}`;
-        resultLine.style.color = '#0f0';
-        console.log('✅ Backend OK:', data);
-      })
-      .catch((error) => {
-        resultLine.textContent =
-          `❌ NO SE PUDO CONECTAR\n` +
-          `URL probada: ${testUrl}\n` +
-          `Origen actual: ${window.location.origin}\n` +
-          `Error: ${error.message}\n\n` +
-          `➡ Esto confirma que "localhost:8000" no existe\n` +
-          `   en la máquina de quien visita la página.\n` +
-          `   Hay que usar una ruta relativa ("/api/...")\n` +
-          `   con Nginx haciendo de proxy hacia el backend.`;
-        resultLine.style.color = '#ff5555';
-        console.error('❌ Backend ERROR:', error);
-      });
-  })();
-
-  // =========================================================================
   // VARIABLES GLOBALES DE ESTADO DE SELECCIÓN
   // =========================================================================
   let selectedFeatureId = null;
@@ -261,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isVisible) {
         try {
-          const response = await fetch(`/api/v1/layers/${tableName}`);
+          const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
           const data = await response.json();
 
           if (!data.features || data.features.length === 0) {
