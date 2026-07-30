@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   let selectedFeatureId = null;
   let selectedSourceId = null;
+  let availableLayers = []; // Almacenará dinámicamente las capas de la BD
 
   // =========================================================================
   // 1. INICIALIZACIÓN CON ESTILO BASE CLARO
@@ -24,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // 2. REGISTRO DE CAPAS SUPERPUESTAS Y CARGA DINÁMICA
   // =========================================================================
-  map.on('load', () => {
+  map.on('load', async () => {
 
     // --- CAPA: VISTA CLARA (CARTO VOYAGER) ---
     map.addSource('clara-source', {
@@ -88,39 +89,36 @@ document.addEventListener('DOMContentLoaded', () => {
     updateScaleKm();
 
     // =========================================================================
-    // 2.1. CARGA DINÁMICA DE CAPAS DESDE FASTAPI (POSTGIS)
+    // 2.1. CARGA DINÁMICA DE CAPAS DESDE LA BD (VIA FASTAPI)
     // =========================================================================
-    // Nota: Separamos Oleoductos y Gasoductos para que aparezcan individualmente en la leyenda
-    const availableLayers = [
-      { id: 'Estaciones', name: 'Estaciones', type: 'circle', color: '#f44336' },
-      { id: 'Fosas_estaciones', name: 'Fosas Estaciones', type: 'circle', color: '#9c27b0' },
-      { id: 'Fosas_plantas', name: 'Fosas Plantas', type: 'circle', color: '#673ab7' },
-      { id: 'Plantas', name: 'Plantas', type: 'circle', color: '#3ab7ad' },
-      { id: 'Fosas_pozos', name: 'Fosas Pozos', type: 'circle', color: '#3f51b5' },
-      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Oleoductos', type: 'line', subtype: 'Oleoducto', color: '#ff7043' },
-      { id: 'Tuberias_oleoductos_gasoductos_FPO', name: 'Gasoductos', type: 'line', subtype: 'Gasducto', color: '#ffeb3b' },
-      { id: 'Bloques_Campos_petroleros', name: 'Bloques y Campos Petroleros', type: 'fill', color: '#ff9800' },
-      { id: 'Distrito_Anaco', name: 'Distrito Anaco', type: 'fill', color: '#4caf50' },
-      { id: 'Distrito_San_Tome', name: 'Distrito San Tomé', type: 'fill', color: '#2196f3' },
-      { id: 'Limite_FPO_2012', name: 'Límite FPO 2012', type: 'fill', color: '#e91e63' }
-    ];
     const layerListContainer = document.getElementById('layerList');
 
-    if (layerListContainer) {
-      layerListContainer.innerHTML = ''; 
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/layers/list');
+      const data = await response.json();
       
-      // Renderizamos solo las capas únicas en el menú lateral de selección
-      const uniqueLayers = availableLayers.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-      uniqueLayers.forEach(layerInfo => {
-        const row = document.createElement('div');
-        row.className = 'layer-row off';
-        row.innerHTML = `
-          <div class="swatch" style="background: ${layerInfo.color};"></div>
-          <div class="lname">${layerInfo.id === 'Tuberias_oleoductos_gasoductos_FPO' ? 'Oleoductos y Gasoductos FPO' : layerInfo.name}</div>
-          <div class="toggle" data-table="${layerInfo.id}"></div>
-        `;
-        layerListContainer.appendChild(row);
-      });
+      // Asignamos las capas devueltas por el servicio (ya vienen ordenadas alfabéticamente)
+      availableLayers = data.layers;
+
+      if (layerListContainer) {
+        layerListContainer.innerHTML = ''; 
+        
+        availableLayers.forEach(layerInfo => {
+          const row = document.createElement('div');
+          row.className = 'layer-row off';
+          row.innerHTML = `
+            <div class="swatch" style="background: ${layerInfo.color};"></div>
+            <div class="lname">${layerInfo.name}</div>
+            <div class="toggle" data-table="${layerInfo.id}"></div>
+          `;
+          layerListContainer.appendChild(row);
+        });
+      }
+    } catch (error) {
+      console.error("Error al obtener la lista de capas de la BD:", error);
+      if (layerListContainer) {
+        layerListContainer.innerHTML = '<div style="color: #ff5722; font-size: 0.8rem; padding: 10px; text-align: center;">Error al conectar con la BD.</div>';
+      }
     }
 
     // Función para actualizar dinámicamente la leyenda flotante con estilo cartográfico
@@ -139,13 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const categoryTitle = document.createElement('div');
       categoryTitle.style.cssText = 'font-size: 0.75rem; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;';
-      categoryTitle.textContent = 'Petróleo y gas / Capas Activas';
+      categoryTitle.textContent = 'Capas Activas';
       legendList.appendChild(categoryTitle);
 
       activeToggles.forEach(toggle => {
         const tableName = toggle.getAttribute('data-table');
         
-        // Buscamos todas las configuraciones asociadas a este ID de tabla (para separar tuberías)
         const matchingLayers = availableLayers.filter(l => l.id === tableName);
         
         matchingLayers.forEach(layerConfig => {
@@ -177,69 +174,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Manejador de eventos para activar o desactivar capas geográficas
-    layerListContainer.addEventListener('click', async (e) => {
-      const toggleBtn = e.target.closest('.toggle[data-table]');
-      if (!toggleBtn) return;
-      
-      e.stopPropagation();
-      toggleBtn.classList.toggle('on');
-      
-      const row = toggleBtn.closest('.layer-row');
-      if (row) row.classList.toggle('off', !toggleBtn.classList.contains('on'));
+    if (layerListContainer) {
+      layerListContainer.addEventListener('click', async (e) => {
+        const toggleBtn = e.target.closest('.toggle[data-table]');
+        if (!toggleBtn) return;
+        
+        e.stopPropagation();
+        toggleBtn.classList.toggle('on');
+        
+        const row = toggleBtn.closest('.layer-row');
+        if (row) row.classList.toggle('off', !toggleBtn.classList.contains('on'));
 
-      const tableName = toggleBtn.getAttribute('data-table');
-      const sourceId = `source-${tableName}`;
-      const layerId = `layer-${tableName}`;
-      const isVisible = toggleBtn.classList.contains('on');
+        const tableName = toggleBtn.getAttribute('data-table');
+        const sourceId = `source-${tableName}`;
+        const layerId = `layer-${tableName}`;
+        const isVisible = toggleBtn.classList.contains('on');
 
-      if (isVisible) {
-        try {
-          const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
-          const data = await response.json();
+        if (isVisible) {
+          try {
+            const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+            const data = await response.json();
 
-          if (!data.features || data.features.length === 0) {
-            alert(`La capa "${tableName}" no devolvió registros desde la base de datos.`);
+            if (!data.features || data.features.length === 0) {
+              alert(`La capa "${tableName}" no devolvió registros desde la base de datos.`);
+              toggleBtn.classList.remove('on');
+              if (row) row.classList.add('off');
+              refreshCount();
+              updateLegendUI();
+              return;
+            }
+
+            if (map.getSource(sourceId)) {
+              map.getSource(sourceId).setData(data);
+            } else {
+              map.addSource(sourceId, {
+                type: 'geojson',
+                data: data,
+                generateId: true 
+              });
+            }
+
+            addMapLayerDirectly(tableName, sourceId, layerId, availableLayers);
+
+          } catch (error) {
+            console.error("Error al cargar la capa geográfica:", error);
+            alert("No se pudo conectar con el backend de FastAPI en http://localhost:8000");
             toggleBtn.classList.remove('on');
             if (row) row.classList.add('off');
-            refreshCount();
-            updateLegendUI();
-            return;
           }
-
+        } else {
+          if (selectedSourceId === sourceId) {
+            selectedFeatureId = null;
+            selectedSourceId = null;
+          }
+          if (map.getLayer(layerId)) {
+            map.removeLayer(layerId);
+          }
           if (map.getSource(sourceId)) {
-            map.getSource(sourceId).setData(data);
-          } else {
-            map.addSource(sourceId, {
-              type: 'geojson',
-              data: data,
-              generateId: true 
-            });
+            map.removeSource(sourceId);
           }
+        }
 
-          addMapLayerDirectly(tableName, sourceId, layerId, availableLayers);
-
-        } catch (error) {
-          console.error("Error al cargar la capa geográfica:", error);
-          alert("No se pudo conectar con el backend de FastAPI en http://localhost:8000");
-          toggleBtn.classList.remove('on');
-          if (row) row.classList.add('off');
-        }
-      } else {
-        if (selectedSourceId === sourceId) {
-          selectedFeatureId = null;
-          selectedSourceId = null;
-        }
-        if (map.getLayer(layerId)) {
-          map.removeLayer(layerId);
-        }
-        if (map.getSource(sourceId)) {
-          map.removeSource(sourceId);
-        }
-      }
-
-      refreshCount();
-      updateLegendUI();
-    });
+        refreshCount();
+        updateLegendUI();
+      });
+    }
 
     // Manejador general de clics en el mapa para deseleccionar si se hace clic fuera de una entidad
     map.on('click', (e) => {
@@ -334,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, beforeLayerId);
 
       } else if (geomType === 'line') {
-        // Filtramos y aplicamos colores separados para Oleoducto y Gasducto
         const lineColorExpression = [
           'match',
           ['get', 'tipo'],
@@ -356,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
               2
             ]
           }
-        });
+        }, beforeLayerId);
       }
     }
 
@@ -581,7 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // 6. COORDENADAS EN GRADOS DECIMALES
   // =========================================================================
-  const mapWrap = document.querySelector('.map-wrap');
   const statCoord = document.getElementById('statCoord');
 
   map.on('mousemove', (e) => {

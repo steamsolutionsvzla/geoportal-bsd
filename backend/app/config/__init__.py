@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     DB_HOST: str = "127.0.0.1"
-    DB_PORT: int = 5432
-    DB_NAME: str
-    DB_USER: str
-    DB_PASSWORD: str
+    DB_PORT: int = 5433
+    DB_NAME: str = "petroleo_db"
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = "0907"
 
     @computed_field
     @property
