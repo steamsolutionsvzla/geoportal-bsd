@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const response = await fetch('http://localhost:8000/api/v1/layers/list');
+     // const response = await fetch('/api/v1/layers/list');
       const data = await response.json();
       
       // Asignamos las capas devueltas por el servicio (ya vienen ordenadas alfabéticamente)
@@ -192,7 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isVisible) {
           try {
-            const response = await fetch(`/api/v1/layers/${tableName}`);
+            const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+           //  const response = await fetch(`/api/v1/layers/${tableName}`);
             const data = await response.json();
 
             if (!data.features || data.features.length === 0) {

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.database import connect_db, disconnect_db
 from app.api.layers import router as layers_router
+from app.api.auth import router as auth_router  # <--- 1. Importa tu router de autenticación
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,7 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 2. Registra ambos routers en la aplicación
 app.include_router(layers_router)
+app.include_router(auth_router)  # <--- Habilita la ruta /api/login
 
 @app.get("/")
 def health_check():

@@ -1,133 +1,63 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión</title>
-    <link rel="stylesheet" href="style.css">
-
-    <style>
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-body {
-    background-color: #f0f2f5;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-
-.login-container {
-    background: #ffffff;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-}
-
-.login-container h2 {
-    margin-bottom: 20px;
-    color: #333333;
-    text-align: center;
-}
-
-.input-group {
-    margin-bottom: 15px;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: #555555;
-    font-size: 14px;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #cccccc;
-    border-radius: 5px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.3s;
-}
-
-.input-group input:focus {
-    border-color: #007bff;
-}
-
-.btn-login {
-    width: 100%;
-    padding: 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-    margin-top: 10px;
-}
-
-.btn-login:hover {
-    background-color: #0056b3;
-}
-
-.footer-link {
-    margin-top: 20px;
-    text-align: center;
-}
-
-.btn-geoportal {
-    display: inline-block;
-    color: #6c757d;
-    text-decoration: none;
-    font-size: 13px;
-    border: 1px dashed #6c757d;
-    padding: 8px 12px;
-    border-radius: 5px;
-    transition: all 0.3s;
-}
-
-.btn-geoportal:hover {
-    background-color: #f8f9fa;
-    color: #343a40;
-    border-color: #343a40;
-}
-
-
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
 
-    <div class="login-container">
-        <h2>Iniciar Sesión</h2>
-        
-        <form action="#" method="POST">
-            <div class="input-group">
-                <label for="username">Usuario</label>
-                <input type="text" id="username" name="username" required placeholder="Ingresa tu usuario">
-            </div>
+  <div class="login-wrapper">
+    <div class="login-card">
 
-            <div class="input-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" name="password" required placeholder="Ingresa tu contraseña">
-            </div>
+      <div class="login-logo">
+        <div class="logo-circle">EC</div>
+        <h1>Geoportal</h1>
+        <p>Accede a tu panel de trabajo</p>
+      </div>
 
-            <button type="submit" class="btn-login">Entrar</button>
-        </form>
+      <form id="loginForm" novalidate>
 
-        <div class="footer-link">
-            <a href="geoportal.html" class="btn-geoportal">Ir al Geoportal (Provisional)</a>
+        <div class="input-group">
+          <label for="email">Correo corporativo</label>
+          <input type="email" id="email" name="email" placeholder="nombre@empresa.com" required>
+          <span class="error-msg" id="emailError"></span>
         </div>
-    </div>
 
+        <div class="input-group">
+          <label for="password">Contraseña</label>
+          <div class="password-field">
+            <input type="password" id="password" name="password" placeholder="" required>
+            <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar contraseña"></button>
+          </div>
+          <span class="error-msg" id="passwordError"></span>
+        </div>
+
+        <div class="options-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remember">
+            <span>Recordarme</span>
+          </label>
+          <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <button type="submit" class="btn-login" id="btnLogin">
+          <span class="btn-text">Iniciar sesión</span>
+          <span class="spinner" id="spinner"></span>
+        </button>
+
+        <div class="alert" id="alertBox"></div>
+
+      </form>
+
+      <div class="login-footer">
+        <p>¿No tienes cuenta? <a href="#">Solicita acceso a TI</a></p>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/login.js"></script>
 </body>
 </html>
