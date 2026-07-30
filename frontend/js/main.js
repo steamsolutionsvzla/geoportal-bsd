@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isVisible) {
           try {
-            const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+            const response = await fetch(`/api/v1/layers/${tableName}`);
             const data = await response.json();
 
             if (!data.features || data.features.length === 0) {
@@ -664,3 +664,11 @@ document.addEventListener('DOMContentLoaded', () => {
   buildTicks(document.getElementById('gratRight'), 18);
 
 });
+function cerrarSesion() {
+    // Si guardas datos de sesión, límpialos aquí (opcional):
+    // localStorage.clear();
+    // sessionStorage.clear();
+
+    // Redirige al index (cambia 'index.html' por la ruta de tu página de inicio si es distinta)
+    window.location.href = 'index.html';
+}
