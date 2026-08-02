@@ -6,6 +6,7 @@
 <title>Geoportal-BSD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <!-- MapLibre GL JS CSS y JS -->
@@ -43,13 +44,59 @@
   </svg>
 </button>
 
-      <!-- DB_DATA: Iniciales o avatar del usuario autenticado -->
-      <div class="avatar">JD</div>
+      <!-- DB_DATA: usuario autenticado (simulado en el maquetado) -->
+      <div class="user-chip" title="Sesión iniciada">
+        <div class="user-info">
+          <span class="u-name">Juan Fernández</span>
+          <span class="u-role">Dpto. de Datos Digitales</span>
+        </div>
+        <div class="avatar">JF</div>
+      </div>
     </div>
   </header>
 
   <!-- SIDEBAR (PANEL IZQUIERDO) -->
   <aside class="sidebar" id="sidebar">
+
+    <!-- FILTRO VISUAL POR ESTADO / MUNICIPIO -->
+    <div class="filter-panel">
+      <div class="panel-heading">
+        <span class="eyebrow">Filtrar por ubicación</span>
+      </div>
+
+      <div class="filter-group">
+        <!-- Selector de Estado -->
+        <div class="loc-filter" id="filterEstado">
+          <button type="button" class="loc-filter-btn" data-placeholder="Estado">
+            <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <span class="lf-label">Estado</span>
+            <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="loc-filter-dropdown" id="dropdownEstado">
+            <div class="loc-option selected" data-value="">Todos los estados</div>
+            <!-- Se llenará dinámicamente o estáticamente con estados de Venezuela -->
+          </div>
+        </div>
+
+        <!-- Selector de Municipio -->
+        <div class="loc-filter" id="filterMunicipio">
+          <button type="button" class="loc-filter-btn" data-placeholder="Municipio">
+            <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="6" height="12"/><rect x="14" y="4" width="6" height="17"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
+            <span class="lf-label">Municipio</span>
+            <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="loc-filter-dropdown" id="dropdownMunicipio">
+            <div class="loc-option selected" data-value="">Todos los municipios</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón para aplicar el filtro y ubicar en el mapa -->
+      <div class="filter-action-container">
+        <button type="button" id="applyFilterBtn" class="apply-filter-btn">Aplicar Zoom a Ubicación</button>
+      </div>
+    </div>
+
     <div class="panel-heading">
       <span class="eyebrow">Capas del mapa</span>
       <span class="count" id="layerCount">0 activas</span>
@@ -63,6 +110,30 @@
   <!-- MAP -->
   <div class="map-wrap">
     <div id="map"></div>
+
+    <!-- Brújula -->
+    <div class="compass" title="Norte">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="46" fill="rgba(22,22,26,0.78)" stroke="#38383f" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(115,152,207,0.35)" stroke-width="1"/>
+        <g stroke="rgba(244,242,237,0.5)" stroke-width="1.5">
+          <line x1="50" y1="6" x2="50" y2="13"/>
+          <line x1="50" y1="87" x2="50" y2="94"/>
+          <line x1="6" y1="50" x2="13" y2="50"/>
+          <line x1="87" y1="50" x2="94" y2="50"/>
+        </g>
+        <!-- Aguja -->
+        <polygon points="50,15 44.5,50 50,50" fill="#c1584a"/>
+        <polygon points="50,15 55.5,50 50,50" fill="rgba(193,88,74,0.55)"/>
+        <polygon points="50,85 44.5,50 50,50" fill="#f4f2ed"/>
+        <polygon points="50,85 55.5,50 50,50" fill="rgba(244,242,237,0.5)"/>
+        <circle cx="50" cy="50" r="3.5" fill="#f4f2ed" stroke="#0c0c0e" stroke-width="1"/>
+        <text x="50" y="23" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#f4f2ed">N</text>
+        <text x="50" y="83" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">S</text>
+        <text x="19" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">O</text>
+        <text x="81" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">E</text>
+      </svg>
+    </div>
 
     <!-- Botón Toggle Sidebar Izquierdo (Capas) -->
     <button type="button" class="panel-toggle-btn toggle-left" id="sidebarToggleBtn" aria-label="Alternar capas">

@@ -1,900 +1,233 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GEOBSD | Plataforma de Georreferenciación y Análisis Espacial</title>
-    <style>
-      :root {
-        --bg-primary: #0b0f19;
-        --bg-secondary: #111827;
-        --bg-card: rgba(17, 24, 39, 0.7);
-        --bg-card-border: rgba(255, 255, 255, 0.08);
-        --accent-cyan: #06b6d4;
-        --accent-emerald: #10b981;
-        --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #10b981 100%);
-        --text-main: #f3f4f6;
-        --text-muted: #9ca3af;
-        --text-dim: #6b7280;
-        --border-color: #1f2937;
-        --shadow-glow: 0 0 25px rgba(6, 182, 212, 0.15);
-        --radius-sm: 8px;
-        --radius-md: 14px;
-        --radius-lg: 20px;
-        --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSD · Geoportal de uso estratégico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/index.css">
+<link rel="icon" type="image/svg+xml" href="img/favicon.svg">
+<script src="js/index.js"></script>
+</head>
+<body>
 
-     * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-
-  html {
-    scroll-behavior: smooth;
-    font-family:
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      Helvetica,
-      Arial,
-      sans-serif;
-    background-color: var(--bg-primary);
-    color: var(--text-main);
-    line-height: 1.6;
-  }
-
-  body {
-    overflow-x: hidden;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Background Grid Pattern */
-  .bg-grid {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-image:
-      linear-gradient(
-        to right,
-        rgba(255, 255, 255, 0.03) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(255, 255, 255, 0.03) 1px,
-        transparent 1px
-      );
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1.5rem;
-    width: 100%;
-    position: relative;
-    z-index: 1;
-  }
-
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(11, 15, 25, 0.85);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .nav-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 72px;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    text-decoration: none;
-    color: var(--text-main);
-    font-weight: 800;
-    font-size: 1.4rem;
-    letter-spacing: -0.5px;
-  }
-
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: var(--accent-gradient);
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--shadow-glow);
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 2rem;
-    list-style: none;
-    align-items: center;
-  }
-
-  .nav-links a {
-    color: var(--text-muted);
-    text-decoration: none;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: var(--transition);
-  }
-
-  .nav-links a:hover {
-    color: var(--accent-cyan);
-  }
-
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1.4rem;
-    border-radius: var(--radius-sm);
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-    cursor: pointer;
-    transition: var(--transition);
-    border: 1px solid transparent;
-  }
-
-  .btn-primary {
-    background: var(--accent-gradient);
-    color: #000;
-    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
-  }
-
-  .btn-primary:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
-  }
-
-  .btn-outline {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-main);
-    border-color: var(--bg-card-border);
-  }
-
-  .btn-outline:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--accent-cyan);
-  }
-
-  .hero {
-    padding: 6rem 0 4rem 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-    align-items: center;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.85rem;
-    background: rgba(6, 182, 212, 0.1);
-    border: 1px solid rgba(6, 182, 212, 0.3);
-    border-radius: 50px;
-    color: var(--accent-cyan);
-    font-size: 0.82rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
-  }
-
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    background-color: var(--accent-emerald);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent-emerald);
-  }
-
-  .hero-title {
-    font-size: clamp(2.5rem, 5vw, 3.8rem);
-    font-weight: 800;
-    line-height: 1.15;
-    margin-bottom: 1.25rem;
-    letter-spacing: -1px;
-  }
-
-  .text-gradient {
-    background: var(--accent-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .hero-subtitle {
-    font-size: 1.1rem;
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-    max-width: 500px;
-  }
-
-  .hero-buttons {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .features {
-    padding: 5rem 0;
-  }
-
-  .section-header {
-    text-align: center;
-    max-width: 650px;
-    margin: 0 auto 3.5rem auto;
-  }
-
-  .section-title {
-    font-size: 2.2rem;
-    font-weight: 700;
-    margin-bottom: 0.8rem;
-  }
-
-  .section-subtitle {
-    color: var(--text-muted);
-    font-size: 1rem;
-  }
-
-  .grid-3 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--bg-card-border);
-    border-radius: var(--radius-md);
-    padding: 2rem;
-    transition: var(--transition);
-    backdrop-filter: blur(10px);
-  }
-
-  .card:hover {
-    border-color: rgba(6, 182, 212, 0.4);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-glow);
-  }
-
-  .card-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(6, 182, 212, 0.1);
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--accent-cyan);
-    margin-bottom: 1.25rem;
-  }
-
-  .card-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 0.6rem;
-  }
-
-  .card-text {
-    color: var(--text-muted);
-    font-size: 0.92rem;
-    line-height: 1.5;
-  }
-
-  .demo-section {
-    padding: 4rem 0 6rem 0;
-  }
-
-  .gis-wrapper {
-    background: var(--bg-secondary);
-    border: 1px solid var(--bg-card-border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-  }
-
-  .gis-toolbar {
-    background: rgba(15, 23, 42, 0.9);
-    padding: 0.75rem 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-color);
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .gis-status {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    font-size: 0.85rem;
-    font-family: monospace;
-    color: var(--accent-cyan);
-  }
-
-  .gis-controls {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .gis-btn {
-    background: #1f2937;
-    border: 1px solid #374151;
-    color: var(--text-main);
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: var(--transition);
-  }
-
-  .gis-btn.active,
-  .gis-btn:hover {
-    background: var(--accent-cyan);
-    color: #000;
-    border-color: var(--accent-cyan);
-  }
-
-  .gis-viewport {
-    position: relative;
-    height: 420px;
-    background: #0d1322;
-    overflow: hidden;
-    cursor: crosshair;
-  }
-
-  /* Simulated Map Vector SVG */
-  .map-svg {
-    width: 100%;
-    height: 100%;
-  }
-
-  .gis-tooltip {
-    position: absolute;
-    background: rgba(15, 23, 42, 0.92);
-    border: 1px solid var(--accent-cyan);
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.78rem;
-    pointer-events: none;
-    transform: translate(-50%, -120%);
-    display: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    white-space: nowrap;
-    z-index: 10;
-  }
-
-  @media (max-width: 900px) {
-    .hero {
-      grid-template-columns: 1fr;
-      text-align: center;
-      padding-top: 3rem;
-    }
-
-    .hero-subtitle {
-      margin: 0 auto 2rem auto;
-    }
-
-    .hero-buttons {
-      justify-content: center;
-    }
-
-    .nav-links {
-      display: none;
-    }
-  }
-
-  footer {
-    margin-top: auto;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
-    padding: 3rem 0;
-    color: var(--text-dim);
-    font-size: 0.88rem;
-  }
-
-  .footer-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-  }
-</style>
-  </head>
-  <body>
-    <div class="bg-grid"></div>
-
-   <header>
-  <div class="container nav-wrapper">
-    <a href="#" class="logo">
-      <div class="logo-icon">
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#000"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-          <polyline points="2 12 12 17 22 12"></polyline>
-        </svg>
-      </div>
-      <span>Geoportal Banco Soberano de Datos</span>
-    </a>
-
-    <ul class="nav-links">
-      <li><a href="#caracteristicas">Infraestructura</a></li>
-      <li><a href="#demo">Visor Territorial</a></li>
-      <li><a href="#especificaciones">Seguridad y Datos</a></li>
-    </ul>
-
-    <a href="login.html" class="btn btn-primary">
-      ACCESO INSTITUCIONAL
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <line x1="5" y1="12" x2="19" y2="12"></line>
-        <polyline points="12 5 19 12 12 19"></polyline>
-      </svg>
-    </a>
-  </div>
-</header>
-
-<main>
-  <section class="container hero">
-    <div>
-      <div class="badge">
-        <span class="badge-dot"></span>
-        Geoportal Oficial del Banco Soberano de Datos
-      </div>
-      <h1 class="hero-title">
-        Plataforma Geoespacial <br />
-        <span class="text-gradient">Estratégica y Soberana</span>
-      </h1>
-      <p class="hero-subtitle">
-        Sistema centralizado de consulta territorial, cartografía de recursos y gestión de bases de datos geográficas de alta precisión para el resguardo de la soberanía nacional. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-      </p>
-      <div class="hero-buttons">
-        <a href="#demo" class="btn btn-primary">Explorar Capas GIS</a>
-        <a href="#especificaciones" class="btn btn-outline"
-          >Ver Reportes Técnicos</a>
-      </div>
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand-block">
+      <img src="img/logo.png" alt="Logo" class="brand-mark-img">
+      <span class="brand-name">Geoportal</span>
     </div>
-
-    <!-- Hero Visual Interactive Mockup -->
-    <div class="gis-wrapper">
-      <div class="gis-toolbar">
-        <div style="display: flex; align-items: center; gap: 0.5rem">
-          <div
-            style="
-              width: 10px;
-              height: 10px;
-              border-radius: 50%;
-              background: #ef4444;
-            "
-          ></div>
-          <div
-            style="
-              width: 10px;
-              height: 10px;
-              border-radius: 50%;
-              background: #f59e0b;
-            "
-          ></div>
-          <div
-            style="
-              width: 10px;
-              height: 10px;
-              border-radius: 50%;
-              background: #10b981;
-            "
-          ></div>
-          <span
-            style="
-              font-size: 0.75rem;
-              color: var(--text-muted);
-              margin-left: 0.5rem;
-              font-family: monospace;
-            "
-            >BSD-GEOPORTAL :: Nodo Central</span>
-        </div>
-      </div>
-      <div class="gis-viewport">
-        <svg class="map-svg" viewBox="0 0 500 300">
-          <!-- Grid Lines -->
-          <defs>
-            <pattern
-              id="grid"
-              width="40"
-              height="40"
-              patternUnits="userSpaceOnUse"
-            >
-              <path
-                d="M 40 0 L 0 0 0 40"
-                fill="none"
-                stroke="rgba(255,255,255,0.05)"
-                stroke-width="1"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-
-          <!-- Coastline Vector Simulation -->
-          <path
-            d="M 20,80 Q 80,120 150,90 T 280,160 T 420,100 T 480,220"
-            fill="none"
-            stroke="#06b6d4"
-            stroke-width="2"
-            opacity="0.6"
-          />
-          <path
-            d="M 50,220 Q 120,180 220,240 T 380,200"
-            fill="none"
-            stroke="#10b981"
-            stroke-dasharray="4"
-            stroke-width="1.5"
-            opacity="0.5"
-          />
-
-          <!-- Points of Interest -->
-          <circle cx="150" cy="90" r="5" fill="#06b6d4" />
-          <circle
-            cx="150"
-            cy="90"
-            r="12"
-            fill="none"
-            stroke="#06b6d4"
-            stroke-width="1"
-            opacity="0.5"
-          >
-            <animate
-              attributeName="r"
-              values="5;18;5"
-              dur="3s"
-              repeatCount="indefinite"
-            />
-          </circle>
-
-          <circle cx="280" cy="160" r="5" fill="#10b981" />
-          <circle cx="420" cy="100" r="5" fill="#3b82f6" />
-        </svg>
-      </div>
+    <div class="nav-links">
+      <a href="#plataforma">Plataforma</a>
+      <a href="#funciones">Funciones</a>
+      <a href="#cobertura">Cobertura</a>
     </div>
-  </section>
-
-  <section id="caracteristicas" class="container features">
-    <div class="section-header">
-      <h2 class="section-title">Infraestructura Tecnológica Avanzada</h2>
-      <p class="section-subtitle">
-        El Banco Soberano de Datos garantiza el resguardo, procesamiento y visualización segura de información geoespacial crítica.
-      </p>
-    </div>
-
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-            <polyline points="2 17 12 22 22 17"></polyline>
-            <polyline points="2 12 12 17 22 12"></polyline>
-          </svg>
-        </div>
-        <h3 class="card-title">Soberanía de Datos</h3>
-        <p class="card-text">
-          Arquitectura completamente independiente y segura. Procesa y almacena información estratégica nacional sin depender de plataformas de terceros o nubes externas. Pellentesque habitant morbi tristique senectus.
-        </p>
-      </div>
-
-      <div class="card">
-        <div class="card-icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path
-              d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-            ></path>
-          </svg>
-        </div>
-        <h3 class="card-title">Análisis Geográfico Multi-Capa</h3>
-        <p class="card-text">
-          Herramientas de superposición y consulta vectorial en tiempo real para el estudio detallado del territorio, gestión de recursos y estadística espacial avanzada. Curabitur pretium tincidunt lacus.
-        </p>
-      </div>
-
-      <div class="card">
-        <div class="card-icon">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-            ></path>
-          </svg>
-        </div>
-        <h3 class="card-title">Bases de Datos Espaciales</h3>
-        <p class="card-text">
-          Soporte robusto para motores PostGIS y optimización de consultas masivas de polígonos, líneas y puntos con índices espaciales de alto rendimiento. Sed vulputate mi nec ante congue interdum.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <section id="demo" class="container demo-section">
-    <div class="section-header">
-      <h2 class="section-title">Visor Cartográfico del Banco Soberano de Datos</h2>
-      <p class="section-subtitle">
-        Interactúa con el plano de referencia nacional para inspeccionar coordenadas de georreferenciación y capas institucionales activas.
-      </p>
-    </div>
-
-    <div class="gis-wrapper">
-      <div class="gis-toolbar">
-        <div class="gis-status">
-          <span>CRS: EPSG:4326 (WGS84)</span>
-          <span id="coords-display">LAT: 10.3412 | LON: -66.9831</span>
-        </div>
-
-        <div class="gis-controls">
-          <button class="gis-btn active" id="btn-layer-vector">
-            Capas Vectoriales
-          </button>
-          <button class="gis-btn" id="btn-layer-satellite">
-            Modelo Satelital
-          </button>
-          <button class="gis-btn" id="btn-reset">Restablecer Vista</button>
-        </div>
-      </div>
-
-      <div class="gis-viewport" id="interactive-map">
-        <div class="gis-tooltip" id="map-tooltip">Nodo Territorial BSD</div>
-
-        <svg class="map-svg" id="map-svg-element" viewBox="0 0 800 400">
-          <rect
-            id="map-bg"
-            width="100%"
-            height="100%"
-            fill="#0d1322"
-            transition="fill 0.3s"
-          />
-
-          <!-- Map Grid -->
-          <g stroke="rgba(255,255,255,0.04)" stroke-width="1">
-            <line x1="0" y1="100" x2="800" y2="100" />
-            <line x1="0" y1="200" x2="800" y2="200" />
-            <line x1="0" y1="300" x2="800" y2="300" />
-            <line x1="200" y1="0" x2="200" y2="400" />
-            <line x1="400" y1="0" x2="400" y2="400" />
-            <line x1="600" y1="0" x2="600" y2="400" />
-          </g>
-
-          <!-- Vector Layers -->
-          <path
-            id="vector-path-1"
-            d="M 100,150 Q 200,80 350,180 T 600,120 T 750,280"
-            fill="none"
-            stroke="#06b6d4"
-            stroke-width="2.5"
-          />
-          <path
-            id="vector-path-2"
-            d="M 50,300 C 150,220 300,380 450,250 C 600,120 700,200 780,180"
-            fill="none"
-            stroke="#10b981"
-            stroke-width="2"
-            stroke-dasharray="6,4"
-          />
-
-          <!-- Interactive Pin Points -->
-          <g
-            class="poi"
-            data-title="Estación de Monitoreo Central (BSD)"
-            transform="translate(350, 180)"
-          >
-            <circle r="7" fill="#06b6d4" cursor="pointer" />
-            <circle
-              r="15"
-              fill="none"
-              stroke="#06b6d4"
-              stroke-width="1"
-              opacity="0.6"
-            />
-          </g>
-
-          <g
-            class="poi"
-            data-title="Nodo Regional de Datos Estratégicos"
-            transform="translate(600, 120)"
-          >
-            <circle r="7" fill="#10b981" cursor="pointer" />
-            <circle
-              r="15"
-              fill="none"
-              stroke="#10b981"
-              stroke-width="1"
-              opacity="0.6"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <section
-    id="especificaciones"
-    class="container"
-    style="padding-bottom: 5rem"
-  >
-    <div
-      style="
-        background: var(--bg-card);
-        border: 1px solid var(--bg-card-border);
-        border-radius: var(--radius-lg);
-        padding: 3rem;
-        text-align: center;
-        backdrop-filter: blur(10px);
-      "
-    >
-      <h2 style="font-size: 2rem; margin-bottom: 1rem">
-        Integración de Datos y Gobernanza Institucional
-      </h2>
-      <p
-        style="
-          color: var(--text-muted);
-          max-width: 600px;
-          margin: 0 auto 2rem auto;
-        "
-      >
-        Accede a los repositorios oficiales, documentación de APIs geoespaciales y normativas de seguridad del Banco Soberano de Datos. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
-      <a
-        href="#demo"
-        class="btn btn-primary"
-        onclick="
-          alert('Descargando documentación oficial del Banco Soberano de Datos...');
-          return false;
-        "
-      >
-        Descargar Paquete de Datos y APIs
+    <div class="nav-cta">
+      <button class="menu-toggle" aria-label="Menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="login.html" class="btn btn-primary">
+        Iniciar sesión
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
       </a>
     </div>
-  </section>
-</main>
+  </div>
+</nav>
 
-<footer>
-  <div class="container footer-content">
-    <div style="display: flex; align-items: center; gap: 0.5rem">
-      <div class="logo-icon" style="width: 28px; height: 28px">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#000"
-          stroke-width="2.5"
-        >
-          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-          <polyline points="2 17 12 22 22 17"></polyline>
-        </svg>
+<!-- HERO -->
+<section class="hero" id="plataforma">
+  <div class="hero-grid"></div>
+
+  <svg class="hero-compass" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(115,152,207,.25)" stroke-width="0.6"/>
+    <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(115,152,207,.2)" stroke-width="0.4"/>
+    <g stroke="rgba(244,242,237,.18)" stroke-width="0.6">
+      <line x1="50" y1="6" x2="50" y2="13"/>
+      <line x1="50" y1="87" x2="50" y2="94"/>
+      <line x1="6" y1="50" x2="13" y2="50"/>
+      <line x1="87" y1="50" x2="94" y2="50"/>
+    </g>
+    <polygon points="50,15 44.5,50 50,50" fill="rgba(193,88,74,.4)"/>
+    <polygon points="50,15 55.5,50 50,50" fill="rgba(193,88,74,.22)"/>
+    <polygon points="50,85 44.5,50 50,50" fill="rgba(244,242,237,.32)"/>
+    <polygon points="50,85 55.5,50 50,50" fill="rgba(244,242,237,.16)"/>
+    <circle cx="50" cy="50" r="3" fill="rgba(244,242,237,.3)"/>
+  </svg>
+
+  <div class="wrap">
+    <div class="hero-inner">
+      <span class="eyebrow">Infraestructura de datos geoespaciales</span>
+      <h1>Todo el territorio,<br>en <em>una sola capa</em> de verdad.</h1>
+      <p class="lead">Un banco de datos soberano que centraliza, versiona y sirve información geoespacial crítica a los organismos que la necesitan — con control de acceso por rol y trazabilidad de cada consulta.</p>
+      <div class="hero-actions">
+        <a href="login.html" class="btn btn-primary btn-lg">Acceder al geoportal</a>
+        <a href="#funciones" class="btn btn-ghost-light btn-lg">Ver funciones</a>
       </div>
-      <span style="font-weight: 700; color: var(--text-main)"
-        >BANCO SOBERANO DE DATOS</span>
+      <div class="hero-coord mono">
+        <span>LAT/LON <b>0.00000° N 0.00000° W</b></span>
+        <span>DATUM <b>WGS84 · EPSG:4326</b></span>
+        <span>ESTADO <b>Operativo</b></span>
+      </div>
     </div>
-    <div>&copy; 2026 Banco Soberano de Datos. Todos los derechos reservados.</div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="wrap strip-inner">
+    <span>Acceso por rol</span>
+    <span>Capas versionadas</span>
+    <span>Auditoría de consultas</span>
+    <span>Exportación certificada</span>
+    <span>Disponibilidad continua</span>
+  </div>
+</div>
+
+<!-- SHOWCASE -->
+<section class="showcase" id="cobertura">
+  <div class="wrap">
+    <div class="showcase-head">
+      <span class="eyebrow">Vista de la plataforma</span>
+      <h2>El mapa como panel de mando, no como adorno.</h2>
+      <p>Capas activables, filtrado por ubicación y ficha técnica de cada elemento, sobre un lienzo cartográfico pensado para lectura operativa — de día y de noche.</p>
+    </div>
+
+    <div class="device coord-frame">
+      <span class="tick-tl"></span><span class="tick-tr"></span><span class="tick-bl"></span><span class="tick-br"></span>
+      <div class="device-bar">
+        <div class="device-dot"></div><div class="device-dot"></div><div class="device-dot"></div>
+        <span class="device-url">geoportal.bsd &middot; sesión segura</span>
+      </div>
+      <div class="device-screen">
+        <!-- Reemplazar este bloque por: -->
+        <div class="placeholder-copy">
+          <strong>Espacio para captura</strong>
+          Coloca aquí el screenshot del geoportal (1600×940 aprox.)
+        </div>
+      </div>
+      <div class="device-stats">
+        <div class="stat">ZOOM<b>6.8</b></div>
+        <div class="stat">CAPAS ACTIVAS<b>07</b></div>
+        <div class="stat">ESCALA<b>1 : 250,000</b></div>
+        <div class="stat">MAPA BASE<b>Vectorial claro</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="funciones">
+  <div class="wrap">
+    <div class="features-head">
+      <span class="eyebrow">Funciones</span>
+      <h2>Diseñado para quien decide sobre el territorio.</h2>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        </div>
+        <h3>Capas dinámicas</h3>
+        <p>Activa, combina y ordena capas temáticas sin recargar el mapa. Cada capa mantiene su propio historial y fuente.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
+        <h3>Filtrado por ubicación</h3>
+        <p>Localiza por estado o municipio y el mapa ajusta el zoom automáticamente a la extensión seleccionada.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3>Acceso por rol</h3>
+        <p>Cada usuario ve solo las capas y los organismos que le corresponden, con sesión trazada de inicio a fin.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+        </div>
+        <h3>Ficha técnica</h3>
+        <p>Cada entidad del mapa despliega sus atributos, fuente y fecha de actualización al seleccionarla.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats-band">
+  <div class="wrap">
+    <div class="stats-grid mono">
+      <div class="cell">
+        <div class="num">128</div>
+        <div class="lbl">Capas de datos activas</div>
+      </div>
+      <div class="cell">
+        <div class="num">42</div>
+        <div class="lbl">Organismos conectados</div>
+      </div>
+      <div class="cell">
+        <div class="num">99.9%</div>
+        <div class="lbl">Disponibilidad del servicio</div>
+      </div>
+      <div class="cell">
+        <div class="num">24/7</div>
+        <div class="lbl">Monitoreo de la plataforma</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="cta-text">
+    <span class="eyebrow">Acceso restringido</span>
+    <h2>Entra con tus credenciales y retoma donde quedaste.</h2>
+  </div>
+  <div class="cta-actions">
+    <a href="login.html" class="btn btn-primary btn-lg">Acceder al geoportal</a>
+    <a href="#funciones" class="btn btn-ghost-light btn-lg">Solicitar información</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="brand-block">
+          <div class="brand-mark">BSD</div>
+          <span class="brand-name" style="color:var(--paper-100)">Geoportal</span>
+        </div>
+        <p>Plataforma de demostración con fines ilustrativos. Los datos, cifras y nombres mostrados son de ejemplo.</p>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col">
+          <h4>Plataforma</h4>
+          <a href="#plataforma">Resumen</a>
+          <a href="#funciones">Funciones</a>
+          <a href="#cobertura">Vista previa</a>
+        </div>
+        <div class="footer-col">
+          <h4>Acceso</h4>
+          <a href="geoportal.html">Iniciar sesión</a>
+          <a href="#funciones">Solicitar cuenta</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span><span class="dot"></span>GEOPORTAL v0.1</span>
+      <span>DATUM WGS84 · EPSG:4326</span>
+    </div>
   </div>
 </footer>
 
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const mapViewport = document.getElementById("interactive-map");
-    const coordsDisplay = document.getElementById("coords-display");
-    const tooltip = document.getElementById("map-tooltip");
-    const mapBg = document.getElementById("map-bg");
 
-    const btnVector = document.getElementById("btn-layer-vector");
-    const btnSatellite = document.getElementById("btn-layer-satellite");
-    const btnReset = document.getElementById("btn-reset");
 
-    const pois = document.querySelectorAll(".poi");
-
-    // Coordinate tracking simulation
-    mapViewport.addEventListener("mousemove", (e) => {
-      const rect = mapViewport.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      // Map X/Y to simulated Lat/Lon
-      const lat = (10.0 + (y / rect.height) * 0.5).toFixed(4);
-      const lon = (-67.0 + (x / rect.width) * 0.5).toFixed(4);
-
-      coordsDisplay.textContent = `LAT: ${lat} | LON: ${lon}`;
-
-      // Move tooltip if hovering POI
-      if (tooltip.style.display === "block") {
-        tooltip.style.left = `${x}px`;
-        tooltip.style.top = `${y}px`;
-      }
-    });
-
-    // Layer Toggles
-    btnVector.addEventListener("click", () => {
-      btnVector.classList.add("active");
-      btnSatellite.classList.remove("active");
-      mapBg.setAttribute("fill", "#0d1322");
-    });
-
-    btnSatellite.addEventListener("click", () => {
-      btnSatellite.classList.add("active");
-      btnVector.classList.remove("active");
-      mapBg.setAttribute("fill", "#061412");
-    });
-
-    btnReset.addEventListener("click", () => {
-      coordsDisplay.textContent = "LAT: 10.3412 | LON: -66.9831";
-    });
-
-    // POI Tooltip logic
-    pois.forEach((poi) => {
-      poi.addEventListener("mouseenter", (e) => {
-        const title = poi.getAttribute("data-title");
-        tooltip.textContent = title;
-        tooltip.style.display = "block";
-      });
-
-      poi.addEventListener("mouseleave", () => {
-        tooltip.style.display = "none";
-      });
-    });
-  });
-</script>
-  </body>
+</body>
 </html>

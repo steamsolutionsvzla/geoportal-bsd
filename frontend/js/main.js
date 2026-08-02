@@ -7,21 +7,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedSourceId = null;
   let availableLayers = []; // Almacenará dinámicamente las capas de la BD
 
-  // =========================================================================
+// =========================================================================
   // 1. INICIALIZACIÓN CON ESTILO BASE CLARO
   // =========================================================================
   let activeBasemap = 'clara';
   const map = new maplibregl.Map({
     container: 'map',
     style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-    center: [-67.2, 10.4],
+    center: [-65.75816, 7.17672], // [Longitud, Latitud] basado en la vista general
+    zoom: 4.8,                   // Nivel de zoom abierto ideal para el panel completo
     renderWorldCopies: false,
-    zoom: 6.8,
     maxTileCacheSize: 30,
     fadeDuration: 0,
     attributionControl: false
   });
-
   // =========================================================================
   // 2. REGISTRO DE CAPAS SUPERPUESTAS Y CARGA DINÁMICA
   // =========================================================================
@@ -95,30 +94,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const response = await fetch('http://localhost:8000/api/v1/layers/list');
-     // const response = await fetch('/api/v1/layers/list');
       const data = await response.json();
-      
-      // Asignamos las capas devueltas por el servicio (ya vienen ordenadas alfabéticamente)
+
+      // Asignamos las capas devueltas por el servicio
       availableLayers = data.layers;
 
-      if (layerListContainer) {
-        layerListContainer.innerHTML = ''; 
+      // -------------------------------------------------------------------------
+      // ORDENAR LAS CAPAS PARA EL PANEL: Puntos -> Líneas -> Polígonos
+      // -------------------------------------------------------------------------
+      const typePriority = {
+        'circle': 1,
+        'point': 1,
+        'line': 2,
+        'fill': 3
+      };
+
+      availableLayers.sort((a, b) => {
+        const priorityA = typePriority[a.type] || 4;
+        const priorityB = typePriority[b.type] || 4;
         
+        // Si tienen el mismo tipo, las ordenamos alfabéticamente por nombre
+        if (priorityA === priorityB) {
+          return a.name.localeCompare(b.name);
+        }
+        return priorityA - priorityB;
+      });
+      // -------------------------------------------------------------------------
+
+      if (layerListContainer) {
+        layerListContainer.innerHTML = '';
+
         availableLayers.forEach(layerInfo => {
           const row = document.createElement('div');
           row.className = 'layer-row off';
+
+          // Definir el ícono según el tipo de geometría
+          let geomIconHTML = '';
+          if (layerInfo.type === 'circle' || layerInfo.type === 'point') {
+            geomIconHTML = `<div style="width: 10px; height: 10px; background: ${layerInfo.color || '#6fa3e0'}; border: 1.5px solid #ffffff; border-radius: 50%; margin-right: 8px; flex-shrink: 0; box-shadow: 0 0 0 1px #000;"></div>`;
+          } else if (layerInfo.type === 'line') {
+            geomIconHTML = `<div style="width: 14px; height: 3px; background: ${layerInfo.color || '#6fa3e0'}; border-radius: 1px; margin-right: 8px; flex-shrink: 0;"></div>`;
+          } else if (layerInfo.type === 'fill') {
+            geomIconHTML = `<div style="width: 12px; height: 10px; background: ${layerInfo.color || '#6fa3e0'}; border: 1px solid #ffffff; border-radius: 2px; margin-right: 8px; flex-shrink: 0; box-shadow: 0 0 0 1px #000;"></div>`;
+          }
+
           row.innerHTML = `
-            <div class="swatch" style="background: ${layerInfo.color};"></div>
-            <div class="lname">${layerInfo.name}</div>
+            <div style="display: flex; align-items: center; width: 100%; cursor: pointer;" class="layer-title-container">
+              ${geomIconHTML}
+              <div class="lname" style="transition: all 0.2s ease;">${layerInfo.name}</div>
+            </div>
             <div class="toggle" data-table="${layerInfo.id}"></div>
           `;
+          
           layerListContainer.appendChild(row);
         });
       }
     } catch (error) {
       console.error("Error al obtener la lista de capas de la BD:", error);
       if (layerListContainer) {
-        layerListContainer.innerHTML = '<div style="color: #ff5722; font-size: 0.8rem; padding: 10px; text-align: center;">Error al conectar con la BD.</div>';
+        layerListContainer.innerHTML = '<div style="color: #c1584a; font-size: 0.8rem; padding: 10px; text-align: center;">Error al conectar con la BD.</div>';
       }
     }
 
@@ -128,29 +162,29 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!legendList) return;
 
       legendList.innerHTML = '';
-      
+
       const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
-      
+
       if (activeToggles.length === 0) {
-        legendList.innerHTML = '<div style="font-size: 0.8rem; color: #a0a0a0; padding: 8px; text-align: center;">No hay capas activas en el mapa.</div>';
+        legendList.innerHTML = '<div style="font-size: 0.8rem; color: var(--muted-500); padding: 8px; text-align: center;">No hay capas activas en el mapa.</div>';
         return;
       }
 
       const categoryTitle = document.createElement('div');
-      categoryTitle.style.cssText = 'font-size: 0.75rem; font-weight: bold; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;';
+      categoryTitle.style.cssText = 'font-size: 0.75rem; font-weight: bold; color: var(--muted-500); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;';
       categoryTitle.textContent = 'Capas Activas';
       legendList.appendChild(categoryTitle);
 
       activeToggles.forEach(toggle => {
         const tableName = toggle.getAttribute('data-table');
-        
+
         const matchingLayers = availableLayers.filter(l => l.id === tableName);
-        
+
         matchingLayers.forEach(layerConfig => {
           const item = document.createElement('div');
           item.className = 'legend-item';
           item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05);';
-          
+
           let symbolHTML = '';
 
           if (layerConfig.type === 'fill') {
@@ -165,10 +199,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           item.innerHTML = `
-            <span style="font-size: 0.8rem; color: #e0e0e0; font-weight: 500;">${layerConfig.name}</span>
+            <span style="font-size: 0.8rem; color: var(--paper-100); font-weight: 500;">${layerConfig.name}</span>
             ${symbolHTML}
           `;
-          
+
           legendList.appendChild(item);
         });
       });
@@ -179,10 +213,10 @@ document.addEventListener('DOMContentLoaded', () => {
       layerListContainer.addEventListener('click', async (e) => {
         const toggleBtn = e.target.closest('.toggle[data-table]');
         if (!toggleBtn) return;
-        
+
         e.stopPropagation();
         toggleBtn.classList.toggle('on');
-        
+
         const row = toggleBtn.closest('.layer-row');
         if (row) row.classList.toggle('off', !toggleBtn.classList.contains('on'));
 
@@ -194,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isVisible) {
           try {
             const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
-           //  const response = await fetch(`/api/v1/layers/${tableName}`);
             const data = await response.json();
 
             if (!data.features || data.features.length === 0) {
@@ -212,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
               map.addSource(sourceId, {
                 type: 'geojson',
                 data: data,
-                generateId: true 
+                generateId: true
               });
             }
 
@@ -239,6 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         refreshCount();
         updateLegendUI();
+
+        // En móvil, cerrar el panel de capas tras seleccionar para liberar el mapa
+        if (window.innerWidth <= 768 && sidebar && appContainer && !sidebar.classList.contains('collapsed')) {
+          toggleSidebarState();
+        }
       });
     }
 
@@ -265,10 +303,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers) {
     const layerConfig = availableLayers.find(l => l.id === tableName);
     const geomType = layerConfig ? layerConfig.type : 'circle';
-    const geomColor = layerConfig ? layerConfig.color : '#ff5722';
+    const geomColor = layerConfig ? layerConfig.color : '#6fa3e0';
 
     if (!map.getLayer(layerId)) {
-      
+
       let beforeLayerId = undefined;
       const existingLayers = map.getStyle().layers;
 
@@ -302,15 +340,15 @@ document.addEventListener('DOMContentLoaded', () => {
           paint: {
             'circle-radius': [
               'case',
-              ['boolean', ['feature-state', 'selected'], false], 10, 
-              ['boolean', ['feature-state', 'hover'], false], 9, 
+              ['boolean', ['feature-state', 'selected'], false], 10,
+              ['boolean', ['feature-state', 'hover'], false], 9,
               6
             ],
             'circle-color': geomColor,
             'circle-stroke-width': [
               'case',
-              ['boolean', ['feature-state', 'selected'], false], 4, 
-              ['boolean', ['feature-state', 'hover'], false], 3, 
+              ['boolean', ['feature-state', 'selected'], false], 4,
+              ['boolean', ['feature-state', 'hover'], false], 3,
               1
             ],
             'circle-stroke-color': '#000000'
@@ -326,11 +364,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'fill-color': geomColor,
             'fill-opacity': [
               'case',
-              ['boolean', ['feature-state', 'selected'], false], 0.9, 
-              ['boolean', ['feature-state', 'hover'], false], 0.8, 
+              ['boolean', ['feature-state', 'selected'], false], 0.9,
+              ['boolean', ['feature-state', 'hover'], false], 0.8,
               0.4
             ],
-            'fill-outline-color': '#000000' 
+            'fill-outline-color': '#000000'
           }
         }, beforeLayerId);
 
@@ -338,8 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const lineColorExpression = [
           'match',
           ['get', 'tipo'],
-          'Oleoducto', '#ff7043', 
-          'Gasducto', '#ffeb3b', 
+          'Oleoducto', '#e0824a',
+          'Gasducto', '#cda54c',
           geomColor
         ];
 
@@ -351,8 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'line-color': lineColorExpression,
             'line-width': [
               'case',
-              ['boolean', ['feature-state', 'selected'], false], 6, 
-              ['boolean', ['feature-state', 'hover'], false], 5, 
+              ['boolean', ['feature-state', 'selected'], false], 6,
+              ['boolean', ['feature-state', 'hover'], false], 5,
               2
             ]
           }
@@ -427,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (targetKey === activeBasemap) return;
 
     const overlayLayers = ['clara-layer', 'satelite-layer', 'satelite-labels-layer'];
-    
+
     overlayLayers.forEach(layerId => {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, 'visibility', 'none');
@@ -436,10 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (map.getLayer('background')) {
       if (targetKey === 'ninguno') {
-        map.setPaintProperty('background', 'background-color', '#ffffff');
+        map.setPaintProperty('background', 'background-color', '#080d18');
         map.setLayoutProperty('background', 'visibility', 'visible');
       } else {
-        map.setPaintProperty('background', 'background-color', '#f4f4f4');
+        map.setPaintProperty('background', 'background-color', '#10192c');
         map.setLayoutProperty('background', 'visibility', 'visible');
       }
     }
@@ -487,13 +525,148 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // =========================================================================
+  // 3.1. FILTRADO GEOGRÁFICO AUTOMATIZADO (ESTADO / MUNICIPIO) DESDE JSON
+  // =========================================================================
+  let venezuelaUbicaciones = {};
+
+  const filterEstado = document.getElementById('filterEstado');
+  const dropdownEstado = document.getElementById('dropdownEstado');
+  const filterMunicipio = document.getElementById('filterMunicipio');
+  const dropdownMunicipio = document.getElementById('dropdownMunicipio');
+  const applyFilterBtn = document.getElementById('applyFilterBtn');
+
+  let estadoSeleccionado = "";
+  let municipioSeleccionado = "";
+
+  // Cargar el archivo JSON de coordenadas generado
+  async function cargarUbicacionesTerritoriales() {
+    try {
+      // Ruta 'x' configurada para apuntar al archivo JSON local (puedes cambiarla aquí si lo requieres)
+      const response = await fetch('../../backend/storage/json/venezuela_coordenadas.json');
+      venezuelaUbicaciones = await response.json();
+
+      if (dropdownEstado) {
+        Object.keys(venezuelaUbicaciones).sort().forEach(estado => {
+          const opt = document.createElement('div');
+          opt.className = 'loc-option';
+          opt.setAttribute('data-value', estado);
+          opt.textContent = estado;
+          dropdownEstado.appendChild(opt);
+        });
+      }
+    } catch (error) {
+      console.error("No se pudo cargar el archivo de coordenadas territoriales:", error);
+    }
+  }
+
+  cargarUbicacionesTerritoriales();
+
+  document.querySelectorAll('.loc-filter').forEach(filter => {
+    const btn = filter.querySelector('.loc-filter-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.loc-filter.open').forEach(openFilter => {
+        if (openFilter !== filter) openFilter.classList.remove('open');
+      });
+      filter.classList.toggle('open');
+    });
+  });
+
+  // Evento seleccionar Estado
+  if (dropdownEstado) {
+    dropdownEstado.addEventListener('click', (e) => {
+      const option = e.target.closest('.loc-option');
+      if (!option) return;
+      e.stopPropagation();
+
+      dropdownEstado.querySelectorAll('.loc-option').forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+
+      estadoSeleccionado = option.getAttribute('data-value');
+      const label = filterEstado.querySelector('.lf-label');
+      label.textContent = estadoSeleccionado ? option.textContent : "Estado";
+      label.classList.toggle('has-value', Boolean(estadoSeleccionado));
+      filterEstado.classList.remove('open');
+
+      // Limpiar y poblar los municipios asociados a este estado
+      municipioSeleccionado = "";
+      const munLabel = filterMunicipio.querySelector('.lf-label');
+      munLabel.textContent = "Municipio";
+      munLabel.classList.remove('has-value');
+
+      dropdownMunicipio.innerHTML = '<div class="loc-option selected" data-value="">Todos los municipios</div>';
+
+      if (estadoSeleccionado && venezuelaUbicaciones[estadoSeleccionado]) {
+        const municipiosMap = venezuelaUbicaciones[estadoSeleccionado].municipios;
+        Object.keys(municipiosMap).sort().forEach(mun => {
+          const opt = document.createElement('div');
+          opt.className = 'loc-option';
+          opt.setAttribute('data-value', mun);
+          opt.textContent = mun;
+          dropdownMunicipio.appendChild(opt);
+        });
+      }
+    });
+  }
+
+  // Evento seleccionar Municipio
+  if (dropdownMunicipio) {
+    dropdownMunicipio.addEventListener('click', (e) => {
+      const option = e.target.closest('.loc-option');
+      if (!option) return;
+      e.stopPropagation();
+
+      dropdownMunicipio.querySelectorAll('.loc-option').forEach(o => o.classList.remove('selected'));
+      option.classList.add('selected');
+
+      municipioSeleccionado = option.getAttribute('data-value');
+      const label = filterMunicipio.querySelector('.lf-label');
+      label.textContent = municipioSeleccionado ? option.textContent : "Municipio";
+      label.classList.toggle('has-value', Boolean(municipioSeleccionado));
+      filterMunicipio.classList.remove('open');
+    });
+  }
+
+  // Evento del botón para aplicar el encuadre (flyTo) dinámico en el mapa
+  if (applyFilterBtn) {
+    applyFilterBtn.addEventListener('click', () => {
+      if (!estadoSeleccionado) {
+        alert("Por favor seleccione un Estado.");
+        return;
+      }
+
+      const datosEstado = venezuelaUbicaciones[estadoSeleccionado];
+      let targetCenter = datosEstado.center;
+      let targetZoom = 8.0; // Zoom general de estado
+
+      if (municipioSeleccionado && datosEstado.municipios[municipioSeleccionado]) {
+        targetCenter = datosEstado.municipios[municipioSeleccionado];
+        targetZoom = 11.5; // Zoom más preciso y cercano para el municipio
+      }
+
+      map.flyTo({
+        center: targetCenter,
+        zoom: targetZoom,
+        essential: true,
+        duration: 2000
+      });
+    });
+  }
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.loc-filter.open').forEach(f => f.classList.remove('open'));
+  });
+
+  // =========================================================================
   // 4. CONTROLADOR DE PANELES (SIDEBAR IZQUIERDO Y PANEL DE INFORMACIÓN DERECHO)
   // =========================================================================
   const appContainer = document.querySelector('.app');
   const sidebar = document.getElementById('sidebar');
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
   const topbarCapasBtn = document.querySelector('.icon-btn.active');
-  
+
   const infoPanel = document.getElementById('infoPanel');
   const infoToggleBtn = document.getElementById('infoToggleBtn');
 
@@ -508,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function toggleSidebarState() {
     if (!sidebar || !appContainer) return;
-    
+
     sidebar.classList.toggle('collapsed');
     appContainer.classList.toggle('has-collapsed-sidebar');
 
@@ -549,6 +722,20 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       toggleInfoPanelState();
     });
+  }
+
+  // En pantallas pequeñas, arrancar con ambos paneles plegados para maximizar el mapa
+  if (window.innerWidth <= 768) {
+    if (sidebar && !sidebar.classList.contains('collapsed')) {
+      sidebar.classList.add('collapsed');
+      if (appContainer) appContainer.classList.add('has-collapsed-sidebar');
+    }
+  }
+  if (window.innerWidth <= 1024) {
+    if (infoPanel && !infoPanel.classList.contains('collapsed')) {
+      infoPanel.classList.add('collapsed');
+      if (appContainer) appContainer.classList.add('has-collapsed-info');
+    }
   }
 
   // =========================================================================
@@ -665,12 +852,32 @@ document.addEventListener('DOMContentLoaded', () => {
   buildTicks(document.getElementById('gratLeft'), 18);
   buildTicks(document.getElementById('gratRight'), 18);
 
-});
-function cerrarSesion() {
-    // Si guardas datos de sesión, límpialos aquí (opcional):
-    // localStorage.clear();
-    // sessionStorage.clear();
 
-    // Redirige al index (cambia 'index.html' por la ruta de tu página de inicio si es distinta)
+
+// =========================================================================
+  // 9. SINCRONIZACIÓN Y COMPORTAMIENTO DE LA BRÚJULA
+  // =========================================================================
+  const compassEl = document.querySelector('.compass');
+
+  if (compassEl && map) {
+    map.on('rotate', () => {
+      const bearing = map.getBearing();
+      compassEl.style.transform = `rotate(${bearing}deg)`;
+    });
+
+    compassEl.addEventListener('click', () => {
+      map.easeTo({
+        center: [-65.75816, 7.17672],
+        zoom: 4.8,
+        bearing: 0,
+        pitch: 0,
+        duration: 800
+      });
+    });
+  }
+
+});
+
+function cerrarSesion() {
     window.location.href = 'index.html';
 }

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Fondo opcional (redondeado estilo app moderna) -->
+  <rect width="512" height="512" rx="100" fill="#ffffff"/>
+  
+  <!-- Isologo D con la gota (Azul corporativo) -->
+  <path fill="#0d233a" d="M140 96h130c90 0 150 60 150 160s-60 160-150 160H140V96zm90 80v160h40c45 0 75-30 75-80s-30-80-75-80h-40z"/>
+  <!-- Gota interior -->
+  <path fill="#0d233a" d="M256 220c0 0-35 45-35 70a35 35 0 0 0 70 0c0-25-35-70-35-70z"/>
+</svg>
