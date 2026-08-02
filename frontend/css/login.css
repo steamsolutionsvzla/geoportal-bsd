@@ -140,8 +140,11 @@ body::before{
 
 /* si usas una imagen como logo en vez del circulo con iniciales */
 .logo-img{
-  height:44px;
+  display:block;
+  max-width:180px;   /* ancho máximo permitido */
+  max-height:52px;   /* alto máximo permitido */
   width:auto;
+  height:auto;
   margin:0 auto 16px;
   object-fit:contain;
 }
