@@ -7,20 +7,39 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedSourceId = null;
   let availableLayers = []; // Almacenará dinámicamente las capas de la BD
 
-// =========================================================================
+  // Variables para la capa estatal y selección de estado
+  let estadosGeoJsonCache = null;
+  let selectedStateFeatureId = null;
+  const ESTADO_SOURCE_ID = 'source-estados-venezuela';
+  const ESTADO_LAYER_ID = 'layer-estados-venezuela';
+
+  // =========================================================================
   // 1. INICIALIZACIÓN CON ESTILO BASE CLARO
   // =========================================================================
   let activeBasemap = 'clara';
   const map = new maplibregl.Map({
     container: 'map',
     style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-    center: [-65.75816, 7.17672], // [Longitud, Latitud] basado en la vista general
-    zoom: 4.8,                   // Nivel de zoom abierto ideal para el panel completo
+    center: [-65.75816, 7.17672], 
+    zoom: 4.8,                   
     renderWorldCopies: false,
     maxTileCacheSize: 30,
     fadeDuration: 0,
     attributionControl: false
   });
+
+  // =========================================================================
+  // 8. COMPONENTE CONTADOR (GLOBAL AL ALCANCE DEL SCRIPT)
+  // =========================================================================
+  const layerCountEl = document.getElementById('layerCount');
+  
+  function refreshCount() {
+    if (!layerCountEl) return;
+    const activeToggles = document.querySelectorAll('.layer-row .toggle.on');
+    const on = activeToggles.length;
+    layerCountEl.textContent = on + (on === 1 ? ' activa' : ' activas');
+  }
+
   // =========================================================================
   // 2. REGISTRO DE CAPAS SUPERPUESTAS Y CARGA DINÁMICA
   // =========================================================================
@@ -84,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
       maxzoom: 19
     });
 
-    // Calcular escala inicial una vez cargado el mapa
     updateScaleKm();
 
     // =========================================================================
@@ -93,15 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const layerListContainer = document.getElementById('layerList');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/layers/list');
+      const response = await fetch('/api/v1/layers/list');
       const data = await response.json();
 
-      // Asignamos las capas devueltas por el servicio
       availableLayers = data.layers;
 
-      // -------------------------------------------------------------------------
-      // ORDENAR LAS CAPAS PARA EL PANEL: Puntos -> Líneas -> Polígonos
-      // -------------------------------------------------------------------------
       const typePriority = {
         'circle': 1,
         'point': 1,
@@ -113,13 +127,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const priorityA = typePriority[a.type] || 4;
         const priorityB = typePriority[b.type] || 4;
         
-        // Si tienen el mismo tipo, las ordenamos alfabéticamente por nombre
         if (priorityA === priorityB) {
           return a.name.localeCompare(b.name);
         }
         return priorityA - priorityB;
       });
-      // -------------------------------------------------------------------------
 
       if (layerListContainer) {
         layerListContainer.innerHTML = '';
@@ -128,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const row = document.createElement('div');
           row.className = 'layer-row off';
 
-          // Definir el ícono según el tipo de geometría
           let geomIconHTML = '';
           if (layerInfo.type === 'circle' || layerInfo.type === 'point') {
             geomIconHTML = `<div style="width: 10px; height: 10px; background: ${layerInfo.color || '#6fa3e0'}; border: 1.5px solid #ffffff; border-radius: 50%; margin-right: 8px; flex-shrink: 0; box-shadow: 0 0 0 1px #000;"></div>`;
@@ -156,7 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Función para actualizar dinámicamente la leyenda flotante con estilo cartográfico
+    await cargarCapaEstadosVenezuela();
+
     function updateLegendUI() {
       const legendList = document.getElementById('legendList') || document.querySelector('.legend-content');
       if (!legendList) return;
@@ -177,7 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       activeToggles.forEach(toggle => {
         const tableName = toggle.getAttribute('data-table');
-
         const matchingLayers = availableLayers.filter(l => l.id === tableName);
 
         matchingLayers.forEach(layerConfig => {
@@ -186,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
           item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05);';
 
           let symbolHTML = '';
-
           if (layerConfig.type === 'fill') {
             symbolHTML = `<div style="width: 20px; height: 14px; background: ${layerConfig.color}; opacity: 0.8; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
           } else if (layerConfig.type === 'line') {
@@ -227,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isVisible) {
           try {
-            const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+            const response = await fetch(`/api/v1/layers/${tableName}`);
             const data = await response.json();
 
             if (!data.features || data.features.length === 0) {
@@ -273,17 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshCount();
         updateLegendUI();
 
-        // En móvil, cerrar el panel de capas tras seleccionar para liberar el mapa
         if (window.innerWidth <= 768 && sidebar && appContainer && !sidebar.classList.contains('collapsed')) {
           toggleSidebarState();
         }
       });
     }
 
-    // Manejador general de clics en el mapa para deseleccionar si se hace clic fuera de una entidad
     map.on('click', (e) => {
       const features = map.queryRenderedFeatures(e.point);
-      const clickedOnLayerFeature = features.some(f => f.layer.id.startsWith('layer-'));
+      const clickedOnLayerFeature = features.some(f => f.layer.id.startsWith('layer-') && f.layer.id !== ESTADO_LAYER_ID);
 
       if (!clickedOnLayerFeature) {
         if (selectedFeatureId !== null && selectedSourceId !== null) {
@@ -299,20 +307,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   }); // Fin de map.on('load')
 
-  // Función auxiliar para inyectar la capa ordenando por jerarquía
+  async function cargarCapaEstadosVenezuela() {
+    const dropdownEstado = document.getElementById('dropdownEstado');
+    try {
+      const response = await fetch('/api/v1/layers/dpt_estadal_venezuela');
+      const data = await response.json();
+      estadosGeoJsonCache = data;
+
+      if (map.getSource(ESTADO_SOURCE_ID)) {
+        map.getSource(ESTADO_SOURCE_ID).setData(data);
+      } else {
+        map.addSource(ESTADO_SOURCE_ID, {
+          type: 'geojson',
+          data: data,
+          generateId: true
+        });
+
+        map.addLayer({
+          id: ESTADO_LAYER_ID,
+          type: 'fill',
+          source: ESTADO_SOURCE_ID,
+          paint: {
+            'fill-color': '#3182ce',
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], 0.5,
+              0.0 
+            ],
+            'fill-outline-color': '#1a365d'
+          }
+        }, 'clara-layer'); 
+      }
+
+      if (dropdownEstado && data.features) {
+        const estadosSet = new Set();
+        data.features.forEach(f => {
+          const nombreEstado = f.properties.entidad || f.properties.estado || f.properties.nombre || f.properties.name;
+          if (nombreEstado) estadosSet.add(nombreEstado);
+        });
+
+        Array.from(estadosSet).sort().forEach(estado => {
+          const opt = document.createElement('div');
+          opt.className = 'loc-option';
+          opt.setAttribute('data-value', estado);
+          opt.textContent = estado;
+          dropdownEstado.appendChild(opt);
+        });
+      }
+    } catch (error) {
+      console.error("Error al cargar la capa de estados desde el backend:", error);
+    }
+  }
+
   function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers) {
     const layerConfig = availableLayers.find(l => l.id === tableName);
     const geomType = layerConfig ? layerConfig.type : 'circle';
     const geomColor = layerConfig ? layerConfig.color : '#6fa3e0';
 
     if (!map.getLayer(layerId)) {
-
       let beforeLayerId = undefined;
       const existingLayers = map.getStyle().layers;
 
       if (geomType === 'fill') {
         for (let l of existingLayers) {
-          if (l.id.startsWith('layer-')) {
+          if (l.id.startsWith('layer-') && l.id !== ESTADO_LAYER_ID) {
             const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
             if (t && (t.type === 'line' || t.type === 'circle')) {
               beforeLayerId = l.id;
@@ -322,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else if (geomType === 'line') {
         for (let l of existingLayers) {
-          if (l.id.startsWith('layer-')) {
+          if (l.id.startsWith('layer-') && l.id !== ESTADO_LAYER_ID) {
             const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
             if (t && t.type === 'circle') {
               beforeLayerId = l.id;
@@ -458,10 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // =========================================================================
-  // 3. CAMBIADOR DINÁMICO DE VISIBILIDAD (SOPORTE PARA "NINGUNO")
-  // =========================================================================
-  function switchBasemap(targetKey) {
+function switchBasemap(targetKey) {
     if (targetKey === activeBasemap) return;
 
     const overlayLayers = ['clara-layer', 'satelite-layer', 'satelite-labels-layer'];
@@ -471,16 +526,6 @@ document.addEventListener('DOMContentLoaded', () => {
         map.setLayoutProperty(layerId, 'visibility', 'none');
       }
     });
-
-    if (map.getLayer('background')) {
-      if (targetKey === 'ninguno') {
-        map.setPaintProperty('background', 'background-color', '#080d18');
-        map.setLayoutProperty('background', 'visibility', 'visible');
-      } else {
-        map.setPaintProperty('background', 'background-color', '#10192c');
-        map.setLayoutProperty('background', 'visibility', 'visible');
-      }
-    }
 
     if (targetKey === 'clara' && map.getLayer('clara-layer')) {
       map.setLayoutProperty('clara-layer', 'visibility', 'visible');
@@ -524,42 +569,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // =========================================================================
-  // 3.1. FILTRADO GEOGRÁFICO AUTOMATIZADO (ESTADO / MUNICIPIO) DESDE JSON
-  // =========================================================================
-  let venezuelaUbicaciones = {};
-
   const filterEstado = document.getElementById('filterEstado');
   const dropdownEstado = document.getElementById('dropdownEstado');
-  const filterMunicipio = document.getElementById('filterMunicipio');
-  const dropdownMunicipio = document.getElementById('dropdownMunicipio');
   const applyFilterBtn = document.getElementById('applyFilterBtn');
 
   let estadoSeleccionado = "";
-  let municipioSeleccionado = "";
-
-  // Cargar el archivo JSON de coordenadas generado
-  async function cargarUbicacionesTerritoriales() {
-    try {
-      // Ruta 'x' configurada para apuntar al archivo JSON local (puedes cambiarla aquí si lo requieres)
-      const response = await fetch('../../backend/storage/json/venezuela_coordenadas.json');
-      venezuelaUbicaciones = await response.json();
-
-      if (dropdownEstado) {
-        Object.keys(venezuelaUbicaciones).sort().forEach(estado => {
-          const opt = document.createElement('div');
-          opt.className = 'loc-option';
-          opt.setAttribute('data-value', estado);
-          opt.textContent = estado;
-          dropdownEstado.appendChild(opt);
-        });
-      }
-    } catch (error) {
-      console.error("No se pudo cargar el archivo de coordenadas territoriales:", error);
-    }
-  }
-
-  cargarUbicacionesTerritoriales();
 
   document.querySelectorAll('.loc-filter').forEach(filter => {
     const btn = filter.querySelector('.loc-filter-btn');
@@ -574,7 +588,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Evento seleccionar Estado
   if (dropdownEstado) {
     dropdownEstado.addEventListener('click', (e) => {
       const option = e.target.closest('.loc-option');
@@ -589,79 +602,230 @@ document.addEventListener('DOMContentLoaded', () => {
       label.textContent = estadoSeleccionado ? option.textContent : "Estado";
       label.classList.toggle('has-value', Boolean(estadoSeleccionado));
       filterEstado.classList.remove('open');
-
-      // Limpiar y poblar los municipios asociados a este estado
-      municipioSeleccionado = "";
-      const munLabel = filterMunicipio.querySelector('.lf-label');
-      munLabel.textContent = "Municipio";
-      munLabel.classList.remove('has-value');
-
-      dropdownMunicipio.innerHTML = '<div class="loc-option selected" data-value="">Todos los municipios</div>';
-
-      if (estadoSeleccionado && venezuelaUbicaciones[estadoSeleccionado]) {
-        const municipiosMap = venezuelaUbicaciones[estadoSeleccionado].municipios;
-        Object.keys(municipiosMap).sort().forEach(mun => {
-          const opt = document.createElement('div');
-          opt.className = 'loc-option';
-          opt.setAttribute('data-value', mun);
-          opt.textContent = mun;
-          dropdownMunicipio.appendChild(opt);
-        });
-      }
     });
   }
-
-  // Evento seleccionar Municipio
-  if (dropdownMunicipio) {
-    dropdownMunicipio.addEventListener('click', (e) => {
-      const option = e.target.closest('.loc-option');
-      if (!option) return;
-      e.stopPropagation();
-
-      dropdownMunicipio.querySelectorAll('.loc-option').forEach(o => o.classList.remove('selected'));
-      option.classList.add('selected');
-
-      municipioSeleccionado = option.getAttribute('data-value');
-      const label = filterMunicipio.querySelector('.lf-label');
-      label.textContent = municipioSeleccionado ? option.textContent : "Municipio";
-      label.classList.toggle('has-value', Boolean(municipioSeleccionado));
-      filterMunicipio.classList.remove('open');
-    });
-  }
-
-  // Evento del botón para aplicar el encuadre (flyTo) dinámico en el mapa
-  if (applyFilterBtn) {
+if (applyFilterBtn) {
     applyFilterBtn.addEventListener('click', () => {
+      const infoContent = document.getElementById('infoPanelContent');
+      const infoPanel = document.getElementById('infoPanel');
+      const appContainer = document.querySelector('.app');
+
       if (!estadoSeleccionado) {
-        alert("Por favor seleccione un Estado.");
+        if (infoContent) {
+          infoContent.innerHTML = `
+            <div class="info-card" style="border-left: 3px solid #c1584a; background: rgba(193, 88, 74, 0.08);">
+              <div class="ic-label" style="color: #c1584a; display: flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Atención
+              </div>
+              <p style="margin: 8px 0 0 0; font-size: 0.75rem; color: var(--paper-100);">Debe seleccionar un estado antes de aplicar el filtro y calcular los puntos.</p>
+            </div>
+          `;
+          if (infoPanel && infoPanel.classList.contains('collapsed')) {
+            infoPanel.classList.remove('collapsed');
+            if (appContainer) appContainer.classList.remove('has-collapsed-info');
+            setTimeout(() => map.resize(), 300);
+          }
+        }
         return;
       }
 
-      const datosEstado = venezuelaUbicaciones[estadoSeleccionado];
-      let targetCenter = datosEstado.center;
-      let targetZoom = 8.0; // Zoom general de estado
-
-      if (municipioSeleccionado && datosEstado.municipios[municipioSeleccionado]) {
-        targetCenter = datosEstado.municipios[municipioSeleccionado];
-        targetZoom = 11.5; // Zoom más preciso y cercano para el municipio
+      if (!estadosGeoJsonCache || !estadosGeoJsonCache.features) {
+        if (infoContent) {
+          infoContent.innerHTML = `
+            <div class="info-card" style="border-left: 3px solid #c1584a; background: rgba(193, 88, 74, 0.08);">
+              <div class="ic-label" style="color: #c1584a;">Aviso</div>
+              <p style="margin: 8px 0 0 0; font-size: 0.75rem; color: var(--paper-100);">La capa de estados aún no se ha cargado completamente.</p>
+            </div>
+          `;
+          if (infoPanel && infoPanel.classList.contains('collapsed')) {
+            infoPanel.classList.remove('collapsed');
+            if (appContainer) appContainer.classList.remove('has-collapsed-info');
+            setTimeout(() => map.resize(), 300);
+          }
+        }
+        return;
       }
 
-      map.flyTo({
-        center: targetCenter,
-        zoom: targetZoom,
-        essential: true,
-        duration: 2000
+      const estadoFeature = estadosGeoJsonCache.features.find(f => {
+        const nombre = f.properties.entidad || f.properties.estado || f.properties.nombre || f.properties.name;
+        return nombre === estadoSeleccionado;
       });
+
+      if (!estadoFeature) {
+        if (infoContent) {
+          infoContent.innerHTML = `
+            <div class="info-card" style="border-left: 3px solid #c1584a; background: rgba(193, 88, 74, 0.08);">
+              <div class="ic-label" style="color: #c1584a;">Sin resultados</div>
+              <p style="margin: 8px 0 0 0; font-size: 0.75rem; color: var(--paper-100);">No se encontró la geometría para el estado seleccionado.</p>
+            </div>
+          `;
+          if (infoPanel && infoPanel.classList.contains('collapsed')) {
+            infoPanel.classList.remove('collapsed');
+            if (appContainer) appContainer.classList.remove('has-collapsed-info');
+            setTimeout(() => map.resize(), 300);
+          }
+        }
+        return;
+      }
+
+      if (selectedStateFeatureId !== null) {
+        map.setFeatureState({ source: ESTADO_SOURCE_ID, id: selectedStateFeatureId }, { selected: false });
+      }
+
+      const renderedFeatures = map.querySourceFeatures(ESTADO_SOURCE_ID, {
+        filter: ['==', ['coalesce', ['get', 'entidad'], ['get', 'estado'], ['get', 'nombre'], ['get', 'name']], estadoSeleccionado]
+      });
+
+      if (renderedFeatures.length > 0) {
+        selectedStateFeatureId = renderedFeatures[0].id;
+        map.setFeatureState({ source: ESTADO_SOURCE_ID, id: selectedStateFeatureId }, { selected: true });
+      }
+
+      try {
+        const bbox = turf.bbox(estadoFeature);
+        map.fitBounds(bbox, { padding: 60, duration: 2000 });
+      } catch (err) {
+        console.warn("Error en bbox de turf:", err);
+      }
+
+      calcularPuntosEnEstado(estadoFeature);
     });
+  }
+ 
+
+ function calcularPuntosEnEstado(estadoPolygonFeature) {
+    const infoContent = document.getElementById('infoPanelContent');
+    if (!infoContent) return;
+
+    let html = `<div class="info-card">`;
+    html += `<div class="ic-label">Estado: ${estadoSeleccionado}</div>`;
+    html += `<hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
+    html += `<table id="tablaPuntosEstado" style="width:100%; font-size:0.75rem; border-collapse: collapse;">`;
+    html += `<tr style="border-bottom: 1px solid var(--line-700);"><th style="text-align:left; padding:4px;">Capa / Elemento</th><th style="text-align:right; padding:4px;">Cantidad</th></tr>`;
+
+    let totalPuntosGeneral = 0;
+    let capasContadas = 0;
+    let listadoDetalladoPuntos = []; // Almacenará los datos detallados solo para el PDF
+
+    availableLayers.forEach(layerConfig => {
+      const sourceId = `source-${layerConfig.id}`;
+      const source = map.getSource(sourceId);
+
+      if (source && (layerConfig.type === 'circle' || layerConfig.type === 'point')) {
+        const sourceData = source._data;
+        if (sourceData && sourceData.features) {
+          let countInPolygon = 0;
+
+          sourceData.features.forEach(ptFeature => {
+            if (typeof turf !== 'undefined' && turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
+              countInPolygon++;
+              // Guardamos la información detallada de cada punto encontrado dentro del estado
+              listadoDetalladoPuntos.push({
+                capa: layerConfig.name,
+                propiedades: ptFeature.properties
+              });
+            }
+          });
+
+          capasContadas++;
+          totalPuntosGeneral += countInPolygon;
+          html += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
+        }
+      }
+    });
+
+    if (capasContadas === 0) {
+      html += `<tr><td colspan="2" style="padding:6px; text-align:center; color: var(--muted-500);">No hay capas de puntos activas en este momento. Active alguna capa en el panel izquierdo.</td></tr>`;
+    }
+
+    html += `</table>`;
+    if (capasContadas > 0) {
+      html += `<p style="margin-top: 8px; font-size: 0.75rem;"><b>Total de puntos en el estado:</b> ${totalPuntosGeneral}</p>`;
+      
+      // Botón integrado para descargar la tabla y el detalle en PDF
+      html += `<button type="button" id="downloadPdfBtn" style="width: 100%; margin-top: 10px; background: var(--accent-color, #3182ce); color: white; border: none; padding: 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Descargar Tabla en PDF</button>`;
+    }
+    html += `</div>`;
+
+    infoContent.innerHTML = html;
+
+    const infoPanel = document.getElementById('infoPanel');
+    if (infoPanel && infoPanel.classList.contains('collapsed')) {
+      infoPanel.classList.remove('collapsed');
+      appContainer.classList.remove('has-collapsed-info');
+      setTimeout(() => map.resize(), 300);
+    }
+
+    // Evento adjunto para la funcionalidad de impresión y guardado en PDF
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    if (downloadPdfBtn) {
+      downloadPdfBtn.addEventListener('click', () => {
+        // Generar dinámicamente el HTML para la sección detallada de cada punto
+        let detalleHtml = '';
+        if (listadoDetalladoPuntos.length > 0) {
+          detalleHtml = `
+            <h3 style="margin-top: 30px; color: #1a365d; border-bottom: 2px solid #3182ce; padding-bottom: 5px;">Detalle de Puntos Encontrados</h3>
+          `;
+          listadoDetalladoPuntos.forEach((item, index) => {
+            detalleHtml += `
+              <div style="margin-bottom: 15px; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background-color: #fafafa;">
+                <p style="margin: 0 0 5px 0; font-size: 13px; font-weight: bold; color: #2b6cb0;">#${index + 1} - Capa: ${item.capa}</p>
+                <table style="width: 100%; margin-top: 5px; border-collapse: collapse;">
+            `;
+            for (let key in item.propiedades) {
+              detalleHtml += `
+                <tr>
+                  <td style="border: 1px solid #e2e8f0; padding: 4px 8px; font-size: 12px; font-weight: bold; width: 30%; background: #edf2f7;">${key}</td>
+                  <td style="border: 1px solid #e2e8f0; padding: 4px 8px; font-size: 12px;">${item.propiedades[key]}</td>
+                </tr>
+              `;
+            }
+            detalleHtml += `
+                </table>
+              </div>
+            `;
+          });
+        }
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Reporte de Puntos - ${estadoSeleccionado}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+                h2 { color: #1a365d; border-bottom: 2px solid #3182ce; padding-bottom: 5px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+                th { background-color: #f4f4f4; }
+                .total { margin-top: 15px; font-weight: bold; font-size: 14px; }
+              </style>
+            </head>
+            <body>
+              <h2>Reporte Estratégico de Puntos</h2>
+              <p><b>Estado:</b> ${estadoSeleccionado}</p>
+              <table>
+                <tr><th>Capa / Elemento</th><th style="text-align:right;">Cantidad</th></tr>
+                ${document.getElementById('tablaPuntosEstado').innerHTML}
+              </table>
+              <div class="total">Total general de puntos: ${totalPuntosGeneral}</div>
+              ${detalleHtml}
+              <script>
+                window.onload = function() { window.print(); window.close(); }
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      });
+    }
   }
 
   document.addEventListener('click', () => {
     document.querySelectorAll('.loc-filter.open').forEach(f => f.classList.remove('open'));
   });
 
-  // =========================================================================
-  // 4. CONTROLADOR DE PANELES (SIDEBAR IZQUIERDO Y PANEL DE INFORMACIÓN DERECHO)
-  // =========================================================================
   const appContainer = document.querySelector('.app');
   const sidebar = document.getElementById('sidebar');
   const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
@@ -724,7 +888,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // En pantallas pequeñas, arrancar con ambos paneles plegados para maximizar el mapa
   if (window.innerWidth <= 768) {
     if (sidebar && !sidebar.classList.contains('collapsed')) {
       sidebar.classList.add('collapsed');
@@ -738,9 +901,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // =========================================================================
-  // 5. CONTROLADOR DE VENTANA EMERGENTE DE LEYENDA (BOTÓN FLOTANTE)
-  // =========================================================================
   const legendSwitch = document.querySelector('.legend-switch');
   const legendToggleBtn = document.getElementById('legendToggleBtn');
   const closeLegendBtn = document.getElementById('closeLegendBtn');
@@ -765,9 +925,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // =========================================================================
-  // 6. COORDENADAS EN GRADOS DECIMALES
-  // =========================================================================
   const statCoord = document.getElementById('statCoord');
 
   map.on('mousemove', (e) => {
@@ -780,9 +937,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // =========================================================================
-  // 7. CÁLCULO DE ESCALA EN KM Y CONTROLES DE ZOOM
-  // =========================================================================
   const statZoom = document.getElementById('statZoom');
   const statScale = document.getElementById('statScale');
 
@@ -826,16 +980,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (zoomInBtn) zoomInBtn.addEventListener('click', () => map.zoomIn());
   if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => map.zoomOut());
 
-  // =========================================================================
-  // 8. COMPONENTES DE INTERFAZ (UI)
-  // =========================================================================
-  const layerCountEl = document.getElementById('layerCount');
-  function refreshCount() {
-    if (!layerCountEl) return;
-    const on = document.querySelectorAll('.toggle.on').length;
-    layerCountEl.textContent = on + (on === 1 ? ' activa' : ' activas');
-  }
-
   refreshCount();
 
   function buildTicks(el, count) {
@@ -852,11 +996,6 @@ document.addEventListener('DOMContentLoaded', () => {
   buildTicks(document.getElementById('gratLeft'), 18);
   buildTicks(document.getElementById('gratRight'), 18);
 
-
-
-// =========================================================================
-  // 9. SINCRONIZACIÓN Y COMPORTAMIENTO DE LA BRÚJULA
-  // =========================================================================
   const compassEl = document.querySelector('.compass');
 
   if (compassEl && map) {

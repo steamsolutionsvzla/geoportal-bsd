@@ -13,6 +13,8 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
+<!-- Turf.js para análisis espacial -->
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 <script src="js/main.js"></script>
 </head>
@@ -55,10 +57,10 @@
     </div>
   </header>
 
-  <!-- SIDEBAR (PANEL IZQUIERDO) -->
+<!-- SIDEBAR (PANEL IZQUIERDO) -->
   <aside class="sidebar" id="sidebar">
 
-    <!-- FILTRO VISUAL POR ESTADO / MUNICIPIO -->
+    <!-- FILTRO VISUAL POR ESTADO -->
     <div class="filter-panel">
       <div class="panel-heading">
         <span class="eyebrow">Filtrar por ubicación</span>
@@ -74,26 +76,13 @@
           </button>
           <div class="loc-filter-dropdown" id="dropdownEstado">
             <div class="loc-option selected" data-value="">Todos los estados</div>
-            <!-- Se llenará dinámicamente o estáticamente con estados de Venezuela -->
-          </div>
-        </div>
-
-        <!-- Selector de Municipio -->
-        <div class="loc-filter" id="filterMunicipio">
-          <button type="button" class="loc-filter-btn" data-placeholder="Municipio">
-            <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="6" height="12"/><rect x="14" y="4" width="6" height="17"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
-            <span class="lf-label">Municipio</span>
-            <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </button>
-          <div class="loc-filter-dropdown" id="dropdownMunicipio">
-            <div class="loc-option selected" data-value="">Todos los municipios</div>
           </div>
         </div>
       </div>
 
-      <!-- Botón para aplicar el filtro y ubicar en el mapa -->
+      <!-- Botón para aplicar el filtro y sombrear en el mapa -->
       <div class="filter-action-container">
-        <button type="button" id="applyFilterBtn" class="apply-filter-btn">Aplicar Zoom a Ubicación</button>
+        <button type="button" id="applyFilterBtn" class="apply-filter-btn">Filtrar Estado y Calcular Puntos</button>
       </div>
     </div>
 
@@ -182,14 +171,7 @@
             <span class="bm-desc">Imágenes Esri + Híbrido</span>
           </div>
         </div>
-        <!-- Opción añadida para ocultar el mapa base -->
-        <div class="basemap-option" data-basemap="ninguno">
-          <div class="basemap-preview" style="background: var(--bg-surface, #1e222a);"></div>
-          <div class="basemap-info">
-            <span class="bm-name">Sin Mapa Base</span>
-            <span class="bm-desc">Solo capas vectoriales</span>
-          </div>
-        </div>
+      
       </div>
     </div>
 
@@ -224,7 +206,7 @@
     </div>
   </div> 
 
-  <!-- PANEL DERECHO: PANEL DE INFORMACIÓN / DETALLES -->
+ <!-- PANEL DERECHO: PANEL DE INFORMACIÓN / DETALLES -->
   <aside class="info-panel" id="infoPanel">
     <div class="panel-heading">
       <span class="eyebrow">Información</span>
