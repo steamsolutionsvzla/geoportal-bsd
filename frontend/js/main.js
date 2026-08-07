@@ -408,6 +408,7 @@ if (sidebarElement) {
         map.setLayoutProperty(ESTADO_LINE_LAYER_ID, 'visibility', visValue);
       }
       updateLegendUI();
+      renderInfoPanel();
       if (window.innerWidth <= 768 && sidebar && appContainer && !sidebar.classList.contains('collapsed')) {
         toggleSidebarState();
       }
@@ -429,6 +430,7 @@ if (sidebarElement) {
           rowTarget.classList.add('off');
           refreshCount();
           updateLegendUI();
+          renderInfoPanel();
           return;
         }
 
@@ -471,6 +473,7 @@ if (sidebarElement) {
 
     refreshCount();
     updateLegendUI();
+    renderInfoPanel();
 
     if (window.innerWidth <= 768 && sidebar && appContainer && !sidebar.classList.contains('collapsed')) {
       toggleSidebarState();
@@ -999,10 +1002,53 @@ if (sidebarElement) {
   }
 
   // -----------------------------------------------------------------------
+  // Construye el apartado de "Metadatos de capas activas". Es independiente
+  // de los cuadros de punto seleccionado / resumen de filtro: simplemente
+  // lista cada capa actualmente activada en el sidebar (nombre + botón
+  // "Metadatos" que por ahora no hace nada). Se recalcula cada vez que se
+  // llama a renderInfoPanel(), así que siempre refleja el estado actual de
+  // los toggles.
+  // -----------------------------------------------------------------------
+  function buildActiveLayersMetadataHtml() {
+    const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
+    if (activeToggles.length === 0) return '';
+
+    let rowsHtml = '';
+    activeToggles.forEach(toggle => {
+      const tableName = toggle.getAttribute('data-table');
+      let displayName = tableName;
+
+      if (tableName === 'dpt_estadal_venezuela') {
+        displayName = 'Entidades Federales (Estados)';
+      } else {
+        const layerConfig = availableLayers.find(l => l.id === tableName);
+        if (layerConfig) displayName = layerConfig.name;
+      }
+
+      rowsHtml += `
+        <div class="metadata-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px dashed rgba(255,255,255,0.08);">
+          <span style="font-size: 0.75rem; color: var(--paper-100); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+          <button type="button" class="metadata-btn" style="flex-shrink: 0; background: var(--panel-750); color: var(--muted-300); border: 1px solid var(--line-700); border-radius: var(--radius-s); padding: 4px 10px; font-size: 0.65rem; cursor: pointer;">Metadatos</button>
+        </div>
+      `;
+    });
+
+    return `
+      <div class="info-card" style="margin-top: 14px;">
+        <div class="ic-label">Metadatos de Capas Activas</div>
+        <hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">
+        ${rowsHtml}
+      </div>
+    `;
+  }
+
+  // -----------------------------------------------------------------------
   // Función central que dibuja el panel de información. Combina, en este
-  // orden fijo, la tarjeta del punto seleccionado (si existe) y el resumen
-  // del filtro (si existe), sin importar cuál de los dos se generó primero.
-  // Se debe llamar SIEMPRE que cambie currentPointData o currentFilterData.
+  // orden fijo, la tarjeta del punto seleccionado (si existe), el resumen
+  // del filtro (si existe) y, más abajo, el apartado de metadatos de capas
+  // activas, sin importar cuál se generó primero.
+  // Se debe llamar SIEMPRE que cambie currentPointData, currentFilterData
+  // o el estado de los toggles de capas.
   // -----------------------------------------------------------------------
   function renderInfoPanel() {
     const infoContent = document.getElementById('infoPanelContent');
@@ -1010,6 +1056,7 @@ if (sidebarElement) {
 
     const pointHtml = buildPointCardHtml();
     const filterHtml = (isFilterActive && currentFilterData) ? buildFilterSummaryHtml() : '';
+    const metadataHtml = buildActiveLayersMetadataHtml();
 
     let html = '';
     if (pointHtml) {
@@ -1020,6 +1067,8 @@ if (sidebarElement) {
     } else {
       html = `<div class="info-card"><div class="ic-label">Información</div><p style="margin: 4px 0; font-size: 0.75rem; color: var(--muted-500);">Seleccione un estado y aplique el filtro, o haga clic en un punto del mapa, para ver los detalles.</p></div>`;
     }
+
+    if (metadataHtml) html += metadataHtml;
 
     infoContent.innerHTML = html;
 
