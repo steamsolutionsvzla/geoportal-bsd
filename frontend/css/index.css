@@ -6,7 +6,7 @@
   --panel-750:#eef0f3;
   --line-700:#dde1e6;
   --line-600:#c8cdd4;
-  --muted-500:#6b7280;
+  --muted-500:#3b3f47;
   --muted-300:#3d4451;
   --paper-100:#f4f2ed;
   --heading-900:#1b1e24;
@@ -14,7 +14,7 @@
   --accent-navy:#2d5296;
   --accent-navy-dim:#122b5a;
   --accent-navy-soft:rgba(45,82,150,0.18);
-  --accent-navy-light:#7398cf;
+  --accent-navy-light:#1668e4;
   --accent-navy-light-soft:rgba(115,152,207,0.16);
   --accent-red:#c1584a;
 
@@ -156,8 +156,8 @@ a{color:inherit;text-decoration:none;}
 .hero-grid{
   position:absolute;inset:0;
   background-image:
-    linear-gradient(rgba(20,20,26,.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20,20,26,.05) 1px, transparent 1px);
+    linear-gradient(rgba(31, 31, 185, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26, 20, 26, 0.05) 1px, transparent 1px);
   background-size:64px 64px;
   mask-image:linear-gradient(180deg, rgba(0,0,0,.9), transparent 78%);
   pointer-events:none;
@@ -210,7 +210,7 @@ a{color:inherit;text-decoration:none;}
 }
 .strip-inner{
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
-  font-family:'JetBrains Mono',monospace;font-size:.68rem;
+  font-family:'JetBrains Mono',monospace;font-size:.70rem;
   letter-spacing:.08em;text-transform:uppercase;color:var(--muted-500);
 }
 .strip-inner span{white-space:nowrap;}

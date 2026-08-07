@@ -21,7 +21,15 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-
+<script>
+  // Verificación de seguridad inmediata
+  const sesionActiva = localStorage.getItem('auth_session');
+  
+  if (!sesionActiva) {
+    // Si no encuentra la clave, manda al usuario al login antes de cargar nada más
+    window.location.href = 'login.html';
+  }
+</script>
 <div class="app">
 
   <!-- TOPBAR -->
@@ -100,7 +108,7 @@
     </div>
 
     <!-- SECCIÓN DE CAPAS PETROLERAS -->
-    <div class="layer-section-title" style="padding: 14px 16px 4px; font-size: 0.75rem; font-weight: bold; color: var(--muted-500, #8c8c96); text-transform: uppercase; letter-spacing: 0.5px;">Capas Petroleras</div>
+    <div class="layer-section-title" style="padding: 14px 16px 4px; font-size: 0.75rem; font-weight: bold; color: var(--muted-500, #8c8c96); text-transform: uppercase; letter-spacing: 0.5px;">Capas Temáticas</div>
     <div class="layer-list" id="layerListPetroleras">
       <!-- Demás capas dinámicas -->
     </div>

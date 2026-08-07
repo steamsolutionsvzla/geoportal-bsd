@@ -39,28 +39,40 @@
 
 <!-- HERO -->
 <section class="hero" id="plataforma">
-  <div class="hero-grid"></div>
+  <div class="hero-grid">
 
+  <!-- SVG BRÚJULA CON MÁS CONTRASTE -->
   <svg class="hero-compass" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(30,34,42,.18)" stroke-width="0.6"/>
-    <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(30,34,42,.14)" stroke-width="0.4"/>
-    <g stroke="rgba(30,34,42,.22)" stroke-width="0.6">
-      <line x1="50" y1="6" x2="50" y2="13"/>
-      <line x1="50" y1="87" x2="50" y2="94"/>
-      <line x1="6" y1="50" x2="13" y2="50"/>
-      <line x1="87" y1="50" x2="94" y2="50"/>
+    <!-- Círculo base con más cuerpo y borde definido -->
+    <circle cx="50" cy="50" r="46" fill="rgba(24, 30, 40, 0.85)" stroke="rgba(255,255,255,0.25)" stroke-width="1.2"/>
+    <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.8"/>
+    
+    <!-- Marcas direccionales más gruesas y claras -->
+    <g stroke="rgba(255,255,255,0.5)" stroke-width="1.2">
+      <line x1="50" y1="5" x2="50" y2="14"/>
+      <line x1="50" y1="86" x2="50" y2="95"/>
+      <line x1="5" y1="50" x2="14" y2="50"/>
+      <line x1="86" y1="50" x2="95" y2="50"/>
     </g>
-    <polygon points="50,15 44.5,50 50,50" fill="rgba(193,88,74,.4)"/>
-    <polygon points="50,15 55.5,50 50,50" fill="rgba(193,88,74,.22)"/>
-    <polygon points="50,85 44.5,50 50,50" fill="rgba(30,34,42,.28)"/>
-    <polygon points="50,85 55.5,50 50,50" fill="rgba(30,34,42,.14)"/>
-    <circle cx="50" cy="50" r="3" fill="rgba(30,34,42,.28)"/>
+    
+    <!-- Manilla Norte (Rojo vivo de alta visibilidad) -->
+    <polygon points="50,13 43,50 50,50" fill="rgba(245, 75, 60, 1)"/>
+    <polygon points="50,13 57,50 50,50" fill="rgba(200, 45, 30, 0.9)"/>
+    
+    <!-- Manilla Sur (Plateado brillante) -->
+    <polygon points="50,87 43,50 50,50" fill="rgba(255, 255, 255, 0.95)"/>
+    <polygon points="50,87 57,50 50,50" fill="rgba(180, 190, 205, 0.9)"/>
+    
+    <!-- Centro destacado -->
+    <circle cx="50" cy="50" r="4" fill="rgba(12, 15, 20, 1)" stroke="rgba(255,255,255,1)" stroke-width="1.5"/>
   </svg>
+
+  </div>
 
   <div class="wrap">
     <div class="hero-inner">
       <span class="eyebrow">Infraestructura de datos geoespaciales</span>
-      <h1>La industria petrolera, <br> un sola portal</h1>
+      <h1>La industria petrolera, <br> un solo portal</h1>
       <p class="lead">Un banco de datos soberano que centraliza, versiona y sirve información geoespacial crítica a los organismos que la necesitan — con control de acceso por rol y trazabilidad de cada consulta.</p>
       <div class="hero-actions">
         <a href="login.html" class="btn btn-primary btn-lg">Acceder al geoportal</a>
@@ -91,7 +103,7 @@
   <div class="wrap">
     <div class="showcase-head">
       <span class="eyebrow">Vista de la plataforma</span>
-      <h2>El mapa como herramienta de gestion de la industria petrolera.</h2>
+      <h2>El mapa como herramienta de gestión de la industria petrolera.</h2>
       <p>Capas activables, filtrado por ubicación y ficha técnica de cada elemento, sobre un lienzo cartográfico pensado para lectura operativa — de día y de noche.</p>
     </div>
 
@@ -102,10 +114,8 @@
         <span class="device-url">geoportal.bsd &middot; sesión segura</span>
       </div>
       <div class="device-screen">
-
         <img src="img/Imagen-geoportal.png" alt="Vista del geoportal">
       </div>
-     
     </div>
   </div>
 </section>
@@ -218,8 +228,6 @@
     </div>
   </div>
 </footer>
-
-
 
 </body>
 </html>

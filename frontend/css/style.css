@@ -7,14 +7,14 @@
   --panel-750: #212128;
   --line-700: #2b2b33;
   --line-600: #38383f;
-  --muted-500: #8c8c96;
+  --muted-500: #e2e5eb;
   --muted-300: #b7b7c1;
   --paper-100: #f4f2ed;
 
   /* Azul marino, tomado del isotipo (#122b5a), acento principal */
   --accent-navy: #2d5296;
   --accent-navy-dim: #122b5a;
-  --accent-navy-soft: rgba(45, 82, 150, 0.18);
+  --accent-navy-soft: rgba(17, 155, 35, 0.712);
 
   /* Variante clara del mismo azul, para estados secundarios */
   --accent-navy-light: #7398cf;
@@ -312,7 +312,7 @@ input {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.58rem;
   letter-spacing: 0.04em;
-  color: var(--muted-500);
+  color: var(--accent-navy-dim);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -375,7 +375,7 @@ input {
 .panel-heading .count {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
-  color: var(--accent-navy);
+  color:#fff;
   background: var(--accent-navy-soft);
   border: 1px solid var(--accent-navy-dim);
   border-radius: 20px;

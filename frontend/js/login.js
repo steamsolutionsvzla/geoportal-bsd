@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // Petición real hacia el endpoint de FastAPI
      // const response = await fetch('http://localhost:8000/api/login',
-      const response = await fetch('http://localhost:8000/api/login',
+      const response = await fetch('/api/login',
          {
         method: 'POST',
         headers: {
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (response.ok) {
         // 🔒 Guardamos la señal de sesión antes de redirigir
-        localStorage.setItem('isLoggedIn', 'true');
+       localStorage.setItem('auth_session', 'activo');
         localStorage.setItem('userEmail', emailInput.value.trim());
 
         mostrarAlerta('Inicio de sesión exitoso. Redirigiendo...', 'success');

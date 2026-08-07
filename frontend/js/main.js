@@ -1,17 +1,40 @@
 document.addEventListener('DOMContentLoaded', () => {
+ // =========================================================================
+  // INDICADOR VISUAL DE CARGA (CENTRADO EN EL MAPA)
+  // =========================================================================
+  function mostrarCargando(mostrar) {
+    let loader = document.getElementById('map-loader');
+    const mapContainer = document.getElementById('map');
+
+    if (!loader && mapContainer) {
+      loader = document.createElement('div');
+      loader.id = 'map-loader';
+      loader.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.85); color: white; padding: 12px 18px; border-radius: 8px; font-size: 0.85rem; z-index: 1000; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); backdrop-filter: blur(4px); pointer-events: none;';
+      loader.innerHTML = '<div style="width: 16px; height: 16px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div> <span>Cargando datos...</span>';
+      
+      const style = document.createElement('style');
+      style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+      document.head.appendChild(style);
+      
+      mapContainer.appendChild(loader);
+    }
+
+    if (loader) {
+      loader.style.display = mostrar ? 'flex' : 'none';
+    }
+  }
 
   // =========================================================================
   // VARIABLES GLOBALES DE ESTADO DE SELECCIÓN
   // =========================================================================
   let selectedFeatureId = null;
   let selectedSourceId = null;
-  let availableLayers = []; // Almacenará dinámicamente las capas de la BD
+  let availableLayers = []; 
 
-  // Variables para la capa estatal y selección de estado
   let estadosGeoJsonCache = null;
   let selectedStateFeatureId = null;
-  let isFilterActive = false; // Controla si el filtro por estado está activo
-  let currentFilterSummaryHtml = ''; // Almacena el HTML del resumen del filtro activo
+  let isFilterActive = false; 
+  let currentFilterSummaryHtml = ''; 
   const ESTADO_SOURCE_ID = 'source-estados-venezuela';
   const ESTADO_LAYER_ID = 'layer-estados-venezuela-fill';
   const ESTADO_LINE_LAYER_ID = 'layer-estados-venezuela-line';
@@ -32,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // =========================================================================
-  // COMPONENTE DINÁMICO PARA COLAPSAR / MOSTRAR TEMÁTICAS (AJUSTE DE ESPACIO)
+  // COMPONENTE DINÁMICO PARA COLAPSAR / MOSTRAR TEMÁTICAS
   // =========================================================================
   ['layerListBase', 'layerListPetroleras'].forEach(containerId => {
     const container = document.getElementById(containerId);
@@ -80,9 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // =========================================================================
-  // 8. COMPONENTE CONTADOR (GLOBAL AL ALCANCE DEL SCRIPT)
-  // =========================================================================
   const layerCountEl = document.getElementById('layerCount');
   
   function refreshCount() {
@@ -97,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   map.on('load', async () => {
 
-    // --- CAPA: VISTA CLARA (LIGHT NO LABELS) ---
+    // --- CAPA: VISTA CLARA ---
     map.addSource('clara-source', {
       type: 'raster',
       tiles: [
@@ -162,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const layerListPetrolerasContainer = document.getElementById('layerListPetroleras');
 
     try {
+      mostrarCargando(true); // Activa el icono de cargando
       const response = await fetch('/api/v1/layers/list');
       const data = await response.json();
 
@@ -230,6 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (layerListPetrolerasContainer) {
         layerListPetrolerasContainer.innerHTML = '<div style="color: #c1584a; font-size: 0.8rem; padding: 10px; text-align: center;">Error al conectar con la BD.</div>';
       }
+    } finally {
+      mostrarCargando(false); // Oculta el icono al terminar
     }
 
     await cargarCapaEstadosVenezuela();
@@ -298,12 +321,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const tableName = toggleBtn.getAttribute('data-table');
         const isVisible = toggleBtn.classList.contains('on');
 
+        const visValue = isVisible ? 'visible' : 'none';
+        if (map.getLayer(ESTADO_LINE_LAYER_ID)) {
+          map.setLayoutProperty(ESTADO_LINE_LAYER_ID, 'visibility', visValue);
+        }
+        refreshCount();
+        
         if (tableName === 'dpt_estadal_venezuela') {
-          const visValue = isVisible ? 'visible' : 'none';
-          if (map.getLayer(ESTADO_LINE_LAYER_ID)) {
-            map.setLayoutProperty(ESTADO_LINE_LAYER_ID, 'visibility', visValue);
-          }
-          refreshCount();
           updateLegendUI();
           if (window.innerWidth <= 768 && sidebar && appContainer && !sidebar.classList.contains('collapsed')) {
             toggleSidebarState();
@@ -316,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isVisible) {
           try {
+            mostrarCargando(true); // Activar indicador al activar la capa
             const response = await fetch(`/api/v1/layers/${tableName}`);
             const data = await response.json();
 
@@ -345,6 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("No se pudo conectar con el backend de FastAPI en http://localhost:8000");
             toggleBtn.classList.remove('on');
             rowTarget.classList.add('off');
+          } finally {
+            mostrarCargando(false); // Ocultar indicador
           }
         } else {
           if (selectedSourceId === sourceId) {
@@ -394,6 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function cargarCapaEstadosVenezuela() {
     const dropdownEstado = document.getElementById('dropdownEstado');
     try {
+      mostrarCargando(true); // Activar indicador al cargar estados
       const response = await fetch('/api/v1/layers/dpt_estadal_venezuela');
       const data = await response.json();
       estadosGeoJsonCache = data;
@@ -406,20 +434,24 @@ document.addEventListener('DOMContentLoaded', () => {
           data: data,
           generateId: true
         });
-
+      }
+  
+      if (!map.getLayer(ESTADO_LINE_LAYER_ID)) {
         map.addLayer({
           id: ESTADO_LINE_LAYER_ID,
           type: 'line',
           source: ESTADO_SOURCE_ID,
-          layout: { visibility: 'none' },
+          layout: {
+            'visibility': 'none'
+          },
           paint: {
-            'line-color': '#000000',
+            'line-color': '#1a365d',
             'line-width': [
               'case',
               ['boolean', ['feature-state', 'selected'], false], 3,
-              1.2
-            ],
-            'line-opacity': 0.85
+              ['==', ['literal', isFilterActive], true], 0,
+              1
+            ]
           }
         });
       }
@@ -441,6 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       console.error("Error al cargar la capa de estados desde el backend:", error);
+    } finally {
+      mostrarCargando(false); // Ocultar indicador
     }
   }
 
@@ -727,6 +761,10 @@ document.addEventListener('DOMContentLoaded', () => {
         applyFilterBtn.style.backgroundColor = "";
         applyFilterBtn.style.background = "";
 
+        if (map.getLayer(ESTADO_LINE_LAYER_ID)) {
+          map.setLayoutProperty(ESTADO_LINE_LAYER_ID, 'visibility', 'none');
+        }
+
         if (selectedStateFeatureId !== null) {
           map.setFeatureState({ source: ESTADO_SOURCE_ID, id: selectedStateFeatureId }, { selected: false });
           selectedStateFeatureId = null;
@@ -809,21 +847,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      isFilterActive = true;
+      isFilterActive = true; 
       applyFilterBtn.textContent = "Eliminar filtro";
       applyFilterBtn.style.backgroundColor = "#c1584a";
       applyFilterBtn.style.background = "#c1584a";
+
+      if (map.getLayer(ESTADO_LINE_LAYER_ID)) {
+        map.setLayoutProperty(ESTADO_LINE_LAYER_ID, 'visibility', 'visible');
+      }
 
       if (selectedStateFeatureId !== null) {
         map.setFeatureState({ source: ESTADO_SOURCE_ID, id: selectedStateFeatureId }, { selected: false });
       }
 
-      const renderedFeatures = map.querySourceFeatures(ESTADO_SOURCE_ID, {
-        filter: ['==', ['coalesce', ['get', 'entidad'], ['get', 'estado'], ['get', 'nombre'], ['get', 'name']], estadoSeleccionado]
+      const featureIndex = estadosGeoJsonCache.features.findIndex(f => {
+        const nombre = f.properties.entidad || f.properties.estado || f.properties.nombre || f.properties.name;
+        return nombre === estadoSeleccionado;
       });
 
-      if (renderedFeatures.length > 0) {
-        selectedStateFeatureId = renderedFeatures[0].id;
+      if (featureIndex !== -1) {
+        selectedStateFeatureId = featureIndex;
         map.setFeatureState({ source: ESTADO_SOURCE_ID, id: selectedStateFeatureId }, { selected: true });
       }
 
@@ -903,3 +946,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
+// =========================================================================
+// FUNCIÓN DE CIERRE DE SESIÓN
+// =========================================================================
+function cerrarSesion() {
+  // Borrar los datos de la sesión guardados en el navegador
+  localStorage.removeItem('auth_session');
+  sessionStorage.clear();
+  
+  // Redirigir al usuario a la pantalla de inicio de sesión
+  window.location.href = 'login.html';
+}
