@@ -33,6 +33,79 @@ async def get_db_layers(pool):
 
     return layers
 
+async def get_layer_metadata(pool, table_name: str):
+    """
+    Busca los metadatos de una capa específica en la tabla qgis_layer_metadata.
+    Devuelve None si la tabla de metadatos no existe o si la capa no tiene
+    un registro de metadatos asociado.
+    """
+    async with pool.acquire() as connection:
+        # 1. Verificar que la tabla de metadatos exista en el esquema public
+        table_exists = await connection.fetchval(
+            """
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'qgis_layer_metadata'
+            );
+            """
+        )
+        if not table_exists:
+            return None
+
+        # 2. Obtener las columnas reales de la tabla (nombre y tipo) para detectar
+        #    cuál identifica el nombre de la capa, y para poder excluir columnas
+        #    no representables como texto simple (geometría, xml, etc.)
+        columns = await connection.fetch(
+            """
+            SELECT column_name, data_type FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'qgis_layer_metadata'
+            ORDER BY ordinal_position;
+            """
+        )
+        column_names = [c['column_name'] for c in columns]
+        column_types = {c['column_name']: (c['data_type'] or '').lower() for c in columns}
+
+        candidates = [
+            'f_table_name', 'table_name', 'layer_name',
+            'tabla', 'capa', 'nombre_capa', 'layer'
+        ]
+        name_column = next((c for c in candidates if c in column_names), None)
+        if not name_column:
+            return None
+
+        # 3. Excluir columnas técnicas/identificadores internos y columnas cuyo
+        #    tipo no es representable como texto simple:
+        #      - 'user-defined' -> normalmente el tipo `geometry` de PostGIS
+        #        (ej. columna "extent"), vendría como WKB/hex ilegible.
+        #      - 'xml' -> volcado crudo (ej. columna "qmd") con toda la info
+        #        de la capa mezclada en texto plano, redundante con los demás
+        #        campos ya estructurados.
+        technical_columns = {
+            'id', 'f_table_catalog', 'f_table_schema', 'f_table_name',
+            'table_name', 'schema_name', 'uid', 'qmd', 'geom',
+        }
+        non_text_types = {'user-defined', 'xml'}
+        select_columns = [
+            c for c in column_names
+            if c.lower() not in technical_columns
+            and column_types.get(c, '') not in non_text_types
+        ]
+        if not select_columns:
+            return None
+        columns_sql = ', '.join(f'"{c}"' for c in select_columns)
+
+        query = f"""
+            SELECT {columns_sql}
+            FROM public.qgis_layer_metadata
+            WHERE "{name_column}" = $1
+            LIMIT 1;
+        """
+        row = await connection.fetchrow(query, table_name)
+        if row is None:
+            return None
+        return dict(row)
+
+
 async def get_table_geojson(pool, table_name: str):
     """Devuelve todos los registros de una tabla geográfica como GeoJSON FeatureCollection."""
 
