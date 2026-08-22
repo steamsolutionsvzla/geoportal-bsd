@@ -17,6 +17,8 @@
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 <link rel="stylesheet" href="css/style.css">
 <script src="js/main.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
 <!-- Librerías de exportación -->
 <script src="js/xlsx.full.min.js"></script>
@@ -79,36 +81,32 @@
         <span class="eyebrow">Filtrar por ubicación</span>
       </div>
 
-      <div class="filter-group">
-        <!-- Selector de Estado -->
-        <div class="loc-filter" id="filterEstado">
-          <button type="button" class="loc-filter-btn" data-placeholder="Estado">
-            <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
-            <span class="lf-label">Estado</span>
-            <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </button>
-          <div class="loc-filter-dropdown" id="dropdownEstado">
-            <div class="loc-option selected" data-value="">Todos los estados</div>
-          </div>
-        </div>
-        <!-- Selector de Bloque -->
-<div class="loc-filter" id="filterBloque">
-  <button type="button" class="loc-filter-btn" data-placeholder="Bloque">
-    <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
-    <span class="lf-label">Bloque</span>
-    <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-  </button>
-  <div class="loc-filter-dropdown" id="dropdownBloque">
-    <div class="loc-option selected" data-value="">Todos los bloques</div>
+ <div class="filter-group">
+  <!-- Selector de Estado -->
+  <div class="loc-filter" id="filterEstado">
+    <button type="button" class="loc-filter-btn" data-placeholder="Estado">
+      <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <span class="lf-label">Estado</span>
+      <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <div class="loc-filter-dropdown" id="dropdownEstado">
+      <div class="loc-option selected" data-value="">Todos los estados</div>
+    </div>
+  </div>
+
+  <!-- Selector de Bloque -->
+  <div class="loc-filter" id="filterBloque">
+    <button type="button" class="loc-filter-btn" data-placeholder="Bloque">
+      <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <span class="lf-label">Bloque</span>
+      <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <div class="loc-filter-dropdown" id="dropdownBloque">
+      <div class="loc-option selected" data-value="">Todos los bloques</div>
+    </div>
   </div>
 </div>
-      </div>
-      
 
-      <!-- Botón para aplicar el filtro y sombrear en el mapa -->
-      <div class="filter-action-container">
-        <button type="button" id="applyFilterBtn" class="apply-filter-btn">Aplicar filtro</button>
-      </div>
     </div>
 <div class="panel-heading">
   <span class="eyebrow">Capas del mapa</span>

@@ -10,7 +10,7 @@ async def get_db_layers(pool):
         ORDER BY name ASC;
     """
 
-    colors = ['#f44336', '#9c27b0', '#673ab7', '#3ab7ad', '#3f51b5', '#ff9800', '#4caf50', '#2196f3', '#e91e63', '#ffeb3b']
+
 
     async with pool.acquire() as connection:
         rows = await connection.fetch(query)
@@ -28,7 +28,7 @@ async def get_db_layers(pool):
                 "id": row['id'],
                 "name": row['name'],
                 "type": map_type,
-                "color": colors[i % len(colors)]
+                
             })
 
     return layers

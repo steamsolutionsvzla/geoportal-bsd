@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // Petición real hacia el endpoint de FastAPI
      // const response = await fetch('http://localhost:8000/api/login',
-      const response = await fetch('/api/login',
+      const response = await fetch('http://localhost:8000/api/login',
          {
         method: 'POST',
         headers: {
