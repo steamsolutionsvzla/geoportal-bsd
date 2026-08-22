@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
  // =========================================================================
   // INDICADOR VISUAL DE CARGA (CENTRADO EN EL MAPA)
   // =========================================================================
+  
   function mostrarCargando(mostrar) {
     let loader = document.getElementById('map-loader');
     const mapContainer = document.getElementById('map');
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const ESTADO_SOURCE_ID = 'source-estados-venezuela';
   const ESTADO_LAYER_ID = 'layer-estados-venezuela-fill';
   const ESTADO_LINE_LAYER_ID = 'layer-estados-venezuela-line';
+  const ESTADO_LABEL_LAYER_ID = 'layer-estados-venezuela-label'
+  let estadoNombreField = 'entidad';
 
   // =========================================================================
   // FILTRO POR BLOQUES (mismo patrón que el filtro de Estados)
@@ -414,44 +417,6 @@ if (legendToggleBtn && legendSwitch) {
       maxzoom: 19
     });
 
-    map.addSource('custom-labels-source', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: [
-          { type: 'Feature', properties: { name: 'COLOMBIA', size: 12, color: '#3a3a3a' }, geometry: { type: 'Point', coordinates: [-72.9, 4.6] } },
-          { type: 'Feature', properties: { name: 'BRASIL', size: 12, color: '#3a3a3a' }, geometry: { type: 'Point', coordinates: [-64.2, 1.0] } },
-          { type: 'Feature', properties: { name: 'TRINIDAD Y TOBAGO', size: 9, color: '#3a3a3a' }, geometry: { type: 'Point', coordinates: [-61.3, 10.65] } },
-          { type: 'Feature', properties: { name: 'GUAYANA ESEQUIBA\n(Zona en Reclamación)', size: 9.5, color: '#7a2e2e' }, geometry: { type: 'Point', coordinates: [-59.8, 6.8] } },
-          { type: 'Feature', properties: { name: 'MAR CARIBE', size: 10, color: '#3a3a3a' }, geometry: { type: 'Point', coordinates: [-66.5, 13.4] } },
-          { type: 'Feature', properties: { name: 'OCÉANO ATLÁNTICO', size: 10, color: '#3a3a3a' }, geometry: { type: 'Point', coordinates: [-57.3, 9.6] } },
-          { type: 'Feature', properties: { name: 'AMAZONAS', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-67.583, 5.665] } },
-          { type: 'Feature', properties: { name: 'ANZOÁTEGUI', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-64.684, 10.136] } },
-          { type: 'Feature', properties: { name: 'APURE', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-67.447, 7.885] } },
-          { type: 'Feature', properties: { name: 'ARAGUA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-67.592, 10.246] } },
-          { type: 'Feature', properties: { name: 'BARINAS', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-70.216, 8.622] } },
-          { type: 'Feature', properties: { name: 'BOLÍVAR', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-63.544, 8.124] } },
-          { type: 'Feature', properties: { name: 'CARABOBO', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-68.007, 10.162] } },
-          { type: 'Feature', properties: { name: 'COJEDES', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-68.586, 9.661] } },
-          { type: 'Feature', properties: { name: 'DELTA AMACURO', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-62.047, 9.062] } },
-          { type: 'Feature', properties: { name: 'FALCÓN', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-69.673, 11.404] } },
-          { type: 'Feature', properties: { name: 'GUÁRICO', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-67.351, 9.917] } },
-          { type: 'Feature', properties: { name: 'LARA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-69.320, 10.068] } },
-          { type: 'Feature', properties: { name: 'MÉRIDA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-71.144, 8.586] } },
-          { type: 'Feature', properties: { name: 'MIRANDA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-67.041, 10.343] } },
-          { type: 'Feature', properties: { name: 'MONAGAS', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-63.183, 9.749] } },
-          { type: 'Feature', properties: { name: 'NUEVA ESPARTA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-63.860, 11.033] } },
-          { type: 'Feature', properties: { name: 'PORTUGUESA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-69.744, 9.041] } },
-          { type: 'Feature', properties: { name: 'SUCRE', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-64.171, 10.463] } },
-          { type: 'Feature', properties: { name: 'TÁCHIRA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-72.224, 7.767] } },
-          { type: 'Feature', properties: { name: 'TRUJILLO', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-70.435, 9.367] } },
-          { type: 'Feature', properties: { name: 'YARACUY', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-68.744, 10.339] } },
-          { type: 'Feature', properties: { name: 'ZULIA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-71.612, 10.653] } },
-          { type: 'Feature', properties: { name: 'LA GUAIRA', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-66.931, 10.601] } },
-          { type: 'Feature', properties: { name: 'DISTRITO CAPITAL', size: 11, color: '#2f4a33', kind: 'estado' }, geometry: { type: 'Point', coordinates: [-66.903, 10.480] } }
-        ]
-      }
-    });
 
     map.addLayer({
       id: 'custom-labels-layer',
@@ -500,12 +465,54 @@ if (legendToggleBtn && legendSwitch) {
 
     try {
       mostrarCargando(true);
-      const response = await fetch('http://localhost:8000/api/v1/layers/list');
+      const response = await fetch('/api/v1/layers/list');
       const data = await response.json();
-availableLayers = data.layers.filter(layer => {
-      const id = (layer.id || '').toLowerCase();
-      return !id.includes('layer_metadata');
-    });
+      availableLayers = data.layers.filter(layer => {
+  const id = (layer.id || '').toLowerCase();
+  return !id.includes('layer_metadata');
+});
+
+// ================================================================
+// ASIGNACIÓN DINÁMICA DE COLORES (hash + paleta por tipo)
+// ================================================================
+const PALETTE_POINT = [
+  '#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00',
+  '#ffff33','#a65628','#f781bf','#999999'
+];
+const PALETTE_LINE = [
+  '#1b9e77','#d95f02','#7570b3','#e7298a',
+  '#66a61e','#e6ab02','#a6761d','#666666'
+];
+const PALETTE_POLYGON = [
+  '#a6cee3','#1f78b4','#b2df8a','#33a02c',
+  '#fb9a99','#e31a1c','#fdbf6f','#ff7f00',
+  '#cab2d6','#6a3d9a','#ffff99','#b15928'
+];
+
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+function getPaletteForType(type) {
+  if (type === 'circle' || type === 'point') return PALETTE_POINT;
+  if (type === 'line') return PALETTE_LINE;
+  if (type === 'fill') return PALETTE_POLYGON;
+  return PALETTE_POINT;
+}
+
+availableLayers.forEach(layer => {
+  if (!layer.color) {
+    const palette = getPaletteForType(layer.type);
+    const idx = hashCode(layer.id) % palette.length;
+    layer.color = palette[idx];
+  }
+});
 
       const typePriority = {
         'circle': 1,
@@ -642,7 +649,7 @@ if (tableName === BLOQUES_TABLE_ID) {
     if (isVisible) {
       try {
         mostrarCargando(true);
-        const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}`);
+        const response = await fetch(`/api/v1/layers/${tableName}`);
         const data = await response.json();
 
         if (!data.features || data.features.length === 0) {
@@ -704,72 +711,155 @@ if (tableName === BLOQUES_TABLE_ID) {
 
   });
 
-  async function cargarCapaEstadosVenezuela() {
-    const dropdownEstado = document.getElementById('dropdownEstado');
-    try {
-      mostrarCargando(true);
-      const response = await fetch('http://localhost:8000/api/v1/layers/dpt_estadal_venezuela');
-      const data = await response.json();
-      estadosGeoJsonCache = data;
-
-      if (map.getSource(ESTADO_SOURCE_ID)) {
-        map.getSource(ESTADO_SOURCE_ID).setData(data);
-      } else {
-        map.addSource(ESTADO_SOURCE_ID, {
-          type: 'geojson',
-          data: data,
-          generateId: true
+async function cargarCapaEstadosVenezuela() {
+  const dropdownEstado = document.getElementById('dropdownEstado');
+  try {
+    mostrarCargando(true);
+    const response = await fetch('/api/v1/layers/dpt_estadal_venezuela');
+    const data = await response.json();
+    
+    // --- Fusión de geometrías (MultiPolygon) ---
+    const featuresByName = {};
+    data.features.forEach(f => {
+      const nombre = obtenerNombreEstado(f.properties);
+      if (!nombre) return;
+      if (!featuresByName[nombre]) {
+        featuresByName[nombre] = {
+          type: 'Feature',
+          properties: { ...f.properties },
+          geometry: { type: 'MultiPolygon', coordinates: [] }
+        };
+      }
+      if (f.geometry.type === 'Polygon') {
+        featuresByName[nombre].geometry.coordinates.push(f.geometry.coordinates);
+      } else if (f.geometry.type === 'MultiPolygon') {
+        f.geometry.coordinates.forEach(coords => {
+          featuresByName[nombre].geometry.coordinates.push(coords);
         });
       }
+    });
+    data.features = Object.values(featuresByName);
+    estadosGeoJsonCache = data;
 
-      if (!map.getLayer(ESTADO_LINE_LAYER_ID)) {
-        map.addLayer({
-          id: ESTADO_LINE_LAYER_ID,
-          type: 'line',
-          source: ESTADO_SOURCE_ID,
-          layout: {
-            'visibility': 'none'
-          },
-          paint: {
-            'line-color': '#1a365d',
-            'line-width': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false], 3,
-              ['==', ['literal', isFilterActive], true], 0,
-              1
-            ]
-          }
-        });
-      }
-
-      if (dropdownEstado && data.features) {
-        const estadosSet = new Set();
-        data.features.forEach(f => {
-          const nombreEstado = obtenerNombreEstado(f.properties);
-          if (nombreEstado) estadosSet.add(nombreEstado);
-        });
-
-        Array.from(estadosSet).sort().forEach(estado => {
-          const opt = document.createElement('div');
-          opt.className = 'loc-option';
-          opt.setAttribute('data-value', estado);
-          opt.textContent = estado;
-          dropdownEstado.appendChild(opt);
-        });
-      }
-    } catch (error) {
-      console.error("Error al cargar la capa de estados desde el backend:", error);
-    } finally {
-      mostrarCargando(false);
+    // --- Detectar campo nombre ---
+    if (data.features.length > 0) {
+      const posiblesClaves = ['entidad', 'estado', 'nombre', 'name'];
+      const keysReales = Object.keys(data.features[0].properties || {});
+      const encontrada = posiblesClaves
+        .map(clave => keysReales.find(k => k.toLowerCase() === clave))
+        .find(Boolean);
+      if (encontrada) estadoNombreField = encontrada;
     }
+
+    // --- Calcular centroides para etiquetas ---
+    const puntosEtiquetas = {
+      type: 'FeatureCollection',
+      features: []
+    };
+    data.features.forEach(f => {
+      try {
+        const centroide = turf.centerOfMass(f);
+        centroide.properties = { ...f.properties };
+        puntosEtiquetas.features.push(centroide);
+      } catch (e) {
+        console.warn('Error calculando centroide:', e);
+      }
+    });
+
+    const ESTADO_LABEL_SOURCE_ID = 'source-estados-venezuela-labels';
+    if (map.getSource(ESTADO_LABEL_SOURCE_ID)) {
+      map.getSource(ESTADO_LABEL_SOURCE_ID).setData(puntosEtiquetas);
+    } else {
+      map.addSource(ESTADO_LABEL_SOURCE_ID, {
+        type: 'geojson',
+        data: puntosEtiquetas,
+        generateId: true
+      });
+    }
+
+    // --- Fuente de polígonos (para visualización) ---
+    if (map.getSource(ESTADO_SOURCE_ID)) {
+      map.getSource(ESTADO_SOURCE_ID).setData(data);
+    } else {
+      map.addSource(ESTADO_SOURCE_ID, {
+        type: 'geojson',
+        data: data,
+        generateId: true
+      });
+    }
+
+    // --- Capa de línea de estados ---
+    if (!map.getLayer(ESTADO_LINE_LAYER_ID)) {
+      map.addLayer({
+        id: ESTADO_LINE_LAYER_ID,
+        type: 'line',
+        source: ESTADO_SOURCE_ID,
+        layout: { visibility: 'none' },
+        paint: {
+          'line-color': '#1a365d',
+          'line-width': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 3,
+            ['==', ['literal', isFilterActive], true], 0,
+            1
+          ]
+        }
+      });
+    }
+
+    // --- Capa de etiquetas (basada en puntos) ---
+    if (!map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      map.addLayer({
+        id: ESTADO_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: ESTADO_LABEL_SOURCE_ID,
+        layout: {
+          'visibility': 'none',
+          'text-field': ['get', estadoNombreField],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 11,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-justify': 'center',
+          'symbol-placement': 'point'
+        },
+        paint: {
+          'text-color': '#1a2a3a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.8
+        }
+      });
+    }
+
+    // --- Llenar dropdown ---
+    if (dropdownEstado && data.features) {
+      const estadosSet = new Set();
+      data.features.forEach(f => {
+        const nombreEstado = obtenerNombreEstado(f.properties);
+        if (nombreEstado) estadosSet.add(nombreEstado);
+      });
+      Array.from(estadosSet).sort().forEach(estado => {
+        const opt = document.createElement('div');
+        opt.className = 'loc-option';
+        opt.setAttribute('data-value', estado);
+        opt.textContent = estado;
+        dropdownEstado.appendChild(opt);
+      });
+    }
+  } catch (error) {
+    console.error("Error al cargar la capa de estados:", error);
+  } finally {
+    mostrarCargando(false);
   }
+}
 
   async function cargarCapaBloques() {
     const dropdownBloque = document.getElementById('dropdownBloque');
     try {
       mostrarCargando(true);
-      const response = await fetch(`http://localhost:8000/api/v1/layers/${BLOQUES_TABLE_ID}`);
+      const response = await fetch(`/api/v1/layers/${BLOQUES_TABLE_ID}`);
       const data = await response.json();
+
       bloquesGeoJsonCache = data;
 
       // Detectar el nombre real del campo que contiene el nombre del bloque
@@ -1073,56 +1163,84 @@ if (!map.getLayer(BLOQUE_LABEL_LAYER_ID)) {
   }
 
   function switchBasemap(targetKey) {
-    if (targetKey === activeBasemap) return;
+  if (targetKey === activeBasemap) return;
 
-    const overlayLayers = ['clara-layer', 'satelite-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
+  const overlayLayers = ['clara-layer', 'satelite-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
 
-    overlayLayers.forEach(layerId => {
-      if (map.getLayer(layerId)) {
-        map.setLayoutProperty(layerId, 'visibility', 'none');
-      }
-    });
+  // 1. Ocultar todas las capas raster
+  overlayLayers.forEach(layerId => {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', 'none');
+    }
+  });
 
+  // 2. Ocultar ambas capas de etiquetas por defecto (luego mostraremos la que corresponda)
+  if (map.getLayer('custom-labels-layer')) {
+    map.setLayoutProperty('custom-labels-layer', 'visibility', 'none');
+  }
+  if (map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+    map.setLayoutProperty(ESTADO_LABEL_LAYER_ID, 'visibility', 'none');
+  }
+
+  // 3. Si veníamos de relieve3d, resetear el terreno y la inclinación
+  if (targetKey !== 'relieve3d' && activeBasemap === 'relieve3d') {
+    map.setTerrain(null);
+    map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+  }
+
+  // 4. Activar el mapa base correspondiente y las etiquetas adecuadas
+  if (targetKey === 'clara') {
+    // Modo Claro: solo la capa clara, sin etiquetas
+    if (map.getLayer('clara-layer')) {
+      map.setLayoutProperty('clara-layer', 'visibility', 'visible');
+    }
+    // (custom-labels-layer y ESTADO_LABEL_LAYER_ID ya están ocultos)
+
+  } else if (targetKey === 'satelite') {
+    // Modo Satélite: capa satélite + etiquetas de estados
+    if (map.getLayer('satelite-layer')) {
+      map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
+    }
+    // Mostrar etiquetas de estados, ocultar custom
+    if (map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      map.setLayoutProperty(ESTADO_LABEL_LAYER_ID, 'visibility', 'visible');
+    }
+    // Asegurar que custom-labels-layer esté oculta (ya lo está, pero por claridad)
     if (map.getLayer('custom-labels-layer')) {
       map.setLayoutProperty('custom-labels-layer', 'visibility', 'none');
     }
 
-    if (targetKey !== 'relieve3d' && activeBasemap === 'relieve3d') {
-      map.setTerrain(null);
-      map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+  } else if (targetKey === 'relieve3d') {
+    // Modo Relieve 3D: capas de relieve + etiquetas de estados
+    if (map.getLayer('relieve-color-layer')) {
+      map.setLayoutProperty('relieve-color-layer', 'visibility', 'visible');
     }
-
-    if (targetKey === 'clara' && map.getLayer('clara-layer')) {
-      map.setLayoutProperty('clara-layer', 'visibility', 'visible');
-    } else if (targetKey === 'satelite' && map.getLayer('satelite-layer')) {
-      map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
-      if (map.getLayer('custom-labels-layer')) {
-        map.setLayoutProperty('custom-labels-layer', 'visibility', 'visible');
-      }
-    } else if (targetKey === 'relieve3d') {
-      if (map.getLayer('relieve-color-layer')) {
-        map.setLayoutProperty('relieve-color-layer', 'visibility', 'visible');
-      }
-      if (map.getLayer('relieve-hillshade-layer')) {
-        map.setLayoutProperty('relieve-hillshade-layer', 'visibility', 'visible');
-      }
-      if (map.getLayer('custom-labels-layer')) {
-        map.setLayoutProperty('custom-labels-layer', 'visibility', 'visible');
-      }
-      if (map.getSource('terrain-dem')) {
-        map.setTerrain({ source: 'terrain-dem', exaggeration: 1.6 });
-      }
-      map.easeTo({
-        center: [-71.55, 8.35],
-        zoom: 8.3,
-        pitch: 65,
-        bearing: -20,
-        duration: 1800
-      });
+    if (map.getLayer('relieve-hillshade-layer')) {
+      map.setLayoutProperty('relieve-hillshade-layer', 'visibility', 'visible');
     }
-
-    activeBasemap = targetKey;
+    // Mostrar etiquetas de estados, ocultar custom
+    if (map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      map.setLayoutProperty(ESTADO_LABEL_LAYER_ID, 'visibility', 'visible');
+    }
+    if (map.getLayer('custom-labels-layer')) {
+      map.setLayoutProperty('custom-labels-layer', 'visibility', 'none');
+    }
+    // Activar terreno 3D y mover la cámara
+    if (map.getSource('terrain-dem')) {
+      map.setTerrain({ source: 'terrain-dem', exaggeration: 1.6 });
+    }
+    map.easeTo({
+      center: [-71.55, 8.35],
+      zoom: 8.3,
+      pitch: 65,
+      bearing: -20,
+      duration: 1800
+    });
   }
+
+  // 5. Actualizar la variable global
+  activeBasemap = targetKey;
+}
 
   const basemapSwitch = document.querySelector('.basemap-switch');
   const basemapBtn = document.getElementById('basemapToggleBtn');
@@ -1776,7 +1894,7 @@ if (dropdownBloque) {
     openMetadataModal();
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/layers/${tableName}/metadata`);
+      const response = await fetch(`/api/v1/layers/${tableName}/metadata`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
 
