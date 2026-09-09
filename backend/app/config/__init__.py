@@ -12,6 +12,16 @@ class Settings(BaseSettings):
     DB_USER: str = "postgres"
     DB_PASSWORD: str = "0907"
 
+    # -------------------------------------------------------------------
+    # GeoServer: FastAPI actúa como intermediario, nunca el frontend habla
+    # directo con GeoServer. Usuario/contraseña se leen de variables de
+    # entorno (token) y no quedan hardcodeadas en el código.
+    # -------------------------------------------------------------------
+    GEOSERVER_URL: str = "http://geoserver:8080/geoserver"
+    GEOSERVER_WORKSPACE: str = "geoportal"
+    GEOSERVER_USER: str = ""
+    GEOSERVER_PASSWORD: str = ""
+
     @computed_field
     @property
     def DATABASE_URL(self) -> str:

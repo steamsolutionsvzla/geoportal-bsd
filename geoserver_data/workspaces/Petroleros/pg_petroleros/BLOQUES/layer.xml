@@ -1,0 +1,16 @@
+<layer>
+  <name>BLOQUES</name>
+  <id>LayerInfoImpl-788bbf4d:1a082290d71:-7fff</id>
+  <type>VECTOR</type>
+  <defaultStyle>
+    <id>StyleInfoImpl--570ae188:124761b8d78:-7fe0</id>
+  </defaultStyle>
+  <resource class="featureType">
+    <id>FeatureTypeInfoImpl-788bbf4d:1a082290d71:-8000</id>
+  </resource>
+  <attribution>
+    <logoWidth>0</logoWidth>
+    <logoHeight>0</logoHeight>
+  </attribution>
+  <dateCreated>2026-09-08 17:55:23.684 UTC</dateCreated>
+</layer>

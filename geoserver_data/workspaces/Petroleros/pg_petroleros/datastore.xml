@@ -1,0 +1,28 @@
+<dataStore>
+  <id>DataStoreInfoImpl-368600d3:1a06cbc644b:-7ffe</id>
+  <name>pg_petroleros</name>
+  <type>PostGIS (JNDI)</type>
+  <enabled>true</enabled>
+  <workspace>
+    <id>WorkspaceInfoImpl-368600d3:1a06cbc644b:-8000</id>
+  </workspace>
+  <connectionParameters>
+    <entry key="schema">gis_data</entry>
+    <entry key="Estimated extends">true</entry>
+    <entry key="fetch size">1000</entry>
+    <entry key="encode functions">true</entry>
+    <entry key="Expose primary keys">false</entry>
+    <entry key="Support on the fly geometry simplification">true</entry>
+    <entry key="Batch insert size">1</entry>
+    <entry key="preparedStatements">false</entry>
+    <entry key="Method used to simplify geometries">FAST</entry>
+    <entry key="jndiReferenceName">java:comp/env/jdbc/PostGISDB</entry>
+    <entry key="dbtype">postgis</entry>
+    <entry key="namespace">http://petrobsd.tech</entry>
+    <entry key="Loose bbox">true</entry>
+  </connectionParameters>
+  <__default>false</__default>
+  <dateCreated>2026-09-04 14:11:57.626 UTC</dateCreated>
+  <dateModified>2026-09-08 12:41:44.62 UTC</dateModified>
+  <disableOnConnFailure>false</disableOnConnFailure>
+</dataStore>
