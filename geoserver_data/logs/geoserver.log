@@ -203378,3 +203378,264 @@ Request: getFeature
     abstractQueryExpression[0]:
         typeNames[0] = {http://petrobsd.tech}Fosas_plantas
         srsName = EPSG:4326
+10 Sep 11:47:04 CONFIG [geoserver.logging] - Log4j 2 configuration set to DEFAULT_LOGGING.xml
+10 Sep 11:47:05 CONFIG [org.geoserver] - GeoServer configuration lock is enabled
+10 Sep 11:47:06 CONFIG [geoserver.config] - Loading catalog /opt/geoserver_data
+10 Sep 11:47:06 CONFIG [config.datadir] - Catalog and configuration loader uses 12 threads out of 12 available cores.
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style burg (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style capitals (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style cite_lakes (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style dem (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style generic (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style giant_polygon (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style grass (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style green (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style line (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style poi (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style point (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style polygon (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style poly_landmarks (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style pophatch (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style population (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style rain (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style raster (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style restricted (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style simple_roads (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style simple_streams (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded style tiger_roads (parent=global)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded workspace Petroleros
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded workspace Base
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded namespace Petroleros
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded namespace Base
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded data store pg_petroleros (parent=Petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded data store pg_base (parent=Base)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Distrito_San_Tome, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Fosas_plantas, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Lotes_petroleros_venezuela, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Fosas_estaciones, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Bloques_Campos_petroleros, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Fosas_pozos, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type Distrito_Anaco, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type estaciones, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Fosas_estaciones (parent=Petroleros:Fosas_estaciones)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Fosas_pozos (parent=Petroleros:Fosas_pozos)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Fosas_plantas (parent=Petroleros:Fosas_plantas)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer estaciones (parent=Petroleros:estaciones)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Bloques_Campos_petroleros (parent=Petroleros:Bloques_Campos_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Distrito_San_Tome (parent=Petroleros:Distrito_San_Tome)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Distrito_Anaco (parent=Petroleros:Distrito_Anaco)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer Lotes_petroleros_venezuela (parent=Petroleros:Lotes_petroleros_venezuela)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type dpt_estadal_venezuela, enabled (parent=Base/pg_base)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer dpt_estadal_venezuela (parent=Base:dpt_estadal_venezuela)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded feature type BLOQUES, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:47:06 CONFIG [config.datadir] - Loaded layer BLOQUES (parent=Petroleros:BLOQUES)
+10 Sep 11:47:06 INFO   [geoserver.config] - Read Catalog in 658.7 ms: workspaces: 2, namespaces: 2, styles: 21, stores: 2, resources: 10, layers: 10, layer groups: 0.
+10 Sep 11:47:07 CONFIG [config.datadir] - Loading GeoServer config...
+10 Sep 11:47:07 CONFIG [config.datadir] - Loaded service 'wms', enabled
+10 Sep 11:47:07 CONFIG [config.datadir] - Loaded service 'wcs', enabled
+10 Sep 11:47:07 CONFIG [config.datadir] - Loaded service 'WMTSInfoImpl--3ef31051:182c1e8b194:-8000', enabled
+10 Sep 11:47:07 CONFIG [config.datadir] - Loaded service 'wfs', enabled
+10 Sep 11:47:07 CONFIG [config.datadir] - Catalog and configuration loader uses 12 threads out of 12 available cores.
+10 Sep 11:47:07 CONFIG [config.datadir] - Loading workspace services and settings...
+10 Sep 11:47:07 CONFIG [config.datadir] - GeoServer config (settings and services) loaded in 136.7 ms
+10 Sep 11:47:07 CONFIG [gwc.config] - Will look for 'geowebcache.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:47:07 WARN   [config.XMLConfiguration] - GWC configuration validation error: cvc-elt.1.a: Cannot find the declaration of element 'gwcConfiguration'.
+10 Sep 11:47:07 WARN   [config.XMLConfiguration] - Will try to use configuration anyway. Please check the order of declared elements against the schema.
+10 Sep 11:47:07 CONFIG [config.XMLConfiguration] - Initializing GridSets from gwc
+10 Sep 11:47:07 CONFIG [config.XMLConfiguration] - Initializing layers from gwc
+10 Sep 11:47:07 CONFIG [gwc.layer] - Initializing GWC configuration based on GeoServer's Catalog
+10 Sep 11:47:07 CONFIG [gwc.layer] - GeoServer TileLayer store base directory is: gwc-layers
+10 Sep 11:47:07 CONFIG [gwc.layer] - Loading tile layers from gwc-layers
+10 Sep 11:47:07 CONFIG [gwc.layer] - Loaded 10 tile layers in 46.18 ms
+10 Sep 11:47:07 CONFIG [storage.BlobStoreAggregator] - BlobStoreConfiguration gwc contained no blob store infos.
+10 Sep 11:47:07 CONFIG [storage.DefaultStorageFinder] - Found system environment variable GEOSERVER_DATA_DIR set to /opt/geoserver_data/, using it as the default prefix.
+10 Sep 11:47:07 CONFIG [gwc.config] - Initializing GeoServer specific GWC configuration from gwc-gs.xml
+10 Sep 11:47:07 CONFIG [geoserver.security] - AuthenticationCache Initialized with 1000 Max Entries, 300 seconds idle time, 600 seconds time to live and 3 concurrency level
+10 Sep 11:47:07 CONFIG [geoserver.security] - AuthenticationCache Eviction Task created to run every 600 seconds
+10 Sep 11:47:08 CONFIG [gwc.config] - Will look for 'geowebcache-diskquota.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:47:08 CONFIG [gwc.config] - Will look for 'geowebcache-diskquota-jdbc.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:47:08 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:47:08 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:47:09 CONFIG [geowebcache.GeoWebCacheDispatcher] - Invoked setServletPrefix(gwc)
+10 Sep 11:47:09 CONFIG [wms.WMSService] - Will NOT recombine tiles for non-tiling clients.
+10 Sep 11:47:09 CONFIG [wms.WMSService] - Will proxy requests to backend that are not getmap or getcapabilities.
+10 Sep 11:47:10 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:47:10 CONFIG [diskquota.DiskQuotaMonitor] - Setting up disk quota periodic enforcement task
+10 Sep 11:47:10 CONFIG [diskquota.DiskQuotaMonitor] - 0 layers configured with their own quotas. 
+10 Sep 11:47:10 CONFIG [diskquota.DiskQuotaMonitor] - 10 layers attached to global quota 500.0 MB
+10 Sep 11:47:10 CONFIG [diskquota.DiskQuotaMonitor] - Disk quota periodic enforcement task set up every 10 SECONDS
+10 Sep 11:47:11 CONFIG [geoserver.security] - Start reloading user/groups for service named default
+10 Sep 11:47:11 CONFIG [geoserver.security] - Reloading user/groups successful for service named default
+10 Sep 11:47:41 CONFIG [gwc.layer] - GeoServer TileLayer store base directory is: gwc-layers
+10 Sep 11:47:41 CONFIG [gwc.layer] - Loading tile layers from gwc-layers
+10 Sep 11:47:41 CONFIG [gwc.layer] - Loaded 10 tile layers in 24.21 ms
+10 Sep 11:47:41 WARN   [support.DisposableBeanAdapter] - Custom destroy method 'destroy' on bean with name 'gwcMemoryBlobStore' threw an exception: java.util.concurrent.RejectedExecutionException: Task java.util.concurrent.FutureTask@51cf8000[Not completed, task = org.geowebcache.storage.blobstore.memory.MemoryBlobStore$BlobStoreTask@276d4cc3] rejected from java.util.concurrent.ThreadPoolExecutor@7d7dcf6[Terminated, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 1]
+10 Sep 11:47:41 INFO   [geoserver.logging] - Beginning GeoServer cleanup sequence
+10 Sep 11:48:04 CONFIG [geoserver.logging] - Log4j 2 configuration set to DEFAULT_LOGGING.xml
+10 Sep 11:48:05 CONFIG [org.geoserver] - GeoServer configuration lock is enabled
+10 Sep 11:48:06 CONFIG [geoserver.config] - Loading catalog /opt/geoserver_data
+10 Sep 11:48:06 CONFIG [config.datadir] - Catalog and configuration loader uses 12 threads out of 12 available cores.
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style burg (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style capitals (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style cite_lakes (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style dem (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style generic (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style giant_polygon (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style grass (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style green (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style line (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style poi (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style point (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style polygon (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style poly_landmarks (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style pophatch (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style population (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style rain (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style raster (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style restricted (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style simple_roads (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style simple_streams (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded style tiger_roads (parent=global)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded workspace Petroleros
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded workspace Base
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded namespace Petroleros
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded namespace Base
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded data store pg_base (parent=Base)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded data store pg_petroleros (parent=Petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Distrito_San_Tome, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type estaciones, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Fosas_estaciones, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Lotes_petroleros_venezuela, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Distrito_Anaco, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Fosas_plantas, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Fosas_pozos, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type Bloques_Campos_petroleros, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Bloques_Campos_petroleros (parent=Petroleros:Bloques_Campos_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Fosas_plantas (parent=Petroleros:Fosas_plantas)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Fosas_pozos (parent=Petroleros:Fosas_pozos)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer estaciones (parent=Petroleros:estaciones)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Lotes_petroleros_venezuela (parent=Petroleros:Lotes_petroleros_venezuela)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Distrito_Anaco (parent=Petroleros:Distrito_Anaco)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Distrito_San_Tome (parent=Petroleros:Distrito_San_Tome)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer Fosas_estaciones (parent=Petroleros:Fosas_estaciones)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type dpt_estadal_venezuela, enabled (parent=Base/pg_base)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded feature type BLOQUES, enabled (parent=Petroleros/pg_petroleros)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer dpt_estadal_venezuela (parent=Base:dpt_estadal_venezuela)
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded layer BLOQUES (parent=Petroleros:BLOQUES)
+10 Sep 11:48:06 INFO   [geoserver.config] - Read Catalog in 323.4 ms: workspaces: 2, namespaces: 2, styles: 21, stores: 2, resources: 10, layers: 10, layer groups: 0.
+10 Sep 11:48:06 CONFIG [config.datadir] - Loading GeoServer config...
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded service 'wms', enabled
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded service 'wcs', enabled
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded service 'WMTSInfoImpl--3ef31051:182c1e8b194:-8000', enabled
+10 Sep 11:48:06 CONFIG [config.datadir] - Loaded service 'wfs', enabled
+10 Sep 11:48:06 CONFIG [config.datadir] - Catalog and configuration loader uses 12 threads out of 12 available cores.
+10 Sep 11:48:06 CONFIG [config.datadir] - Loading workspace services and settings...
+10 Sep 11:48:06 CONFIG [config.datadir] - GeoServer config (settings and services) loaded in 95.44 ms
+10 Sep 11:48:06 CONFIG [gwc.config] - Will look for 'geowebcache.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:48:06 WARN   [config.XMLConfiguration] - GWC configuration validation error: cvc-elt.1.a: Cannot find the declaration of element 'gwcConfiguration'.
+10 Sep 11:48:06 WARN   [config.XMLConfiguration] - Will try to use configuration anyway. Please check the order of declared elements against the schema.
+10 Sep 11:48:06 CONFIG [config.XMLConfiguration] - Initializing GridSets from gwc
+10 Sep 11:48:06 CONFIG [config.XMLConfiguration] - Initializing layers from gwc
+10 Sep 11:48:06 CONFIG [gwc.layer] - Initializing GWC configuration based on GeoServer's Catalog
+10 Sep 11:48:06 CONFIG [gwc.layer] - GeoServer TileLayer store base directory is: gwc-layers
+10 Sep 11:48:06 CONFIG [gwc.layer] - Loading tile layers from gwc-layers
+10 Sep 11:48:06 CONFIG [gwc.layer] - Loaded 10 tile layers in 29.43 ms
+10 Sep 11:48:06 CONFIG [storage.BlobStoreAggregator] - BlobStoreConfiguration gwc contained no blob store infos.
+10 Sep 11:48:06 CONFIG [storage.DefaultStorageFinder] - Found system environment variable GEOSERVER_DATA_DIR set to /opt/geoserver_data/, using it as the default prefix.
+10 Sep 11:48:07 CONFIG [gwc.config] - Initializing GeoServer specific GWC configuration from gwc-gs.xml
+10 Sep 11:48:07 CONFIG [geoserver.security] - AuthenticationCache Initialized with 1000 Max Entries, 300 seconds idle time, 600 seconds time to live and 3 concurrency level
+10 Sep 11:48:07 CONFIG [geoserver.security] - AuthenticationCache Eviction Task created to run every 600 seconds
+10 Sep 11:48:07 CONFIG [gwc.config] - Will look for 'geowebcache-diskquota.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:48:07 CONFIG [gwc.config] - Will look for 'geowebcache-diskquota-jdbc.xml' in directory '/opt/geoserver_data/gwc'.
+10 Sep 11:48:07 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:48:07 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:48:08 CONFIG [geowebcache.GeoWebCacheDispatcher] - Invoked setServletPrefix(gwc)
+10 Sep 11:48:08 CONFIG [wms.WMSService] - Will NOT recombine tiles for non-tiling clients.
+10 Sep 11:48:08 CONFIG [wms.WMSService] - Will proxy requests to backend that are not getmap or getcapabilities.
+10 Sep 11:48:09 CONFIG [diskquota.ConfigLoader] - DiskQuota configuration is not readable: gwc/geowebcache-diskquota.xml
+10 Sep 11:48:09 CONFIG [diskquota.DiskQuotaMonitor] - Setting up disk quota periodic enforcement task
+10 Sep 11:48:09 CONFIG [diskquota.DiskQuotaMonitor] - 0 layers configured with their own quotas. 
+10 Sep 11:48:09 CONFIG [diskquota.DiskQuotaMonitor] - 10 layers attached to global quota 500.0 MB
+10 Sep 11:48:09 CONFIG [diskquota.DiskQuotaMonitor] - Disk quota periodic enforcement task set up every 10 SECONDS
+10 Sep 11:48:10 CONFIG [geoserver.security] - Start reloading user/groups for service named default
+10 Sep 11:48:10 CONFIG [geoserver.security] - Reloading user/groups successful for service named default
+10 Sep 11:48:12 INFO   [geoserver.wfs] - 
+Request: getServiceInfo
+10 Sep 11:48:12 INFO   [geoserver.wfs] - 
+Request: getFeature
+    service = WFS
+    version = 2.0.0
+    baseUrl = http://geoserver:8080/geoserver/
+    outputFormat = application/json
+    resolve = none
+    resolveDepth = *
+    resolveTimeout = 300
+    resultType = results
+    abstractQueryExpressionGroup[0] = wfs:abstractQueryExpression=net.opengis.wfs20.impl.QueryTypeImpl@69afedbd (handle: null) (abstractProjectionClause: null, abstractSelectionClause: null, abstractSortingClause: null, aliases: null, typeNames: [{http://basebsd.tech}dpt_estadal_venezuela]) (featureVersion: null, srsName: EPSG:4326, filter: null, propertyNames: null, sortBy: null)
+    abstractQueryExpression[0]:
+        typeNames[0] = {http://basebsd.tech}dpt_estadal_venezuela
+        srsName = EPSG:4326
+10 Sep 11:48:14 INFO   [geoserver.wfs] - 
+Request: getServiceInfo
+10 Sep 11:48:14 INFO   [geoserver.wfs] - 
+Request: getFeature
+    service = WFS
+    version = 2.0.0
+    baseUrl = http://geoserver:8080/geoserver/
+    outputFormat = application/json
+    resolve = none
+    resolveDepth = *
+    resolveTimeout = 300
+    resultType = results
+    abstractQueryExpressionGroup[0] = wfs:abstractQueryExpression=net.opengis.wfs20.impl.QueryTypeImpl@5bde47f5 (handle: null) (abstractProjectionClause: null, abstractSelectionClause: null, abstractSortingClause: null, aliases: null, typeNames: [{http://petrobsd.tech}BLOQUES]) (featureVersion: null, srsName: EPSG:4326, filter: null, propertyNames: null, sortBy: null)
+    abstractQueryExpression[0]:
+        typeNames[0] = {http://petrobsd.tech}BLOQUES
+        srsName = EPSG:4326
+10 Sep 11:48:18 INFO   [geoserver.wfs] - 
+Request: getServiceInfo
+10 Sep 11:48:18 INFO   [geoserver.wfs] - 
+Request: getFeature
+    service = WFS
+    version = 2.0.0
+    baseUrl = http://geoserver:8080/geoserver/
+    outputFormat = application/json
+    resolve = none
+    resolveDepth = *
+    resolveTimeout = 300
+    resultType = results
+    abstractQueryExpressionGroup[0] = wfs:abstractQueryExpression=net.opengis.wfs20.impl.QueryTypeImpl@6dac08c0 (handle: null) (abstractProjectionClause: null, abstractSelectionClause: null, abstractSortingClause: null, aliases: null, typeNames: [{http://basebsd.tech}dpt_estadal_venezuela]) (featureVersion: null, srsName: EPSG:4326, filter: null, propertyNames: null, sortBy: null)
+    abstractQueryExpression[0]:
+        typeNames[0] = {http://basebsd.tech}dpt_estadal_venezuela
+        srsName = EPSG:4326
+10 Sep 11:48:20 INFO   [geoserver.wfs] - 
+Request: getServiceInfo
+10 Sep 11:48:20 INFO   [geoserver.wfs] - 
+Request: getFeature
+    service = WFS
+    version = 2.0.0
+    baseUrl = http://geoserver:8080/geoserver/
+    outputFormat = application/json
+    resolve = none
+    resolveDepth = *
+    resolveTimeout = 300
+    resultType = results
+    abstractQueryExpressionGroup[0] = wfs:abstractQueryExpression=net.opengis.wfs20.impl.QueryTypeImpl@15fa39ba (handle: null) (abstractProjectionClause: null, abstractSelectionClause: null, abstractSortingClause: null, aliases: null, typeNames: [{http://petrobsd.tech}BLOQUES]) (featureVersion: null, srsName: EPSG:4326, filter: null, propertyNames: null, sortBy: null)
+    abstractQueryExpression[0]:
+        typeNames[0] = {http://petrobsd.tech}BLOQUES
+        srsName = EPSG:4326
+10 Sep 11:48:28 INFO   [geoserver.wfs] - 
+Request: getServiceInfo
+10 Sep 11:48:28 INFO   [geoserver.wfs] - 
+Request: getFeature
+    service = WFS
+    version = 2.0.0
+    baseUrl = http://geoserver:8080/geoserver/
+    outputFormat = application/json
+    resolve = none
+    resolveDepth = *
+    resolveTimeout = 300
+    resultType = results
+    abstractQueryExpressionGroup[0] = wfs:abstractQueryExpression=net.opengis.wfs20.impl.QueryTypeImpl@4d5dfed0 (handle: null) (abstractProjectionClause: null, abstractSelectionClause: null, abstractSortingClause: null, aliases: null, typeNames: [{http://petrobsd.tech}Bloques_Campos_petroleros]) (featureVersion: null, srsName: EPSG:4326, filter: null, propertyNames: null, sortBy: null)
+    abstractQueryExpression[0]:
+        typeNames[0] = {http://petrobsd.tech}Bloques_Campos_petroleros
+        srsName = EPSG:4326

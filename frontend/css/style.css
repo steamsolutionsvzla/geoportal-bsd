@@ -903,7 +903,9 @@ input {
 .info-panel-content {
   padding: 0 16px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
+  min-width: 0;
 }
 
 /* ---------- MAP AREA ---------- */
@@ -1321,20 +1323,268 @@ input {
   border: 1px solid var(--line-700);
   border-left: 2px solid var(--accent-navy-light);
   border-radius: var(--radius-m);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .info-card .ic-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.6rem;
+  font-weight: 600;
   letter-spacing: 0.1em;
   color: var(--accent-navy-light);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .info-card p {
   font-size: 0.72rem;
   color: var(--muted-500);
   margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* ---------- DIVISOR ESTÁNDAR DENTRO DE TARJETAS DEL INFO PANEL ---------- */
+.info-divider {
+  border: 0;
+  border-top: 1px solid var(--line-700);
+  margin: 8px 0;
+}
+
+/* ---------- LISTA CLAVE/VALOR (atributos de un elemento del mapa) ---------- */
+.info-kv-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-kv-row {
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line-700);
+  min-width: 0;
+}
+
+.info-kv-row:last-child {
+  border-bottom: none;
+}
+
+.info-kv-label {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-300);
+  margin-bottom: 3px;
+}
+
+.info-kv-value {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--paper-100);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ---------- TABLAS RESUMEN (filtro por estado / bloque) ---------- */
+.info-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-top: 2px;
+  border-radius: var(--radius-s);
+}
+
+.info-table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.72rem;
+}
+
+.info-table th {
+  text-align: left;
+  padding: 6px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-300);
+  border-bottom: 1px solid var(--line-700);
+}
+
+.info-table th:last-child,
+.info-table td:last-child {
+  text-align: right;
+}
+
+.info-table td {
+  padding: 6px 8px;
+  color: var(--muted-500);
+  border-bottom: 1px solid var(--line-700);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+.info-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.info-table tbody tr:hover td {
+  background: var(--panel-750);
+}
+
+.info-table td.info-table-empty {
+  text-align: center;
+  color: var(--muted-300);
+  padding: 14px 8px;
+}
+
+/* ---------- TOTAL / RESUMEN NUMÉRICO ---------- */
+.info-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-700);
+  font-size: 0.75rem;
+  color: var(--muted-500);
+}
+
+.info-total b {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-navy-light);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- BOTONES DE ACCIÓN DEL INFO PANEL ---------- */
+.info-btn {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  padding: 8px 10px;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.info-btn svg {
+  flex-shrink: 0;
+}
+
+.info-btn-primary {
+  background: var(--accent-navy);
+  color: var(--paper-100);
+  border-color: var(--accent-navy-light);
+}
+
+.info-btn-primary:hover {
+  background: var(--accent-navy-dim);
+}
+
+.info-btn-secondary {
+  background: var(--panel-750);
+  color: var(--paper-100);
+  border-color: var(--accent-navy-light-dim);
+}
+
+.info-btn-secondary:hover {
+  background: var(--panel-800);
+  border-color: var(--accent-navy-light);
+}
+
+.info-btn-success {
+  background: #1f6e4a;
+  color: var(--paper-100);
+  border-color: #2f855a;
+}
+
+.info-btn-success:hover {
+  background: #175038;
+}
+
+.info-btn-danger {
+  background: transparent;
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+.info-btn-danger:hover {
+  background: var(--accent-red);
+  color: var(--paper-100);
+}
+
+/* ---------- METADATOS DE CAPAS ACTIVAS (lista dentro del info panel) ---------- */
+.info-metadata-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line-700);
+  min-width: 0;
+}
+
+.info-metadata-row:last-child {
+  border-bottom: none;
+}
+
+.info-metadata-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--paper-100);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-metadata-btn {
+  flex-shrink: 0;
+  background: var(--panel-750);
+  color: var(--muted-300);
+  border: 1px solid var(--line-700);
+  border-radius: var(--radius-s);
+  padding: 4px 10px;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.info-metadata-btn:hover {
+  background: var(--panel-800);
+  border-color: var(--accent-navy-light);
+  color: var(--paper-100);
+}
+
+.info-card-empty {
+  margin: 4px 0;
+  font-size: 0.75rem;
+  color: var(--muted-500);
   line-height: 1.5;
 }
 
@@ -1582,6 +1832,12 @@ input {
   letter-spacing: 0.02em;
 }
 
+.metadata-modal-header span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
 .metadata-modal-close {
   background: transparent;
   border: none;
@@ -1635,6 +1891,8 @@ input {
   display: block;
   font-size: 0.8rem;
   color: var(--paper-100, #f4f2ed);
+  overflow-wrap: anywhere;
   word-break: break-word;
   white-space: pre-wrap;
+  line-height: 1.5;
 }

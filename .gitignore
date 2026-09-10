@@ -1,2 +1,7 @@
 .env
 \backend\app\config.py
+frontend/Dockerfile
+frontend/.dockerignore
+docker-compose.yml
+geoserver_data
+frontend/nginx.conf

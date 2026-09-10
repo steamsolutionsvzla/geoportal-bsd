@@ -79,9 +79,9 @@ export function renderInfoPanel() {
   if (bloqueFilterHtml) bloques.push(bloqueFilterHtml);
 
   if (bloques.length > 0) {
-    html = bloques.map((b, i) => (i === 0 ? b : `<div style="margin-top: 12px;">${b}</div>`)).join('');
+    html = bloques.join('');
   } else {
-    html = `<div class="info-card"><div class="ic-label">Información</div><p style="margin: 4px 0; font-size: 0.75rem; color: var(--muted-500);">Seleccione un estado o un bloque y aplique el filtro, o haga clic en un punto del mapa, para ver los detalles.</p></div>`;
+    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado o un bloque y aplique el filtro, o haga clic en un punto del mapa, para ver los detalles.</p></div>`;
   }
 
   if (metadataHtml) html += metadataHtml;
@@ -106,15 +106,15 @@ export function renderInfoPanel() {
 function buildPointCardHtml() {
   if (!currentPointData) return '';
   const { tableName, props } = currentPointData;
-  let html = `<div class="info-card"><div class="ic-label">Capa: ${tableName}</div><hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
+  let html = `<div class="info-card"><div class="ic-label">Capa: ${tableName}</div><hr class="info-divider"><div class="info-kv-list">`;
   for (let key in props) {
     const lowerKey = key.toLowerCase();
     const isExcluded = ['id','geoid','gid','objectid'].includes(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
     if (!isExcluded) {
-      html += `<p style="margin: 4px 0; font-size: 0.75rem;"><b>${key}:</b> ${props[key]}</p>`;
+      html += `<div class="info-kv-row"><span class="info-kv-label">${key}</span><span class="info-kv-value">${props[key]}</span></div>`;
     }
   }
-  html += `</div>`;
+  html += `</div></div>`;
   return html;
 }
 
@@ -122,33 +122,33 @@ function buildBloqueLayerInfoHtml() {
   if (!currentBloqueLayerData) return '';
   const props = currentBloqueLayerData;
   const nombreBloque = obtenerNombreBloque(props) || 'Bloque';
-  let html = `<div class="info-card"><div class="ic-label">Capa: Bloques — ${nombreBloque}</div><hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
+  let html = `<div class="info-card"><div class="ic-label">Capa: Bloques — ${nombreBloque}</div><hr class="info-divider"><div class="info-kv-list">`;
   for (let key in props) {
     const lowerKey = key.toLowerCase();
     const isExcluded = ['id','geoid','gid','objectid'].includes(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
     if (!isExcluded) {
-      html += `<p style="margin: 4px 0; font-size: 0.75rem;"><b>${key}:</b> ${props[key]}</p>`;
+      html += `<div class="info-kv-row"><span class="info-kv-label">${key}</span><span class="info-kv-value">${props[key]}</span></div>`;
     }
   }
-  html += `</div>`;
+  html += `</div></div>`;
   return html;
 }
 
 function buildFilterSummaryHtml() {
   if (!currentFilterData) return '';
   const { estadoSeleccionado: estadoNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentFilterData;
-  let html = `<div class="info-card"><div class="ic-label">Estado: ${estadoNombre}</div><hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
-  html += `<table id="tablaPuntosEstado" style="width:100%; font-size:0.75rem; border-collapse: collapse;">`;
-  html += `<tr style="border-bottom: 1px solid var(--line-700);"><th style="text-align:left; padding:4px;">Capa / Elemento</th><th style="text-align:right; padding:4px;">Cantidad</th></tr>`;
+  let html = `<div class="info-card"><div class="ic-label">Estado: ${estadoNombre}</div><hr class="info-divider">`;
+  html += `<div class="info-table-wrap"><table id="tablaPuntosEstado" class="info-table">`;
+  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
   if (capasContadas === 0) {
-    html += `<tr><td colspan="2" style="padding:6px; text-align:center; color: var(--muted-500);">No hay capas de puntos activas.</td></tr>`;
+    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos activas.</td></tr>`;
   }
-  html += `</table>`;
+  html += `</tbody></table></div>`;
   if (capasContadas > 0) {
-    html += `<p style="margin-top: 8px; font-size: 0.75rem;"><b>Total de puntos en el estado:</b> ${totalPuntosGeneral}</p>`;
-    html += `<button type="button" id="downloadPdfBtn" style="width: 100%; margin-top: 10px; background: var(--accent-color, #3182ce); color: white; border: none; padding: 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Descargar Tabla en PDF</button>`;
-    html += `<button type="button" id="downloadExcelBtn" style="width: 100%; margin-top: 6px; background: #2f855a; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Descargar Tablas en Excel</button>`;
+    html += `<div class="info-total"><span>Total de puntos en el estado</span><b>${totalPuntosGeneral}</b></div>`;
+    html += `<button type="button" id="downloadPdfBtn" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadExcelBtn" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `</div>`;
   return html;
@@ -157,18 +157,18 @@ function buildFilterSummaryHtml() {
 function buildBloqueFilterSummaryHtml() {
   if (!currentBloqueFilterData) return '';
   const { bloqueSeleccionado: bloqueNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentBloqueFilterData;
-  let html = `<div class="info-card"><div class="ic-label">Bloque: ${bloqueNombre}</div><hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">`;
-  html += `<table id="tablaPuntosBloque" style="width:100%; font-size:0.75rem; border-collapse: collapse;">`;
-  html += `<tr style="border-bottom: 1px solid var(--line-700);"><th style="text-align:left; padding:4px;">Capa / Elemento</th><th style="text-align:right; padding:4px;">Cantidad</th></tr>`;
+  let html = `<div class="info-card"><div class="ic-label">Bloque: ${bloqueNombre}</div><hr class="info-divider">`;
+  html += `<div class="info-table-wrap"><table id="tablaPuntosBloque" class="info-table">`;
+  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
   if (capasContadas === 0) {
-    html += `<tr><td colspan="2" style="padding:6px; text-align:center; color: var(--muted-500);">No hay capas de puntos activas.</td></tr>`;
+    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos activas.</td></tr>`;
   }
-  html += `</table>`;
+  html += `</tbody></table></div>`;
   if (capasContadas > 0) {
-    html += `<p style="margin-top: 8px; font-size: 0.75rem;"><b>Total de puntos en el bloque:</b> ${totalPuntosGeneral}</p>`;
-    html += `<button type="button" id="downloadPdfBtnBloque" style="width: 100%; margin-top: 10px; background: #8a4baf; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Descargar Tabla en PDF</button>`;
-    html += `<button type="button" id="downloadExcelBtnBloque" style="width: 100%; margin-top: 6px; background: #2f855a; color: white; border: none; padding: 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 500;">Descargar Tablas en Excel</button>`;
+    html += `<div class="info-total"><span>Total de puntos en el bloque</span><b>${totalPuntosGeneral}</b></div>`;
+    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-secondary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadExcelBtnBloque" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `</div>`;
   return html;
@@ -191,16 +191,16 @@ function buildActiveLayersMetadataHtml() {
       if (layerConfig) displayName = layerConfig.name;
     }
     rowsHtml += `
-      <div class="metadata-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px dashed rgba(255,255,255,0.08);">
-        <span style="font-size: 0.75rem; color: var(--paper-100); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
-        <button type="button" class="metadata-btn" data-table="${tableName}" data-display-name="${displayName}" style="flex-shrink: 0; background: var(--panel-750); color: var(--muted-300); border: 1px solid var(--line-700); border-radius: var(--radius-s); padding: 4px 10px; font-size: 0.65rem; cursor: pointer;">Metadatos</button>
+      <div class="info-metadata-row metadata-row">
+        <span class="info-metadata-name">${displayName}</span>
+        <button type="button" class="info-metadata-btn metadata-btn" data-table="${tableName}" data-display-name="${displayName}">Metadatos</button>
       </div>
     `;
   });
   return `
-    <div class="info-card" style="margin-top: 14px;">
-      <div class="ic-label">Metadatos de Capas Activas</div>
-      <hr style="border:0; border-top:1px solid var(--line-700); margin:8px 0;">
+    <div class="info-card">
+      <div class="ic-label">Metadatos de capas activas</div>
+      <hr class="info-divider">
       ${rowsHtml}
     </div>
   `;
@@ -610,10 +610,9 @@ function agregarBotonLimpiarFiltroPanel() {
   if (!firstInfoCard) return;
   const clearBtn = document.createElement('button');
   clearBtn.id = 'clearFilterPanelBtn';
-  clearBtn.style.cssText = 'width:100%; margin-top:12px; background:#c1584a; color:white; border:none; padding:8px 12px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:500; display:flex; align-items:center; justify-content:center; gap:8px; transition:background 0.2s;';
+  clearBtn.className = 'info-btn info-btn-danger';
+  clearBtn.style.marginTop = '12px';
   clearBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Quitar filtro`;
-  clearBtn.addEventListener('mouseenter', () => clearBtn.style.background = '#a0443a');
-  clearBtn.addEventListener('mouseleave', () => clearBtn.style.background = '#c1584a');
   clearBtn.addEventListener('click', () => {
     if (isFilterActive) limpiarFiltroEstado();
     if (isBloqueFilterActive) limpiarFiltroBloque();
