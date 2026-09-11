@@ -1,19 +1,23 @@
 // info-panel.js
 import { getMap } from './map-config.js';
-import { getAvailableLayers } from './layer-manager.js';
-import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
 
 // ========================================================================
 // ESTADO INTERNO DEL PANEL
 // ========================================================================
-let currentPointData = null;
 let currentFilterData = null;
 let currentBloqueFilterData = null;
-let currentBloqueLayerData = null;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
+
+// Capa actualmente seleccionada (al hacer clic en un punto/línea/polígono del
+// mapa) cuyos METADATOS se muestran en el panel de información.
+let selectedLayerTableName = null;
+let selectedLayerDisplayName = null;
+
+// Caché de metadatos por capa: tableName -> { status: 'loading'|'ready'|'empty'|'error', metadata? }
+const layerMetadataCache = {};
 
 // ========================================================================
 // CARGA DEL LOGO (cacheado en Base64)
@@ -48,14 +52,68 @@ async function getLogoBase64() {
 // EXPORTACIÓN DE FUNCIONES PARA ACTUALIZAR EL ESTADO DEL PANEL
 // ========================================================================
 export function setInfoPanelData(data) {
-  if (data.currentPointData !== undefined) currentPointData = data.currentPointData;
   if (data.currentFilterData !== undefined) currentFilterData = data.currentFilterData;
   if (data.currentBloqueFilterData !== undefined) currentBloqueFilterData = data.currentBloqueFilterData;
-  if (data.currentBloqueLayerData !== undefined) currentBloqueLayerData = data.currentBloqueLayerData;
   if (data.isFilterActive !== undefined) isFilterActive = data.isFilterActive;
   if (data.isBloqueFilterActive !== undefined) isBloqueFilterActive = data.isBloqueFilterActive;
   if (data.estadoSeleccionado !== undefined) estadoSeleccionado = data.estadoSeleccionado;
   if (data.bloqueSeleccionado !== undefined) bloqueSeleccionado = data.bloqueSeleccionado;
+}
+
+// ========================================================================
+// SELECCIÓN DE CAPA PARA MOSTRAR SUS METADATOS EN EL PANEL
+// ========================================================================
+/**
+ * Selecciona una capa (por ejemplo, al clickear uno de sus features en el
+ * mapa) y muestra sus metadatos en el panel de información, en una tabla.
+ * @param {string} tableName - Nombre técnico de la capa.
+ * @param {string} [displayName] - Nombre legible de la capa.
+ */
+export function showLayerMetadataInPanel(tableName, displayName) {
+  selectedLayerTableName = tableName;
+  selectedLayerDisplayName = displayName || tableName;
+  renderInfoPanel();
+  loadLayerMetadataForPanel(tableName);
+}
+
+/**
+ * Si la capa indicada es la que está seleccionada en el panel, limpia la
+ * selección (por ejemplo, al desactivar esa capa desde el sidebar).
+ * @param {string} tableName
+ */
+export function clearSelectedLayerMetadataIfMatches(tableName) {
+  if (selectedLayerTableName === tableName) {
+    selectedLayerTableName = null;
+    selectedLayerDisplayName = null;
+  }
+}
+
+async function loadLayerMetadataForPanel(tableName) {
+  const cached = layerMetadataCache[tableName];
+  if (cached && cached.status !== 'error') {
+    if (selectedLayerTableName === tableName) renderInfoPanel();
+    return;
+  }
+
+  layerMetadataCache[tableName] = { status: 'loading' };
+  if (selectedLayerTableName === tableName) renderInfoPanel();
+
+  try {
+    const response = await fetch(`/api/v1/layers/${tableName}/metadata`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    if (!data.has_metadata || !data.metadata) {
+      layerMetadataCache[tableName] = { status: 'empty' };
+    } else {
+      layerMetadataCache[tableName] = { status: 'ready', metadata: data.metadata };
+    }
+  } catch (error) {
+    console.error('Error al obtener los metadatos de la capa:', error);
+    layerMetadataCache[tableName] = { status: 'error' };
+  }
+
+  if (selectedLayerTableName === tableName) renderInfoPanel();
 }
 
 // ========================================================================
@@ -65,26 +123,22 @@ export function renderInfoPanel() {
   const infoContent = document.getElementById('infoPanelContent');
   if (!infoContent) return;
 
-  const pointHtml = buildPointCardHtml();
+  const selectedLayerMetadataHtml = buildSelectedLayerMetadataHtml();
   const filterHtml = (isFilterActive && currentFilterData) ? buildFilterSummaryHtml() : '';
   const bloqueFilterHtml = (isBloqueFilterActive && currentBloqueFilterData) ? buildBloqueFilterSummaryHtml() : '';
-  const bloqueLayerHtml = currentBloqueLayerData ? buildBloqueLayerInfoHtml() : '';
-  const metadataHtml = buildActiveLayersMetadataHtml();
 
   let html = '';
   let bloques = [];
-  if (pointHtml) bloques.push(pointHtml);
-  if (bloqueLayerHtml) bloques.push(bloqueLayerHtml);
+  if (selectedLayerMetadataHtml) bloques.push(selectedLayerMetadataHtml);
   if (filterHtml) bloques.push(filterHtml);
   if (bloqueFilterHtml) bloques.push(bloqueFilterHtml);
 
   if (bloques.length > 0) {
     html = bloques.join('');
   } else {
-    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado o un bloque y aplique el filtro, o haga clic en un punto del mapa, para ver los detalles.</p></div>`;
+    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado o un bloque y aplique el filtro, o haga clic en un punto/línea/polígono del mapa, para ver los metadatos de su capa.</p></div>`;
   }
 
-  if (metadataHtml) html += metadataHtml;
   infoContent.innerHTML = html;
 
   if (filterHtml) attachFilterDownloadListeners();
@@ -103,37 +157,6 @@ export function renderInfoPanel() {
 // =========================================================================
 // CONSTRUCCIÓN DE TARJETAS DE INFORMACIÓN
 // =========================================================================
-function buildPointCardHtml() {
-  if (!currentPointData) return '';
-  const { tableName, props } = currentPointData;
-  let html = `<div class="info-card"><div class="ic-label">Capa: ${tableName}</div><hr class="info-divider"><div class="info-kv-list">`;
-  for (let key in props) {
-    const lowerKey = key.toLowerCase();
-    const isExcluded = ['id','geoid','gid','objectid'].includes(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
-    if (!isExcluded) {
-      html += `<div class="info-kv-row"><span class="info-kv-label">${key}</span><span class="info-kv-value">${props[key]}</span></div>`;
-    }
-  }
-  html += `</div></div>`;
-  return html;
-}
-
-function buildBloqueLayerInfoHtml() {
-  if (!currentBloqueLayerData) return '';
-  const props = currentBloqueLayerData;
-  const nombreBloque = obtenerNombreBloque(props) || 'Bloque';
-  let html = `<div class="info-card"><div class="ic-label">Capa: Bloques — ${nombreBloque}</div><hr class="info-divider"><div class="info-kv-list">`;
-  for (let key in props) {
-    const lowerKey = key.toLowerCase();
-    const isExcluded = ['id','geoid','gid','objectid'].includes(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
-    if (!isExcluded) {
-      html += `<div class="info-kv-row"><span class="info-kv-label">${key}</span><span class="info-kv-value">${props[key]}</span></div>`;
-    }
-  }
-  html += `</div></div>`;
-  return html;
-}
-
 function buildFilterSummaryHtml() {
   if (!currentFilterData) return '';
   const { estadoSeleccionado: estadoNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentFilterData;
@@ -174,45 +197,9 @@ function buildBloqueFilterSummaryHtml() {
   return html;
 }
 
-function buildActiveLayersMetadataHtml() {
-  const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
-  if (activeToggles.length === 0) return '';
-  let rowsHtml = '';
-  const availableLayers = getAvailableLayers();
-  activeToggles.forEach(toggle => {
-    const tableName = toggle.getAttribute('data-table');
-    let displayName = tableName;
-    if (tableName === 'dpt_estadal_venezuela') {
-      displayName = 'Entidades Federales (Estados)';
-    } else if (tableName === 'BLOQUES') {
-      displayName = 'Bloques';
-    } else {
-      const layerConfig = availableLayers.find(l => l.id === tableName);
-      if (layerConfig) displayName = layerConfig.name;
-    }
-    rowsHtml += `
-      <div class="info-metadata-row metadata-row">
-        <span class="info-metadata-name">${displayName}</span>
-        <button type="button" class="info-metadata-btn metadata-btn" data-table="${tableName}" data-display-name="${displayName}">Metadatos</button>
-      </div>
-    `;
-  });
-  return `
-    <div class="info-card">
-      <div class="ic-label">Metadatos de capas activas</div>
-      <hr class="info-divider">
-      ${rowsHtml}
-    </div>
-  `;
-}
-
 // =========================================================================
-// MODAL DE METADATOS DE CAPA (tabla qgis_layer_metadata)
+// TABLA DE METADATOS DE LA CAPA SELECCIONADA (tabla qgis_layer_metadata)
 // =========================================================================
-const metadataModalOverlay = document.getElementById('metadataModalOverlay');
-const metadataModalBody = document.getElementById('metadataModalBody');
-const metadataModalTitle = document.getElementById('metadataModalTitle');
-const metadataModalClose = document.getElementById('metadataModalClose');
 
 // Orden y etiquetas legibles para los campos conocidos de qgis_layer_metadata.
 const METADATA_FIELD_CONFIG = [
@@ -264,8 +251,8 @@ function formatMetadataFieldValue(value) {
   return String(value);
 }
 
-function buildMetadataFieldsHtml(metadata) {
-  let fieldsHtml = '';
+function buildMetadataTableHtml(metadata) {
+  let rowsHtml = '';
   const renderedKeys = new Set();
 
   METADATA_FIELD_CONFIG.forEach(({ key, label }) => {
@@ -273,12 +260,7 @@ function buildMetadataFieldsHtml(metadata) {
     const value = metadata[key];
     renderedKeys.add(key);
     if (value === null || value === undefined || value === '') return;
-    fieldsHtml += `
-      <div class="metadata-field">
-        <span class="metadata-field-label">${label}</span>
-        <span class="metadata-field-value">${formatMetadataFieldValue(value)}</span>
-      </div>
-    `;
+    rowsHtml += `<tr><td>${label}</td><td>${formatMetadataFieldValue(value)}</td></tr>`;
   });
 
   // Campos no contemplados en la config (ni ocultos): se muestran igual, al final.
@@ -287,82 +269,44 @@ function buildMetadataFieldsHtml(metadata) {
     if (METADATA_HIDDEN_FIELDS.includes(key.toLowerCase())) return;
     const value = metadata[key];
     if (value === null || value === undefined || value === '') return;
-    fieldsHtml += `
-      <div class="metadata-field">
-        <span class="metadata-field-label">${formatMetadataFieldLabel(key)}</span>
-        <span class="metadata-field-value">${formatMetadataFieldValue(value)}</span>
-      </div>
-    `;
+    rowsHtml += `<tr><td>${formatMetadataFieldLabel(key)}</td><td>${formatMetadataFieldValue(value)}</td></tr>`;
   });
 
-  return fieldsHtml;
+  if (!rowsHtml) return '';
+
+  return `
+    <div class="info-table-wrap">
+      <table class="info-table metadata-table">
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `;
 }
 
-function openMetadataModal() {
-  if (!metadataModalOverlay) return;
-  metadataModalOverlay.style.display = 'flex';
-}
+function buildSelectedLayerMetadataHtml() {
+  if (!selectedLayerTableName) return '';
 
-function closeMetadataModal() {
-  if (!metadataModalOverlay) return;
-  metadataModalOverlay.style.display = 'none';
-}
+  const cacheEntry = layerMetadataCache[selectedLayerTableName];
+  let bodyHtml;
 
-if (metadataModalClose) {
-  metadataModalClose.addEventListener('click', closeMetadataModal);
-}
-if (metadataModalOverlay) {
-  metadataModalOverlay.addEventListener('click', (e) => {
-    if (e.target === metadataModalOverlay) closeMetadataModal();
-  });
-}
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeMetadataModal();
-});
-
-async function showLayerMetadata(tableName, displayName) {
-  if (!metadataModalOverlay || !metadataModalBody) return;
-
-  if (metadataModalTitle) {
-    metadataModalTitle.textContent = `Metadatos: ${displayName || tableName}`;
+  if (!cacheEntry || cacheEntry.status === 'loading') {
+    bodyHtml = `<p class="info-card-empty">Cargando metadatos...</p>`;
+  } else if (cacheEntry.status === 'error') {
+    bodyHtml = `<p class="info-card-empty">No se pudieron cargar los metadatos. Verifique la conexión con el backend.</p>`;
+  } else if (cacheEntry.status === 'empty') {
+    bodyHtml = `<p class="info-card-empty">Sin metadatos disponibles.</p>`;
+  } else {
+    bodyHtml = buildMetadataTableHtml(cacheEntry.metadata) || `<p class="info-card-empty">Sin metadatos disponibles.</p>`;
   }
-  metadataModalBody.innerHTML = '<div class="metadata-modal-empty">Cargando metadatos...</div>';
-  openMetadataModal();
 
-  try {
-    const response = await fetch(`/api/v1/layers/${tableName}/metadata`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-
-    if (!data.has_metadata || !data.metadata) {
-      metadataModalBody.innerHTML = '<div class="metadata-modal-empty">Esta capa no tiene metadatos registrados.</div>';
-      return;
-    }
-
-    const metadata = data.metadata;
-
-    // Si el metadato trae un título propio, se usa como encabezado del modal.
-    if (metadataModalTitle && metadata.title) {
-      metadataModalTitle.textContent = `Metadatos: ${metadata.title}`;
-    }
-
-    const fieldsHtml = buildMetadataFieldsHtml(metadata);
-
-    metadataModalBody.innerHTML = fieldsHtml
-      || '<div class="metadata-modal-empty">Esta capa no tiene metadatos registrados.</div>';
-  } catch (error) {
-    console.error('Error al obtener los metadatos de la capa:', error);
-    metadataModalBody.innerHTML = '<div class="metadata-modal-empty">No se pudieron cargar los metadatos. Verifique la conexión con el backend.</div>';
-  }
+  return `
+    <div class="info-card">
+      <div class="ic-label">Metadatos de la capa: ${selectedLayerDisplayName || selectedLayerTableName}</div>
+      <hr class="info-divider">
+      ${bodyHtml}
+    </div>
+  `;
 }
-
-document.addEventListener('click', (e) => {
-  const metadataBtn = e.target.closest('.metadata-btn[data-table]');
-  if (!metadataBtn) return;
-  const tableName = metadataBtn.getAttribute('data-table');
-  const displayName = metadataBtn.getAttribute('data-display-name');
-  showLayerMetadata(tableName, displayName);
-});
 
 // =========================================================================
 // ASIGNACIÓN DE EVENTOS DE DESCARGA (PDF / EXCEL)

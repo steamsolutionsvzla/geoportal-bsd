@@ -1535,50 +1535,22 @@ input {
   color: var(--paper-100);
 }
 
-/* ---------- METADATOS DE CAPAS ACTIVAS (lista dentro del info panel) ---------- */
-.info-metadata-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px dashed var(--line-700);
-  min-width: 0;
-}
-
-.info-metadata-row:last-child {
-  border-bottom: none;
-}
-
-.info-metadata-name {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--paper-100);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.info-metadata-btn {
-  flex-shrink: 0;
-  background: var(--panel-750);
+/* ---------- TABLA DE METADATOS DE LA CAPA SELECCIONADA (info panel) ---------- */
+.metadata-table td:first-child {
+  width: 42%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted-300);
-  border: 1px solid var(--line-700);
-  border-radius: var(--radius-s);
-  padding: 4px 10px;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.65rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.info-metadata-btn:hover {
-  background: var(--panel-800);
-  border-color: var(--accent-navy-light);
+.metadata-table td:last-child {
+  text-align: left;
   color: var(--paper-100);
+  font-size: 0.76rem;
+  white-space: pre-wrap;
 }
 
 .info-card-empty {
@@ -1792,107 +1764,116 @@ input {
 }
 
 /* =========================================================================
-   MODAL DE METADATOS DE CAPA
+   POPUPS DE ATRIBUTOS DE FEATURES SOBRE EL MAPA
+   (independientes del panel de información; se pueden abrir varios a la vez,
+   cada uno con su propio botón "X" de cierre individual)
    ========================================================================= */
-.metadata-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 8, 12, 0.6);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 16px;
-}
-
-.metadata-modal {
-  width: 100%;
-  max-width: 520px;
-  max-height: 80vh;
-  background: var(--panel-800, #1b1b21);
-  border: 1px solid var(--line-700, #2b2b33);
+.feature-attr-popup .maplibregl-popup-content {
+  background: #f5f5f5;
+  border: 1px solid #dcdcdc;
   border-radius: var(--radius-m, 8px);
   box-shadow: var(--shadow-2, 0 10px 30px rgba(3, 6, 12, 0.45));
-  display: flex;
-  flex-direction: column;
+  padding: 0;
   overflow: hidden;
 }
 
-.metadata-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line-700, #2b2b33);
-  color: var(--paper-100, #f4f2ed);
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.feature-attr-popup .maplibregl-popup-tip {
+   border-top-color: #f5f5f5;
+  border-bottom-color: #f5f5f5;
 }
 
-.metadata-modal-header span {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  min-width: 0;
-}
-
-.metadata-modal-close {
-  background: transparent;
-  border: none;
-  color: var(--muted-300, #b7b7c1);
-  font-size: 1.4rem;
+.feature-attr-popup .maplibregl-popup-close-button {
+  color: #6b6b6b;
+  font-size: 1.1rem;
   line-height: 1;
-  cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
+  right: 4px;
+  top: 4px;
   border-radius: var(--radius-s, 4px);
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.metadata-modal-close:hover {
-  background: var(--panel-750, #212128);
-  color: var(--paper-100, #f4f2ed);
+.feature-attr-popup .maplibregl-popup-close-button:hover {
+   background: #e6e6e6;
+  color: #1b1b21;
 }
 
-.metadata-modal-body {
-  padding: 16px;
+.feature-popup {
+    max-width: 220px;
+  max-height: 220px;
   overflow-y: auto;
-  font-size: 0.78rem;
-  color: var(--muted-500, #e2e5eb);
+  padding: 16px 14px 10px 10px;
+   scrollbar-width: thin;
+  scrollbar-color: #c9c9c9 transparent;
 }
 
-.metadata-modal-empty {
-  text-align: center;
-  color: var(--muted-300, #b7b7c1);
-  padding: 24px 8px;
-  font-size: 0.8rem;
+.feature-popup-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #3b5578;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-right: 18px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.metadata-field {
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+.feature-popup-body {
+  display: flex;
+  flex-direction: column;
 }
 
-.metadata-field:last-child {
+.feature-popup-row {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line-700, #2b2b33);
+  min-width: 0;
+}
+
+.feature-popup-row:last-child {
   border-bottom: none;
 }
 
-.metadata-field-label {
+.feature-popup-key {
   display: block;
-  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted-300, #b7b7c1);
-  margin-bottom: 3px;
+  color: #6b6b6b;
+  margin-bottom: 2px;
 }
 
-.metadata-field-value {
+.feature-popup-value {
   display: block;
-  font-size: 0.8rem;
-  color: var(--paper-100, #f4f2ed);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #1b1b21;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   word-break: break-word;
-  white-space: pre-wrap;
-  line-height: 1.5;
+}
+
+.feature-popup-empty {
+  font-size: 0.75rem;
+  color: var(--muted-500, #e2e5eb);
+  margin: 0;
+}
+.feature-popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feature-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.feature-popup::-webkit-scrollbar-thumb {
+  background: #c9c9c9;
+  border-radius: 4px;
+}
+
+.feature-popup::-webkit-scrollbar-thumb:hover {
+  background: #adadad;
 }

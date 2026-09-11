@@ -40,6 +40,17 @@ export function getAvailableLayers() {
 }
 
 // ================================================================
+// Nombre legible de una capa (usado en el panel de metadatos y en
+// los popups de atributos sobre el mapa)
+// ================================================================
+export function getLayerDisplayName(tableName) {
+  if (tableName === 'dpt_estadal_venezuela') return 'Entidades Federales (Estados)';
+  if (tableName === 'BLOQUES') return 'Bloques';
+  const layerConfig = availableLayers.find(l => l.id === tableName);
+  return layerConfig ? layerConfig.name : tableName;
+}
+
+// ================================================================
 // Renderizar grupos de capas (workspaces) con acordeón
 // ================================================================
 export function renderLayerGroups(groups, containerId) {
@@ -51,6 +62,7 @@ export function renderLayerGroups(groups, containerId) {
 
   container.innerHTML = '';
 
+ // DESPUÉS
   groups.forEach((group) => {
     const groupDiv = document.createElement('div');
     groupDiv.className = 'layer-group';
@@ -62,7 +74,7 @@ export function renderLayerGroups(groups, containerId) {
         <svg class="group-folder-icon" viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M2.5 5.2c0-.94.76-1.7 1.7-1.7h3.4l1.6 1.9h6.6c.94 0 1.7.76 1.7 1.7v7.4c0 .94-.76 1.7-1.7 1.7H4.2c-.94 0-1.7-.76-1.7-1.7V5.2z"/>
         </svg>
-        <span class="group-name">Capas ${group.title || group.name}</span>
+        <span class="group-name">${group.title || group.name}</span>
       </span>
       <span class="group-header-right">
         <span class="group-count">${group.layers.length}</span>
@@ -77,11 +89,18 @@ export function renderLayerGroups(groups, containerId) {
     layersContainer.className = 'group-layers';
     groupDiv.appendChild(layersContainer);
 
-    group.layers.forEach(layerInfo => {
+    // Orden fijo dentro de cada grupo: puntos primero, luego líneas, luego polígonos.
+    const GEOM_ORDER = { circle: 0, point: 0, line: 1, fill: 2 };
+    const sortedLayers = [...group.layers].sort((a, b) => {
+      const orderA = GEOM_ORDER[a.type] ?? 99;
+      const orderB = GEOM_ORDER[b.type] ?? 99;
+      return orderA - orderB;
+    });
+
+    sortedLayers.forEach(layerInfo => {
       const row = createLayerRow(layerInfo);
       layersContainer.appendChild(row);
     });
-
     container.appendChild(groupDiv);
 
     header.addEventListener('click', () => {
@@ -380,7 +399,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: true });
 
       if (typeof window.handleFeatureClick === 'function') {
-        window.handleFeatureClick(tableName, props);
+        window.handleFeatureClick(tableName, props, ev.lngLat);
       }
     });
   }

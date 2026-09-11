@@ -1,9 +1,10 @@
 // main.js - Punto de entrada principal
 import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls, setupBasemapSwitcher, getMap } from './map-config.js';
 import { setupFilterDropdowns, limpiarFiltroEstado as filtroEstadoOriginal, limpiarFiltroBloque as filtroBloqueOriginal, setEstadosCache, setBloquesCache } from './filters.js';
-import { renderInfoPanel, setInfoPanelData } from './info-panel.js';
+import { renderInfoPanel, setInfoPanelData, showLayerMetadataInPanel, clearSelectedLayerMetadataIfMatches } from './info-panel.js';
 import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode } from './utils.js';
-import { setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, getAvailableLayers, getSelectedSourceId, getSelectedFeatureId, setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount, attachLayerOpacityEvents } from './layer-manager.js';
+import { setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId, setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount, attachLayerOpacityEvents } from './layer-manager.js';
+import { openFeaturePopup } from './feature-popup.js';
 
 // =========================================================================
 // MANEJO DE ERRORES GLOBAL
@@ -49,10 +50,8 @@ function mostrarCargando(mostrar) {
 let availableLayers = [];
 let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;
-let currentPointData = null;
 let currentFilterData = null;
 let currentBloqueFilterData = null;
-let currentBloqueLayerData = null;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
@@ -112,10 +111,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Exponer funciones globales para uso desde otros módulos o eventos
-    window.handleFeatureClick = (tableName, props) => {
-      currentPointData = { tableName, props };
-      setInfoPanelData({ currentPointData });
-      renderInfoPanel();
+    // Al clickear un punto/línea/polígono del mapa:
+    //  1) el panel de información muestra los METADATOS de la capa (no los atributos del feature)
+    //  2) se abre un popup flotante sobre el mapa con los ATRIBUTOS del feature clickeado
+    window.handleFeatureClick = (tableName, props, lngLat) => {
+      const displayName = getLayerDisplayName(tableName);
+      showLayerMetadataInPanel(tableName, displayName);
+      if (lngLat) openFeaturePopup(map, displayName, props, lngLat);
     };
 
     // MODIFICACIÓN: ahora reciben el nombre como segundo parámetro
@@ -368,22 +370,23 @@ async function cargarCapaBloques() {
       });
     }
 
-    if (!map.getLayer(BLOQUE_LAYER_ID)) {
-      map.addLayer({
-        id: BLOQUE_LAYER_ID,
-        type: 'fill',
-        source: BLOQUE_SOURCE_ID,
-        layout: { visibility: 'visible' },
-        paint: {
-          'fill-color': '#8a4baf',
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
-            0
-          ]
-        }
-      });
+   // DESPUÉS
+if (!map.getLayer(BLOQUE_LAYER_ID)) {
+  map.addLayer({
+    id: BLOQUE_LAYER_ID,
+    type: 'fill',
+    source: BLOQUE_SOURCE_ID,
+    layout: { visibility: 'none' },
+    paint: {
+      'fill-color': '#8a4baf',
+      'fill-opacity': [
+        'case',
+        ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
+        0
+      ]
     }
+  });
+}
 
     if (!map.getLayer(BLOQUE_FILTER_LINE_LAYER_ID)) {
       map.addLayer({
@@ -463,9 +466,10 @@ async function cargarCapaBloques() {
 
       map.on('click', BLOQUE_LAYER_ID, (ev) => {
         if (!ev.features || ev.features.length === 0) return;
-        currentBloqueLayerData = ev.features[0].properties;
-        setInfoPanelData({ currentBloqueLayerData });
-        renderInfoPanel();
+        const props = ev.features[0].properties;
+        if (typeof window.handleFeatureClick === 'function') {
+          window.handleFeatureClick('BLOQUES', props, ev.lngLat);
+        }
       });
     }
 
@@ -502,28 +506,33 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       return;
     }
 
-    if (shortName === 'BLOQUES') {
-      const vis = isVisible ? 'visible' : 'none';
-      const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
-      const labelLayer = map.getLayer('layer-bloques-venezuela-label');
+  // DESPUÉS
+if (shortName === 'BLOQUES') {
+  const vis = isVisible ? 'visible' : 'none';
+  const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
+  const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
+  const labelLayer = map.getLayer('layer-bloques-venezuela-label');
 
-      if (lineLayer) {
-        map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
-      }
-      if (labelLayer) {
+  if (fillLayer) {
+    map.setLayoutProperty('layer-bloques-venezuela-fill', 'visibility', vis);
+  }
+  if (lineLayer) {
+    map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
+  }
+  if (labelLayer) {
+    map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+  } else {
+    setTimeout(() => {
+      const retryLabel = map.getLayer('layer-bloques-venezuela-label');
+      if (retryLabel) {
         map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
-      } else {
-        setTimeout(() => {
-          const retryLabel = map.getLayer('layer-bloques-venezuela-label');
-          if (retryLabel) {
-            map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
-          }
-        }, 500);
       }
+    }, 500);
+  }
+
 
       if (!isVisible) {
-        currentBloqueLayerData = null;
-        setInfoPanelData({ currentBloqueLayerData: null });
+        clearSelectedLayerMetadataIfMatches('BLOQUES');
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
@@ -545,10 +554,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (getSelectedSourceId() === sourceId) {
         clearSelection();
       }
-      if (currentPointData && currentPointData.tableName === tableName) {
-        currentPointData = null;
-        setInfoPanelData({ currentPointData: null });
-      }
+      clearSelectedLayerMetadataIfMatches(tableName);
     }
 
     refreshCount();
