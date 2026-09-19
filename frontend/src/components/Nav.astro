@@ -1,0 +1,102 @@
+---
+---
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="brand-block">
+      <img src="/img/logo.png" alt="BSD" class="brand-mark-img" />
+      <span class="brand-name">Geoportal</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="#plataforma" data-link>Plataforma</a>
+      <a href="#funciones" data-link>Funciones</a>
+      <a href="#cobertura" data-link>Cobertura</a>
+    </div>
+
+    <div class="nav-cta">
+      <button class="menu-toggle" aria-label="Menú">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <a href="/login" class="btn btn-primary">
+        Iniciar sesión
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14" /><path d="M13 6l6 6-6 6" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<style>
+  .nav{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    background:rgba(255,255,255,.78);
+    backdrop-filter:blur(16px) saturate(160%);
+    -webkit-backdrop-filter:blur(16px) saturate(160%);
+    border-bottom:1px solid rgba(15,37,87,.06);
+    transition:box-shadow .3s ease, background .3s ease, padding .3s ease;
+  }
+  .nav.is-scrolled{
+    background:rgba(255,255,255,.92);
+    box-shadow:0 6px 24px rgba(10,26,61,.08);
+  }
+  .nav::after{
+    content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:linear-gradient(90deg, var(--navy-800) 0%, var(--navy-600) 55%, var(--accent) 100%);
+    opacity:.85;
+  }
+  .nav-inner{
+    max-width:1180px;margin:0 auto;padding:0 32px;
+    height:70px;display:flex;align-items:center;gap:28px;
+  }
+  .brand-block{display:flex;align-items:center;gap:12px;}
+  .brand-mark-img{height:38px;width:auto;object-fit:contain;}
+  .brand-name{
+    font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;
+    color:var(--navy-900);letter-spacing:-.01em;
+  }
+  .nav-links{
+    display:flex;align-items:center;gap:32px;margin-left:20px;
+    font-size:.88rem;color:var(--navy-800);
+  }
+  .nav-links a{
+    position:relative;padding:6px 0;opacity:.75;
+    transition:opacity .2s ease;
+  }
+  .nav-links a::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:2px;
+    background:var(--navy-600);border-radius:2px;
+    transform:scaleX(0);transform-origin:left;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  }
+  .nav-links a:hover{opacity:1;}
+  .nav-links a:hover::after{transform:scaleX(1);}
+
+  .nav-cta{margin-left:auto;display:flex;align-items:center;gap:14px;}
+
+  .menu-toggle{
+    display:none;width:40px;height:40px;border-radius:10px;
+    border:1px solid var(--line-300);background:#fff;
+    align-items:center;justify-content:center;cursor:pointer;
+  }
+  .menu-toggle svg{width:18px;height:18px;stroke:var(--navy-800);}
+
+  @media (max-width:980px){
+    .nav-links{display:none;}
+    .menu-toggle{display:flex;}
+  }
+</style>
+
+<script>
+  const nav = document.querySelector('.nav');
+  const onScroll = () => {
+    if (!nav) return;
+    nav.classList.toggle('is-scrolled', window.scrollY > 8);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>

@@ -1,10 +1,19 @@
 // main.js - Punto de entrada principal
+import { setWorkerUrl } from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import * as turf from '@turf/turf';
+
 import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls, setupBasemapSwitcher, getMap } from './map-config.js';
 import { setupFilterDropdowns, limpiarFiltroEstado as filtroEstadoOriginal, limpiarFiltroBloque as filtroBloqueOriginal, setEstadosCache, setBloquesCache } from './filters.js';
 import { renderInfoPanel, setInfoPanelData, showLayerMetadataInPanel, clearSelectedLayerMetadataIfMatches } from './info-panel.js';
 import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode } from './utils.js';
 import { setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId, setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount, attachLayerOpacityEvents } from './layer-manager.js';
 import { openFeaturePopup } from './feature-popup.js';
+// =========================================================================
+// WORKER DE MAPLIBRE (obligatorio en v5+)
+// Se debe configurar ANTES de crear cualquier instancia de Map.
+// =========================================================================
+setWorkerUrl(maplibreWorkerUrl);
 
 // =========================================================================
 // MANEJO DE ERRORES GLOBAL
@@ -61,7 +70,6 @@ let bloqueSeleccionado = '';
 // INICIALIZACIÓN
 // =========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Inicializar el mapa directamente (sin cargar configuración del backend)
   const map = initMap('map');
   window.map = map;
 
@@ -75,7 +83,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSidebarToggle();
     setupInfoPanelToggle();
 
-    // Cargar workspaces y capas especiales
     (async () => {
       await loadWorkspaces();
       await cargarCapaEstadosVenezuela();
@@ -91,7 +98,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       attachLayerOpacityEvents(sidebar);
     })();
 
-    // Definir funciones de limpieza de filtros (se usan en el HTML o en otros eventos)
     function limpiarFiltroEstado() {
       filtroEstadoOriginal();
       currentFilterData = null;
@@ -110,17 +116,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderInfoPanel();
     }
 
-    // Exponer funciones globales para uso desde otros módulos o eventos
-    // Al clickear un punto/línea/polígono del mapa:
-    //  1) el panel de información muestra los METADATOS de la capa (no los atributos del feature)
-    //  2) se abre un popup flotante sobre el mapa con los ATRIBUTOS del feature clickeado
     window.handleFeatureClick = (tableName, props, lngLat) => {
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
       if (lngLat) openFeaturePopup(map, displayName, props, lngLat);
     };
 
-    // MODIFICACIÓN: ahora reciben el nombre como segundo parámetro
     window.calcularPuntosEnEstado = (feature, nombre) => calcularPuntosEnEstado(feature, nombre);
     window.calcularPuntosEnBloque = (feature, nombre) => calcularPuntosEnBloque(feature, nombre);
     window.updateInfoPanel = renderInfoPanel;
@@ -128,13 +129,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.cerrarSesion = cerrarSesion;
 
-    // Event listeners de la UI
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
     document.querySelector('.icon-btn[title="Ajustes"]')?.addEventListener('click', () => {
       alert('Ajustes aún no implementados');
     });
 
-    // Leyenda
     const legendToggleBtn = document.getElementById('legendToggleBtn');
     const legendSwitch = document.querySelector('.legend-switch');
     if (legendToggleBtn && legendSwitch) {
@@ -228,7 +227,6 @@ async function cargarCapaEstadosVenezuela() {
     }
     const data = await response.json();
 
-    // Fusionar geometrías por nombre de estado
     const featuresByName = {};
     data.features.forEach(f => {
       const nombre = obtenerNombreEstado(f.properties);
@@ -252,7 +250,6 @@ async function cargarCapaEstadosVenezuela() {
     estadosGeoJsonCache = data;
     setEstadosCache(data);
 
-    // Generar puntos de etiquetas (centroides)
     const puntosEtiquetas = {
       type: 'FeatureCollection',
       features: []
@@ -370,23 +367,22 @@ async function cargarCapaBloques() {
       });
     }
 
-   // DESPUÉS
-if (!map.getLayer(BLOQUE_LAYER_ID)) {
-  map.addLayer({
-    id: BLOQUE_LAYER_ID,
-    type: 'fill',
-    source: BLOQUE_SOURCE_ID,
-    layout: { visibility: 'none' },
-    paint: {
-      'fill-color': '#8a4baf',
-      'fill-opacity': [
-        'case',
-        ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
-        0
-      ]
+    if (!map.getLayer(BLOQUE_LAYER_ID)) {
+      map.addLayer({
+        id: BLOQUE_LAYER_ID,
+        type: 'fill',
+        source: BLOQUE_SOURCE_ID,
+        layout: { visibility: 'none' },
+        paint: {
+          'fill-color': '#8a4baf',
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
+            0
+          ]
+        }
+      });
     }
-  });
-}
 
     if (!map.getLayer(BLOQUE_FILTER_LINE_LAYER_ID)) {
       map.addLayer({
@@ -493,7 +489,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
   try {
     const map = getMap();
-    const shortName = tableName.split(':').pop(); // Extrae el nombre sin workspace
+    const shortName = tableName.split(':').pop();
 
     if (shortName === 'dpt_estadal_venezuela') {
       const vis = isVisible ? 'visible' : 'none';
@@ -506,30 +502,28 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       return;
     }
 
-  // DESPUÉS
-if (shortName === 'BLOQUES') {
-  const vis = isVisible ? 'visible' : 'none';
-  const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
-  const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
-  const labelLayer = map.getLayer('layer-bloques-venezuela-label');
+    if (shortName === 'BLOQUES') {
+      const vis = isVisible ? 'visible' : 'none';
+      const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
+      const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
+      const labelLayer = map.getLayer('layer-bloques-venezuela-label');
 
-  if (fillLayer) {
-    map.setLayoutProperty('layer-bloques-venezuela-fill', 'visibility', vis);
-  }
-  if (lineLayer) {
-    map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
-  }
-  if (labelLayer) {
-    map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
-  } else {
-    setTimeout(() => {
-      const retryLabel = map.getLayer('layer-bloques-venezuela-label');
-      if (retryLabel) {
-        map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+      if (fillLayer) {
+        map.setLayoutProperty('layer-bloques-venezuela-fill', 'visibility', vis);
       }
-    }, 500);
-  }
-
+      if (lineLayer) {
+        map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
+      }
+      if (labelLayer) {
+        map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+      } else {
+        setTimeout(() => {
+          const retryLabel = map.getLayer('layer-bloques-venezuela-label');
+          if (retryLabel) {
+            map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+          }
+        }, 500);
+      }
 
       if (!isVisible) {
         clearSelectedLayerMetadataIfMatches('BLOQUES');
@@ -540,7 +534,6 @@ if (shortName === 'BLOQUES') {
       return;
     }
 
-    // Capas normales
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
 
@@ -573,7 +566,7 @@ if (shortName === 'BLOQUES') {
 }
 
 // =========================================================================
-// CÁLCULO DE PUNTOS EN POLÍGONOS (para filtros) - MODIFICADO
+// CÁLCULO DE PUNTOS EN POLÍGONOS (para filtros)
 // =========================================================================
 function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   const infoContent = document.getElementById('infoPanelContent');
@@ -613,7 +606,7 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   });
 
   currentFilterData = {
-    estadoSeleccionado: nombreEstado,  // <-- Usamos el nombre pasado como parámetro
+    estadoSeleccionado: nombreEstado,
     totalPuntosGeneral,
     capasContadas,
     capasDetalleMap,
@@ -662,7 +655,7 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
   });
 
   currentBloqueFilterData = {
-    bloqueSeleccionado: nombreBloque,  // <-- Usamos el nombre pasado como parámetro
+    bloqueSeleccionado: nombreBloque,
     totalPuntosGeneral,
     capasContadas,
     capasDetalleMap,
@@ -710,5 +703,5 @@ function setupInfoPanelToggle() {
 function cerrarSesion() {
   localStorage.removeItem('auth_session');
   sessionStorage.clear();
-  window.location.href = 'login.html';
+  window.location.href = '/login';
 }

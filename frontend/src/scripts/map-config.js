@@ -1,5 +1,7 @@
 // map-config.js
 import { formatearCoordenada } from './utils.js';
+import * as maplibregl from 'maplibre-gl';
+
 
 // ============================================================
 //  CONFIGURACIÓN: CLAVE DE CARTO (light_nolabels)
@@ -22,13 +24,23 @@ let mapInstance = null;
 export function initMap(containerId) {
   if (mapInstance) return mapInstance;
 
-  mapInstance = new maplibregl.Map({
+  mapInstance = new maplibregl.Map({   // ← usa el import, ya no la global
     container: containerId,
     style: {
       version: 8,
       sources: {},
       layers: [],
-      glyphs: 'https://fonts.undpgeohub.org/fonts/{fontstack}/{range}.pbf'
+      glyphs: 'https://fonts.undpgeohub.org/fonts/{fontstack}/{range}.pbf',
+      // El "sky" ahora se define aquí, dentro del style (v5+)
+      sky: {
+        'sky-color': '#b4d0e8',
+        'horizon-color': '#e8ddc8',
+        'fog-color': '#e8ddc8',
+        'fog-ground-blend': 0.5,
+        'horizon-fog-blend': 0.6,
+        'sky-horizon-blend': 0.6,
+        'atmosphere-blend': 0.6
+      }
     },
     center: INITIAL_CENTER,
     zoom: INITIAL_ZOOM,
@@ -228,18 +240,8 @@ export function addBaseLayers(map) {
     maxzoom: 14
   });
 
-  // --- Cielo ---
-  try {
-    map.setSky({
-      'sky-color': '#b4d0e8',
-      'horizon-color': '#e8ddc8',
-      'fog-color': '#e8ddc8',
-      'fog-ground-blend': 0.5,
-      'horizon-fog-blend': 0.6,
-      'sky-horizon-blend': 0.6,
-      'atmosphere-blend': 0.6
-    });
-  } catch (e) {}
+  // ⚠️ ELIMINADO el bloque try { map.setSky({...}) } catch
+  // Ahora el sky se define en initMap() dentro del style.
 }
 
 // ============================================================

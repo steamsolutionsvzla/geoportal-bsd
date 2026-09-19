@@ -1,5 +1,8 @@
 // info-panel.js
 import { getMap } from './map-config.js';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 // ========================================================================
 // ESTADO INTERNO DEL PANEL
@@ -11,12 +14,9 @@ let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
 
-// Capa actualmente seleccionada (al hacer clic en un punto/línea/polígono del
-// mapa) cuyos METADATOS se muestran en el panel de información.
 let selectedLayerTableName = null;
 let selectedLayerDisplayName = null;
 
-// Caché de metadatos por capa: tableName -> { status: 'loading'|'ready'|'empty'|'error', metadata? }
 const layerMetadataCache = {};
 
 // ========================================================================
@@ -24,11 +24,6 @@ const layerMetadataCache = {};
 // ========================================================================
 let logoBase64Cache = null;
 
-/**
- * Obtiene el logo en formato Base64. La primera vez lo carga desde
- * /img/logo.png y lo cachea para futuras llamadas.
- * @returns {Promise<string|null>} Cadena Base64 del logo o null si falla.
- */
 async function getLogoBase64() {
   if (logoBase64Cache) return logoBase64Cache;
 
@@ -60,15 +55,6 @@ export function setInfoPanelData(data) {
   if (data.bloqueSeleccionado !== undefined) bloqueSeleccionado = data.bloqueSeleccionado;
 }
 
-// ========================================================================
-// SELECCIÓN DE CAPA PARA MOSTRAR SUS METADATOS EN EL PANEL
-// ========================================================================
-/**
- * Selecciona una capa (por ejemplo, al clickear uno de sus features en el
- * mapa) y muestra sus metadatos en el panel de información, en una tabla.
- * @param {string} tableName - Nombre técnico de la capa.
- * @param {string} [displayName] - Nombre legible de la capa.
- */
 export function showLayerMetadataInPanel(tableName, displayName) {
   selectedLayerTableName = tableName;
   selectedLayerDisplayName = displayName || tableName;
@@ -76,11 +62,6 @@ export function showLayerMetadataInPanel(tableName, displayName) {
   loadLayerMetadataForPanel(tableName);
 }
 
-/**
- * Si la capa indicada es la que está seleccionada en el panel, limpia la
- * selección (por ejemplo, al desactivar esa capa desde el sidebar).
- * @param {string} tableName
- */
 export function clearSelectedLayerMetadataIfMatches(tableName) {
   if (selectedLayerTableName === tableName) {
     selectedLayerTableName = null;
@@ -145,7 +126,6 @@ export function renderInfoPanel() {
   if (bloqueFilterHtml) attachBloqueFilterDownloadListeners();
   agregarBotonLimpiarFiltroPanel();
 
-  // Asegurar que el panel esté abierto
   const infoPanel = document.getElementById('infoPanel');
   if (infoPanel && infoPanel.classList.contains('collapsed')) {
     infoPanel.classList.remove('collapsed');
@@ -198,10 +178,8 @@ function buildBloqueFilterSummaryHtml() {
 }
 
 // =========================================================================
-// TABLA DE METADATOS DE LA CAPA SELECCIONADA (tabla qgis_layer_metadata)
+// TABLA DE METADATOS DE LA CAPA SELECCIONADA
 // =========================================================================
-
-// Orden y etiquetas legibles para los campos conocidos de qgis_layer_metadata.
 const METADATA_FIELD_CONFIG = [
   { key: 'title', label: 'Título' },
   { key: 'abstract', label: 'Resumen' },
@@ -230,7 +208,6 @@ const METADATA_FIELD_CONFIG = [
   { key: 'data_last_update', label: 'Última actualización de los datos' },
 ];
 
-// Columnas técnicas/redundantes que no aportan valor al usuario final
 const METADATA_HIDDEN_FIELDS = [
   'id', 'uid', 'table_name', 'schema_name',
   'f_table_catalog', 'f_table_schema', 'f_table_name', 'f_geometry_column',
@@ -263,7 +240,6 @@ function buildMetadataTableHtml(metadata) {
     rowsHtml += `<tr><td>${label}</td><td>${formatMetadataFieldValue(value)}</td></tr>`;
   });
 
-  // Campos no contemplados en la config (ni ocultos): se muestran igual, al final.
   Object.keys(metadata).forEach((key) => {
     if (renderedKeys.has(key)) return;
     if (METADATA_HIDDEN_FIELDS.includes(key.toLowerCase())) return;
@@ -349,11 +325,7 @@ function attachBloqueFilterDownloadListeners() {
 // GENERACIÓN DE REPORTES (PDF y EXCEL)
 // =========================================================================
 async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGeneral, capasDetalleMap, tablaResumenEl) {
-  if (typeof window.jspdf === 'undefined') {
-    alert('La librería jsPDF no está cargada correctamente.');
-    return;
-  }
-  const { jsPDF } = window.jspdf;
+  // ✅ Ya no hay chequeo de window.jspdf: jsPDF viene del import.
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -369,13 +341,12 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   const logoData = await getLogoBase64();
   if (logoData) {
     try {
-      // Ajusta el ancho y alto según tu logo (35x12 es un ejemplo)
       doc.addImage(logoData, 'PNG', margin, y, 35, 12);
     } catch (e) {
       // Si falla la imagen, continuar sin logo
     }
   }
-  y += 12 + 4; // altura del logo + separación
+  y += 12 + 4;
 
   // Cabecera
   const headerHeight = 32;
@@ -407,7 +378,8 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
         tableData.push(Array.from(cells).map(cell => cell.textContent.trim()));
       }
     });
-    doc.autoTable({
+    // ✅ Ahora autoTable(doc, {...}) en lugar de doc.autoTable({...})
+    autoTable(doc, {
       head: tableData.slice(0, 1),
       body: tableData.slice(1),
       startY: y,
@@ -469,7 +441,8 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
         });
         body.push(row);
       });
-      doc.autoTable({
+      // ✅ Segundo autoTable con la nueva firma
+      autoTable(doc, {
         head: [head],
         body: body,
         startY: y,
@@ -505,10 +478,7 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
 }
 
 function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl) {
-  if (typeof XLSX === 'undefined') {
-    alert('La librería SheetJS (XLSX) no está cargada.');
-    return;
-  }
+  // ✅ Ya no hay chequeo de typeof XLSX: viene del import.
   const wb = XLSX.utils.book_new();
   if (tablaResumenEl) {
     const wsResumen = XLSX.utils.table_to_sheet(tablaResumenEl);
@@ -566,9 +536,7 @@ function agregarBotonLimpiarFiltroPanel() {
   firstInfoCard.appendChild(clearBtn);
 }
 
-// Funciones auxiliares para limpiar filtros (se llaman desde el botón)
 function limpiarFiltroEstado() {
-  // Esta función será sobrescrita desde main.js (se expone globalmente)
   if (typeof window.limpiarFiltroEstado === 'function') {
     window.limpiarFiltroEstado();
   }

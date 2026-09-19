@@ -1,0 +1,147 @@
+---
+import '../styles/global.css';
+import '../styles/login.css';
+import NavSimple from '../components/NavSimple.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Iniciar sesión · Geoportal</title>
+    <meta name="description" content="Acceso al geoportal del Banco Soberano de Datos." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  </head>
+
+  <body class="login-page">
+
+    <!-- ====== Nav simplificado ====== -->
+    <NavSimple />
+
+    <!-- Brújula decorativa de fondo -->
+    <svg
+      class="login-compass"
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(45,82,150,1)" stroke-width="0.8"/>
+      <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(45,82,150,.7)" stroke-width="0.5"/>
+      <g stroke="rgba(45,82,150,.9)" stroke-width="0.8">
+        <line x1="50" y1="5" x2="50" y2="14"/>
+        <line x1="50" y1="86" x2="50" y2="95"/>
+        <line x1="5" y1="50" x2="14" y2="50"/>
+        <line x1="86" y1="50" x2="95" y2="50"/>
+      </g>
+      <polygon points="50,13 43,50 50,50" fill="rgba(45,82,150,.9)"/>
+      <polygon points="50,13 57,50 50,50" fill="rgba(30,60,120,.9)"/>
+      <polygon points="50,87 43,50 50,50" fill="rgba(45,82,150,.6)"/>
+      <polygon points="50,87 57,50 50,50" fill="rgba(30,60,120,.6)"/>
+      <circle cx="50" cy="50" r="4" fill="none" stroke="rgba(45,82,150,1)" stroke-width="1"/>
+    </svg>
+
+    <!-- ====== Main del login ====== -->
+    <main class="login-main">
+      <div class="login-wrapper">
+
+        <div class="login-topline mono">
+          <span><span class="dot"></span>GEOPORTAL v0.1</span>
+          <span>SESIÓN SEGURA</span>
+        </div>
+
+        <div class="login-card coord-frame">
+          <span class="tick tick-tl"></span>
+          <span class="tick tick-tr"></span>
+          <span class="tick tick-bl"></span>
+          <span class="tick tick-br"></span>
+
+          <div class="login-logo">
+            <img src="/img/logo.png" alt="Geoportal" class="logo-img" />
+            <h1>Geoportal</h1>
+            <p>Accede a tu panel de trabajo</p>
+          </div>
+
+          <form id="loginForm" novalidate>
+
+            <div class="input-group">
+              <label for="email">Correo corporativo</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="nombre@empresa.com"
+                autocomplete="username"
+                required
+              />
+              <span class="error-msg" id="emailError"></span>
+            </div>
+
+            <div class="input-group">
+              <label for="password">Contraseña</label>
+              <div class="password-field">
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  autocomplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="toggle-password"
+                  id="togglePassword"
+                  aria-label="Mostrar contraseña"
+                >
+                  👁
+                </button>
+              </div>
+              <span class="error-msg" id="passwordError"></span>
+            </div>
+
+            <div class="options-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="remember" />
+                <span>Recordarme</span>
+              </label>
+              <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
+            </div>
+
+            <button type="submit" class="btn-login" id="btnLogin">
+              <span class="btn-text">Iniciar sesión</span>
+              <span class="spinner" id="spinner"></span>
+            </button>
+
+            <div class="alert" id="alertBox"></div>
+          </form>
+
+          <div class="login-footer">
+            <p>¿No tienes cuenta? <a href="#">Solicita acceso a TI</a></p>
+          </div>
+
+        </div>
+
+        <div class="login-bottomline mono">
+          <span>DATUM WGS84 · EPSG:4326</span>
+          <span>ESTADO OPERATIVO</span>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ====== Footer compartido ====== -->
+    <Footer />
+
+    <!-- Script externo -->
+    <script is:inline src="/scripts/login.js"></script>
+
+  </body>
+</html>

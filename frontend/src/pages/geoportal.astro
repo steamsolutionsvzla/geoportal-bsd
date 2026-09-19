@@ -1,47 +1,50 @@
+---
+import 'maplibre-gl/dist/maplibre-gl.css';
+// Fuentes (instaladas con @fontsource)
+import '@fontsource/fraunces/400.css';
+import '@fontsource/fraunces/500.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/plus-jakarta-sans/400.css';
+import '@fontsource/plus-jakarta-sans/500.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/plus-jakarta-sans/800.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '../styles/geoportal.css';
+import Footer from '../components/Footer.astro';
+---
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Geoportal-BSD</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="icon" type="image/svg+xml" href="img/favicon.svg">
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-  <!-- MapLibre GL JS CSS y JS -->
-  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js" defer></script>
-
-  <!-- Turf.js para análisis espacial -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js" defer></script>
-
-  <!-- Librerías de exportación -->
-  <script src="js/xlsx.full.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" defer></script>
-
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
 </head>
 <body>
-  <!-- DIV DE ERROR GLOBAL (se muestra cuando falla el backend) -->
-  <div id="global-error" style="display:none; background-color: #f8d7da; color: #721c24; padding: 12px 16px; border-radius: 6px; margin: 10px; border: 1px solid #f5c6cb; font-size: 0.9rem; position: relative; z-index: 9999;">
+  <div id="global-error" style="display:none; background-color: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin: 10px; border: 1px solid #fecaca; font-size: 0.9rem; position: relative; z-index: 9999;">
     <strong>⚠️ Error:</strong> <span id="error-text">No se pudo conectar con el servidor.</span>
-    <button onclick="document.getElementById('global-error').style.display='none'" style="float:right; background:transparent; border:none; color:#721c24; font-weight:bold; cursor:pointer;">✕</button>
+    <button onclick="document.getElementById('global-error').style.display='none'" style="float:right; background:transparent; border:none; color:#991b1b; font-weight:bold; cursor:pointer;">✕</button>
   </div>
 
- <script>
-  const sesionActiva = localStorage.getItem('auth_session');
-  if (!sesionActiva) {
-    window.location.href = 'login.html';
-  }
-</script>
+  <script is:inline>
+    const sesionActiva = localStorage.getItem('auth_session');
+    if (!sesionActiva) {
+      window.location.href = '/login';
+    }
+  </script>
 
   <div class="app">
     <!-- TOPBAR -->
     <header class="topbar">
       <div class="brand">
-        <img src="img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo">
+        <img src="/img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo">
       </div>
       <div class="brand-text">
         <span class="name">Geoportal de uso estratégico</span>
@@ -101,7 +104,6 @@
         <span class="count" id="layerCount">0 activas</span>
       </div>
       <div class="layers-scroll-area">
-        <!-- NUEVO: Contenedor único para grupos de capas (workspaces) -->
         <div id="layersGroupsContainer"></div>
       </div>
     </aside>
@@ -111,9 +113,9 @@
       <div id="map"></div>
       <div class="compass" title="Norte">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="46" fill="rgba(22,22,26,0.78)" stroke="#38383f" stroke-width="1.5"/>
-          <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(115,152,207,0.35)" stroke-width="1"/>
-          <g stroke="rgba(244,242,237,0.5)" stroke-width="1.5">
+          <circle cx="50" cy="50" r="46" fill="rgba(255,255,255,0.95)" stroke="rgba(45,82,150,0.35)" stroke-width="1.5"/>
+          <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(45,82,150,0.25)" stroke-width="1"/>
+          <g stroke="rgba(45,82,150,0.5)" stroke-width="1.5">
             <line x1="50" y1="6" x2="50" y2="13"/>
             <line x1="50" y1="87" x2="50" y2="94"/>
             <line x1="6" y1="50" x2="13" y2="50"/>
@@ -121,17 +123,16 @@
           </g>
           <polygon points="50,15 44.5,50 50,50" fill="#c1584a"/>
           <polygon points="50,15 55.5,50 50,50" fill="rgba(193,88,74,0.55)"/>
-          <polygon points="50,85 44.5,50 50,50" fill="#f4f2ed"/>
-          <polygon points="50,85 55.5,50 50,50" fill="rgba(244,242,237,0.5)"/>
-          <circle cx="50" cy="50" r="3.5" fill="#f4f2ed" stroke="#0c0c0e" stroke-width="1"/>
-          <text x="50" y="23" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#f4f2ed">N</text>
-          <text x="50" y="83" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">S</text>
-          <text x="19" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">O</text>
-          <text x="81" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#8c8c96">E</text>
+          <polygon points="50,85 44.5,50 50,50" fill="#122b5a"/>
+          <polygon points="50,85 55.5,50 50,50" fill="rgba(18,43,90,0.5)"/>
+          <circle cx="50" cy="50" r="3.5" fill="#ffffff" stroke="#122b5a" stroke-width="1"/>
+          <text x="50" y="23" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="600" fill="#122b5a">N</text>
+          <text x="50" y="83" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#64748b">S</text>
+          <text x="19" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#64748b">O</text>
+          <text x="81" y="53" text-anchor="middle" font-family="'JetBrains Mono', monospace" font-size="7.5" fill="#64748b">E</text>
         </svg>
       </div>
 
-      <!-- Botones toggle -->
       <button type="button" class="panel-toggle-btn toggle-left" id="sidebarToggleBtn" aria-label="Alternar capas">
         <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
@@ -150,7 +151,6 @@
         <div class="grat-edge right" id="gratRight"></div>
       </div>
 
-      <!-- Basemap switch -->
       <div class="basemap-switch">
         <button type="button" class="basemap-btn" id="basemapToggleBtn" title="Cambiar mapa base">
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -185,7 +185,6 @@
         </div>
       </div>
 
-      <!-- Leyenda -->
       <div class="legend-switch">
         <div class="legend-popover" id="legendPopover">
           <div class="legend-popover-header">
@@ -206,14 +205,12 @@
         </button>
       </div>
 
-      <!-- Zoom -->
       <div class="zoom-controls">
         <button class="zoom-btn" id="zoomIn">+</button>
         <button class="zoom-btn" id="zoomOut">–</button>
       </div>
     </div>
 
-    <!-- PANEL DE INFORMACIÓN -->
     <aside class="info-panel" id="infoPanel">
       <div class="panel-heading">
         <span class="eyebrow">Información</span>
@@ -226,7 +223,6 @@
       </div>
     </aside>
 
-    <!-- STATUS BAR -->
     <footer class="statusbar">
       <div class="stat">LAT/LON <b id="statCoord">0.00000° N 0.00000° W</b></div>
       <div class="divider"></div>
@@ -240,7 +236,11 @@
     </footer>
   </div>
 
-  <!-- CARGA DEL MÓDULO PRINCIPAL -->
-  <script type="module" src="js/main.js"></script>
+  <!-- Footer compartido (el mismo del index) -->
+  <Footer />
+
+  <script>
+    import '../scripts/main.js';
+  </script>
 </body>
 </html>

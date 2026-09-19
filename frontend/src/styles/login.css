@@ -1,0 +1,343 @@
+/* ============================================================
+   Login · Geoportal BSD
+   ============================================================ */
+
+/* ---------- Fondo de la página ---------- */
+body.login-page{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;   /* 👈 clave: en columna, no en fila */
+  font-family:'Inter',system-ui,sans-serif;
+  color:var(--ink-500);
+  background:
+    radial-gradient(900px 600px at 88% -5%, rgba(45,82,150,.14), transparent 60%),
+    radial-gradient(700px 500px at -5% 100%, rgba(45,82,150,.10), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #f5f8fd 100%);
+  position:relative;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Grilla ambiental sutil */
+body.login-page::before{
+  content:"";
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(45,82,150,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,82,150,.055) 1px, transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(circle at 50% 45%, rgba(0,0,0,.9), transparent 75%);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Brújula decorativa girando lento */
+.login-compass{
+  position:fixed;
+  inset:0;
+  margin:auto;
+  width:min(88vmin,780px);
+  height:min(88vmin,780px);
+  opacity:.055;
+  pointer-events:none;
+  animation:spin 200s linear infinite;
+  z-index:0;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+
+.login-main{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:110px 20px 60px;  /* 👈 antes era 40px 20px, ahora empuja desde arriba */
+  position:relative;
+  z-index:2;
+}
+
+/* ---------- Wrapper ---------- */
+.login-wrapper{
+  width:100%;
+  max-width:440px;
+  position:relative;
+  z-index:2;
+}
+
+/* ---------- Topline ---------- */
+.login-topline{
+  display:flex;justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-400);
+  margin-bottom:16px;padding:0 4px;
+}
+.login-topline .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--navy-600);
+  display:inline-block;margin-right:8px;
+  box-shadow:0 0 0 3px var(--navy-100);
+  animation:pulse 2.6s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 0 3px var(--navy-100);}
+  50%{box-shadow:0 0 0 6px rgba(45,82,150,.10);}
+}
+
+/* ---------- Card ---------- */
+.login-card{
+  background:#ffffff;
+  border:1px solid var(--line-200);
+  border-radius:22px;
+  padding:46px 40px 38px;
+  box-shadow:
+    0 1px 2px rgba(10,26,61,.04),
+    0 20px 50px rgba(10,26,61,.10),
+    0 40px 90px rgba(10,26,61,.06);
+  position:relative;
+  overflow:hidden;
+  animation:fadeUp .6s cubic-bezier(.2,.8,.2,1);
+}
+.login-card::before{
+  content:"";
+  position:absolute;top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg, var(--navy-800), var(--navy-600) 55%, var(--accent));
+  opacity:.9;
+}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(20px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ---------- Logo ---------- */
+.login-logo{text-align:center;margin-bottom:34px;}
+.logo-img{
+  display:block;
+  max-width:180px;
+  max-height:56px;
+  width:auto;height:auto;
+  margin:0 auto 18px;
+  object-fit:contain;
+}
+.login-logo h1{
+  font-family:'Fraunces',serif;font-weight:600;
+  font-size:1.6rem;color:var(--navy-900);
+  margin-bottom:6px;letter-spacing:-.015em;
+}
+.login-logo p{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.72rem;letter-spacing:.04em;
+  color:var(--ink-400);
+}
+
+/* ---------- Inputs ---------- */
+.input-group{margin-bottom:20px;position:relative;}
+.input-group label{
+  display:block;font-weight:600;letter-spacing:.05em;
+  color:var(--navy-800);
+  margin-bottom:8px;text-transform:uppercase;
+  font-family:'JetBrains Mono',monospace;font-size:.66rem;
+}
+.input-group input[type="email"],
+.input-group input[type="password"],
+.input-group input[type="text"]{
+  width:100%;padding:13px 14px;
+  background:#fafbff;
+  border:1.5px solid var(--line-300);
+  border-radius:10px;
+  color:var(--navy-900);
+  font-family:'Inter',sans-serif;font-size:14px;
+  transition:border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  outline:none;
+}
+.input-group input::placeholder{color:#a1a8ba;}
+.input-group input:focus{
+  border-color:var(--navy-500);
+  background:#ffffff;
+  box-shadow:0 0 0 4px rgba(74,114,184,.14);
+}
+.input-group.has-error input{
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(193,88,74,.10);
+}
+.error-msg{
+  display:block;min-height:16px;
+  color:var(--accent);font-size:.72rem;margin-top:6px;
+  font-family:'JetBrains Mono',monospace;
+  letter-spacing:.01em;
+}
+
+/* ---------- Password field ---------- */
+.password-field{position:relative;}
+.toggle-password{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;
+  background:none;border:none;cursor:pointer;
+  font-size:15px;color:var(--ink-400);opacity:.7;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:6px;
+  transition:opacity .2s ease, color .2s ease, background .2s ease;
+}
+.toggle-password:hover{
+  opacity:1;
+  color:var(--navy-700);
+  background:var(--navy-50);
+}
+
+/* ---------- Options row ---------- */
+.options-row{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:26px;font-size:.8rem;
+}
+.checkbox-label{
+  display:flex;align-items:center;gap:8px;
+  color:var(--ink-500);cursor:pointer;user-select:none;
+}
+.checkbox-label input{
+  accent-color:var(--navy-600);
+  width:15px;height:15px;cursor:pointer;
+}
+.forgot-link{
+  color:var(--navy-600);text-decoration:none;
+  font-weight:500;
+  transition:color .15s ease;
+}
+.forgot-link:hover{
+  color:var(--navy-800);
+  text-decoration:underline;
+}
+
+/* ---------- Botón principal ---------- */
+.btn-login{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg, var(--navy-800), var(--navy-600));
+  color:#ffffff;
+  border:1px solid transparent;
+  border-radius:12px;
+  font-family:'Inter',sans-serif;
+  font-size:.92rem;font-weight:600;letter-spacing:.01em;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  box-shadow:0 8px 22px rgba(15,37,87,.30);
+  transition:box-shadow .2s ease, transform .15s ease;
+  position:relative;overflow:hidden;
+}
+.btn-login::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.35), transparent 40%);
+  opacity:0;transition:opacity .3s;
+  pointer-events:none;
+}
+.btn-login:hover::after{opacity:1;}
+.btn-login:hover{
+  box-shadow:0 12px 30px rgba(15,37,87,.42);
+  transform:translateY(-1px);
+}
+.btn-login:active{transform:scale(.98);}
+.btn-login:disabled{
+  opacity:.7;cursor:not-allowed;
+  transform:none;
+  box-shadow:0 6px 16px rgba(15,37,87,.20);
+}
+
+.spinner{
+  width:16px;height:16px;
+  border:2px solid rgba(255,255,255,.35);
+  border-top-color:#ffffff;
+  border-radius:50%;
+  display:none;
+  animation:spin .7s linear infinite;
+}
+.spinner.active{display:inline-block;}
+
+/* ---------- Botón volver ---------- */
+.btn-back{
+  width:100%;margin-top:12px;padding:12px;
+  background:#ffffff;
+  color:var(--ink-500);
+  border:1.5px solid var(--line-300);
+  border-radius:12px;
+  font-family:'Inter',sans-serif;
+  font-size:.85rem;font-weight:500;
+  text-decoration:none;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:all .2s ease;
+}
+.btn-back:hover{
+  background:var(--navy-50);
+  color:var(--navy-700);
+  border-color:var(--navy-500);
+  transform:translateY(-1px);
+}
+.btn-back:active{transform:scale(.98);}
+.btn-back svg{transition:transform .2s ease;}
+.btn-back:hover svg{transform:translateX(-2px);}
+
+/* ---------- Alert ---------- */
+.alert{
+  margin-top:16px;padding:11px 14px;
+  border-radius:10px;
+  font-size:.78rem;text-align:center;
+  display:none;
+  font-family:'JetBrains Mono',monospace;
+  letter-spacing:.01em;
+}
+.alert.show{display:block;animation:alertIn .3s ease;}
+@keyframes alertIn{
+  from{opacity:0;transform:translateY(-4px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.alert.success{
+  background:rgba(90,156,111,.12);
+  color:#3d7a52;
+  border:1px solid rgba(90,156,111,.35);
+}
+.alert.error{
+  background:rgba(193,88,74,.10);
+  color:var(--accent);
+  border:1px solid rgba(193,88,74,.32);
+}
+
+/* ---------- Footer del card ---------- */
+.login-footer{
+  text-align:center;margin-top:26px;
+  font-size:.82rem;color:var(--ink-400);
+}
+.login-footer a{
+  color:var(--navy-600);text-decoration:none;font-weight:600;
+  transition:color .15s ease;
+}
+.login-footer a:hover{
+  color:var(--navy-800);
+  text-decoration:underline;
+}
+
+/* ---------- Línea inferior ---------- */
+.login-bottomline{
+  display:flex;justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-400);
+  margin-top:18px;padding:0 4px;
+}
+
+/* ---------- Marco con ticks (coord-frame) ---------- */
+.coord-frame{position:relative;}
+.coord-frame .tick{
+  position:absolute;width:20px;height:20px;
+  border-color:var(--navy-500);opacity:.55;
+  pointer-events:none;
+}
+.coord-frame .tick-tl{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid;border-top-left-radius:22px;}
+.coord-frame .tick-tr{top:-1px;right:-1px;border-top:2px solid;border-right:2px solid;border-top-right-radius:22px;}
+.coord-frame .tick-bl{bottom:-1px;left:-1px;border-bottom:2px solid;border-left:2px solid;border-bottom-left-radius:22px;}
+.coord-frame .tick-br{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid;border-bottom-right-radius:22px;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:480px){
+  body.login-page{padding:24px 16px;}
+  .login-card{padding:36px 24px 30px;border-radius:18px;}
+  .login-logo h1{font-size:1.4rem;}
+  .options-row{flex-direction:column;align-items:flex-start;gap:10px;}
+}

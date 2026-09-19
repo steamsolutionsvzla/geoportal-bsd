@@ -1,6 +1,7 @@
 // filters.js
 import { getMap } from './map-config.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
+import * as turf from '@turf/turf';
 
 let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;

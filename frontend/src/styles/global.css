@@ -1,0 +1,146 @@
+:root{
+  /* Base clara */
+  --white:#ffffff;
+  --paper:#fafbfd;
+  --paper-2:#f2f5fa;
+  --paper-3:#e8eef8;
+
+  /* Navy — tomado del logo BSD */
+  --navy-900:#0a1a3d;
+  --navy-800:#0f2557;
+  --navy-700:#1a3a7a;
+  --navy-600:#2d5296;
+  --navy-500:#4a72b8;
+  --navy-300:#9db4dd;
+  --navy-100:#dbe4f3;
+  --navy-50:#eef3fb;
+
+  /* Acento (gota de petróleo) */
+  --accent:#c1584a;
+  --accent-soft:rgba(193,88,74,.12);
+
+  /* Texto */
+  --ink-900:#0a1a3d;
+  --ink-700:#1f2b45;
+  --ink-500:#4a566e;
+  --ink-400:#6b7793;
+  --ink-300:#9aa3b8;
+
+  /* Líneas */
+  --line-200:#e6ebf3;
+  --line-300:#d6dded;
+
+  --radius-s:6px;
+  --radius-m:12px;
+  --radius-l:20px;
+  --radius-xl:28px;
+
+  --shadow-1:0 1px 2px rgba(10,26,61,.04), 0 4px 16px rgba(10,26,61,.06);
+  --shadow-2:0 12px 40px rgba(10,26,61,.10), 0 2px 8px rgba(10,26,61,.05);
+  --shadow-3:0 30px 80px rgba(10,26,61,.16);
+
+  --grad-navy:linear-gradient(135deg, var(--navy-800), var(--navy-600));
+  --grad-soft:linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--paper);
+  color:var(--ink-500);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+img{max-width:100%;display:block;}
+a{color:inherit;text-decoration:none;}
+::selection{background:var(--navy-600);color:#fff;}
+
+.mono{font-family:'JetBrains Mono',monospace;}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+
+/* Eyebrow */
+.eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--navy-600);
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 12px;
+  background:var(--navy-50);
+  border:1px solid var(--navy-100);
+  border-radius:999px;
+}
+.eyebrow::before{
+  content:"";width:6px;height:6px;border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+
+/* Botones */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 22px;border-radius:var(--radius-m);
+  font-size:.85rem;font-weight:600;letter-spacing:.01em;
+  border:1px solid transparent;cursor:pointer;
+  transition:transform .2s cubic-bezier(.2,.8,.2,1),
+             box-shadow .25s ease,
+             background .25s ease,
+             border-color .25s ease,
+             color .25s ease;
+  position:relative;overflow:hidden;
+}
+.btn::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.35), transparent 40%);
+  opacity:0;transition:opacity .3s;
+  pointer-events:none;
+}
+.btn:hover::after{opacity:1;}
+.btn:active{transform:scale(.97);}
+
+.btn-primary{
+  background:var(--grad-navy);
+  color:#fff;
+  box-shadow:0 8px 24px rgba(15,37,87,.28);
+}
+.btn-primary:hover{
+  box-shadow:0 12px 32px rgba(15,37,87,.4);
+  transform:translateY(-2px);
+}
+
+.btn-ghost{
+  background:#fff;
+  border-color:var(--line-300);
+  color:var(--navy-800);
+}
+.btn-ghost:hover{
+  border-color:var(--navy-600);
+  background:var(--navy-50);
+  transform:translateY(-2px);
+}
+
+.btn-lg{padding:15px 28px;font-size:.92rem;border-radius:14px;}
+
+/* Reveal on scroll */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1);}
+.reveal.is-visible{opacity:1;transform:none;}
+
+/* Grilla ambiental sutil */
+.grid-bg{
+  background-image:
+    linear-gradient(rgba(45,82,150,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45,82,150,.06) 1px, transparent 1px);
+  background-size:56px 56px;
+}
+
+/* Marco con ticks */
+.coord-frame{position:relative;}
+.coord-frame .tick{
+  position:absolute;width:20px;height:20px;
+  border-color:var(--navy-500);opacity:.6;
+}
+.coord-frame .tick-tl{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid;}
+.coord-frame .tick-tr{top:-1px;right:-1px;border-top:2px solid;border-right:2px solid;}
+.coord-frame .tick-bl{bottom:-1px;left:-1px;border-bottom:2px solid;border-left:2px solid;}
+.coord-frame .tick-br{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid;}

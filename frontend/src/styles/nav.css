@@ -1,0 +1,68 @@
+/* ============================================================
+   Nav · Geoportal BSD
+   ============================================================ */
+
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:rgba(255,255,255,.78);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  border-bottom:1px solid rgba(15,37,87,.06);
+  transition:box-shadow .3s ease, background .3s ease;
+}
+.nav.is-scrolled{
+  background:rgba(255,255,255,.92);
+  box-shadow:0 6px 24px rgba(10,26,61,.08);
+}
+.nav::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+  background:linear-gradient(90deg, var(--navy-800) 0%, var(--navy-600) 55%, var(--accent) 100%);
+  opacity:.85;
+}
+.nav-inner{
+  max-width:1180px;margin:0 auto;padding:0 32px;
+  height:70px;display:flex;align-items:center;gap:28px;
+}
+
+/* ---------- Marca ---------- */
+.brand-block{display:flex;align-items:center;gap:12px;}
+.brand-mark-img{height:38px;width:auto;object-fit:contain;}
+.brand-name{
+  font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;
+  color:var(--navy-900);letter-spacing:-.01em;
+}
+
+/* ---------- Links ---------- */
+.nav-links{
+  display:flex;align-items:center;gap:32px;margin-left:20px;
+  font-size:.88rem;color:var(--navy-800);
+}
+.nav-links a{
+  position:relative;padding:6px 0;opacity:.75;
+  transition:opacity .2s ease;
+}
+.nav-links a::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:2px;
+  background:var(--navy-600);border-radius:2px;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.nav-links a:hover{opacity:1;}
+.nav-links a:hover::after{transform:scaleX(1);}
+
+/* ---------- CTA ---------- */
+.nav-cta{margin-left:auto;display:flex;align-items:center;gap:14px;}
+
+/* ---------- Botón hamburguesa ---------- */
+.menu-toggle{
+  display:none;width:40px;height:40px;border-radius:10px;
+  border:1px solid var(--line-300);background:#fff;
+  align-items:center;justify-content:center;cursor:pointer;
+}
+.menu-toggle svg{width:18px;height:18px;stroke:var(--navy-800);}
+
+/* ---------- Responsive ---------- */
+@media (max-width:980px){
+  .nav-links{display:none;}
+  .menu-toggle{display:flex;}
+}
