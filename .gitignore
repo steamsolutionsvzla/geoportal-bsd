@@ -27,6 +27,7 @@ backend/.dockerignore
 
 # ---------- GeoServer (datos, logs y credenciales) ----------
 geoserver_data/
+geoserver/
 
 # ---------- Backend (Python / FastAPI) ----------
 backend/app/config.py
