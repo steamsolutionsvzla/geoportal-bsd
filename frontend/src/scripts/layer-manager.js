@@ -10,6 +10,21 @@ let selectedSourceId = null;
 // (layerId -> factor 0..1), para que se respete si la capa se apaga y se vuelve a encender.
 const layerOpacityFactors = {};
 
+// IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
+// Para estas no mostramos el slider de opacidad.
+const NO_OPACITY_IDS = new Set([
+  'BLOQUES',
+  'División Político Territorial'
+]);
+
+function layerHasOpacityControl(layerInfo) {
+  if (layerInfo.type !== 'fill') return false;
+  if (layerInfo.noOpacity) return false;
+  const shortId = layerInfo.id ? layerInfo.id.split(':').pop() : '';
+  if (NO_OPACITY_IDS.has(shortId)) return false;
+  return true;
+}
+
 // Etiquetas de geometría para el contador de elementos por capa
 const GEOM_LABELS = {
   circle: { one: 'punto', many: 'puntos' },
@@ -29,6 +44,10 @@ function buildFillOpacityExpression(factor) {
       0.4
     ]
   ];
+}
+
+function isPointType(geomType) {
+  return geomType === 'circle' || geomType === 'point';
 }
 
 export function setAvailableLayers(layers) {
@@ -62,7 +81,6 @@ export function renderLayerGroups(groups, containerId) {
 
   container.innerHTML = '';
 
- // DESPUÉS
   groups.forEach((group) => {
     const groupDiv = document.createElement('div');
     groupDiv.className = 'layer-group';
@@ -128,7 +146,8 @@ function createLayerRow(layerInfo) {
     : layerInfo.type === 'line' ? 'geom-line'
     : layerInfo.type === 'fill' ? 'geom-fill' : 'geom-point';
 
-  const isFill = layerInfo.type === 'fill';
+  // 👇 Solo mostramos slider si la capa fill realmente tiene relleno controlable.
+  const isFill = layerHasOpacityControl(layerInfo);
 
   item.innerHTML = `
     <div class="layer-row off">
@@ -242,15 +261,35 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     }
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
+
+    const layerConfig = availableLayers.find(l => l.id === tableName);
+    const geomType = layerConfig ? layerConfig.type : 'circle';
+    const isPoint = isPointType(geomType);
+
+    // 👇 Opciones del source: cluster solo para capas de puntos
+    const sourceOptions = {
+      type: 'geojson',
+      data: data,
+      generateId: true
+    };
+
+    if (isPoint) {
+      sourceOptions.cluster = true;
+      sourceOptions.clusterMaxZoom = 14;   // hasta qué zoom se agrupa
+      sourceOptions.clusterRadius = 50;    // radio en píxeles
+      // Si quieres sumar/promediar algún campo dentro del cluster, usa clusterProperties.
+      // Ejemplo:
+      // sourceOptions.clusterProperties = {
+      //   suma: ['+', ['get', 'valor']]
+      // };
+    }
+
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData(data);
     } else {
-      map.addSource(sourceId, {
-        type: 'geojson',
-        data: data,
-        generateId: true
-      });
+      map.addSource(sourceId, sourceOptions);
     }
+
     addMapLayerDirectly(tableName, sourceId, layerId, availableLayers);
     if (onSuccess) onSuccess(tableName, sourceId, layerId, data.features.length);
   } catch (error) {
@@ -275,37 +314,83 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
   const geomType = layerConfig ? layerConfig.type : 'circle';
   const geomColor = layerConfig ? layerConfig.color : '#6fa3e0';
 
-  if (!map.getLayer(layerId)) {
-    let beforeLayerId = undefined;
-    const existingLayers = map.getStyle().layers;
+  const isPoint = isPointType(geomType);
 
-    if (geomType === 'fill') {
+  // Sub-capas de cluster
+  const clusterLayerId  = `${layerId}-clusters`;
+  const clusterCountId  = `${layerId}-cluster-count`;
+  const unclusteredId   = `${layerId}-unclustered`;
+
+  // ---------------- Añadir capas ----------------
+  if (isPoint) {
+    // ---- 1) Círculos de cluster ----
+    if (!map.getLayer(clusterLayerId)) {
+      let beforeLayerId = undefined;
+      const existingLayers = map.getStyle().layers;
       for (let l of existingLayers) {
-        if (l.id.startsWith('layer-') && l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID && l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID && l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+        if (l.id.startsWith('layer-') &&
+            l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
+            l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
+            l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
           const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
-          if (t && (t.type === 'line' || t.type === 'circle')) {
+          if (t && (t.type === 'line' || t.type === 'fill')) {
             beforeLayerId = l.id;
             break;
           }
         }
       }
-    } else if (geomType === 'line') {
-      for (let l of existingLayers) {
-        if (l.id.startsWith('layer-') && l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID && l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID && l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
-          const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
-          if (t && t.type === 'circle') {
-            beforeLayerId = l.id;
-            break;
-          }
-        }
-      }
-    }
 
-    if (geomType === 'circle') {
       map.addLayer({
-        id: layerId,
+        id: clusterLayerId,
         type: 'circle',
         source: sourceId,
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': [
+            'step',
+            ['get', 'point_count'],
+            geomColor,        // < 10
+            10, '#4a7fc1',    // 10–49
+            50, '#1a365d'     // >= 50
+          ],
+          'circle-radius': [
+            'step',
+            ['get', 'point_count'],
+            16,               // < 10
+            10, 22,           // 10–49
+            50, 30            // >= 50
+          ],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        }
+      }, beforeLayerId);
+    }
+
+    // ---- 2) Contador dentro del cluster ----
+    if (!map.getLayer(clusterCountId)) {
+      map.addLayer({
+        id: clusterCountId,
+        type: 'symbol',
+        source: sourceId,
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': ['get', 'point_count_abbreviated'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': 12
+        },
+        paint: {
+          'text-color': '#ffffff'
+        }
+      });
+    }
+
+    // ---- 3) Puntos individuales (no clusterizados) ----
+    if (!map.getLayer(unclusteredId)) {
+      map.addLayer({
+        id: unclusteredId,
+        type: 'circle',
+        source: sourceId,
+        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'case',
@@ -322,47 +407,175 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           ],
           'circle-stroke-color': '#000000'
         }
-      }, beforeLayerId);
-    } else if (geomType === 'fill') {
-      const savedFactor = layerOpacityFactors[layerId] ?? 1;
-      map.addLayer({
-        id: layerId,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': geomColor,
-          'fill-opacity': buildFillOpacityExpression(savedFactor),
-          'fill-outline-color': '#000000'
+      });
+    }
+  } else {
+    // -------- Capas no-punto (fill / line) --------
+    if (!map.getLayer(layerId)) {
+      let beforeLayerId = undefined;
+      const existingLayers = map.getStyle().layers;
+
+      if (geomType === 'fill') {
+        for (let l of existingLayers) {
+          if (l.id.startsWith('layer-') &&
+              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
+              l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
+              l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+            const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
+            if (t && (t.type === 'line' || t.type === 'circle')) {
+              beforeLayerId = l.id;
+              break;
+            }
+          }
         }
-      }, beforeLayerId);
-    } else if (geomType === 'line') {
-      const lineColorExpression = [
-        'match',
-        ['get', 'tipo'],
-        'Oleoducto', '#e0824a',
-        'Gasducto', '#cda54c',
-        geomColor
-      ];
-      map.addLayer({
-        id: layerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': lineColorExpression,
-          'line-width': [
-            'case',
-            ['boolean', ['feature-state', 'selected'], false], 6,
-            ['boolean', ['feature-state', 'hover'], false], 5,
-            2
-          ]
+      } else if (geomType === 'line') {
+        for (let l of existingLayers) {
+          if (l.id.startsWith('layer-') &&
+              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
+              l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
+              l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+            const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
+            if (t && t.type === 'circle') {
+              beforeLayerId = l.id;
+              break;
+            }
+          }
         }
-      }, beforeLayerId);
+      }
+
+      if (geomType === 'fill') {
+        const savedFactor = layerOpacityFactors[layerId] ?? 1;
+        map.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': geomColor,
+            'fill-opacity': buildFillOpacityExpression(savedFactor),
+            'fill-outline-color': '#000000'
+          }
+        }, beforeLayerId);
+      } else if (geomType === 'line') {
+        const lineColorExpression = [
+          'match',
+          ['get', 'tipo'],
+          'Oleoducto', '#e0824a',
+          'Gasducto', '#cda54c',
+          geomColor
+        ];
+        map.addLayer({
+          id: layerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': lineColorExpression,
+            'line-width': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], 6,
+              ['boolean', ['feature-state', 'hover'], false], 5,
+              2
+            ]
+          }
+        }, beforeLayerId);
+      }
     }
   }
 
+  // ---------------- Eventos ----------------
   if (!map.listenedClicks) map.listenedClicks = new Set();
-  if (!map.listenedClicks.has(layerId)) {
+
+  if (isPoint) {
+    // Para puntos: eventos ligados al cluster y al unclustered
+    const eventsKey = `${layerId}-cluster-events`;
+    if (map.listenedClicks.has(eventsKey)) return;
+    map.listenedClicks.add(eventsKey);
+
+    // --- Zoom al hacer click sobre un cluster ---
+    map.on('click', clusterLayerId, (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [clusterLayerId] });
+      if (!features.length) return;
+      const clusterId = features[0].properties.cluster_id;
+      const src = map.getSource(sourceId);
+      if (typeof src.getClusterExpansionZoom === 'function') {
+        src.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          map.easeTo({ center: features[0].geometry.coordinates, zoom });
+        });
+      }
+    });
+
+    map.on('mouseenter', clusterLayerId, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', clusterLayerId, () => {
+      map.getCanvas().style.cursor = '';
+    });
+
+    // --- Hover + click sobre puntos individuales ---
+    let hoveredStateId = null;
+
+    map.on('mousemove', unclusteredId, (e) => {
+      map.getCanvas().style.cursor = 'pointer';
+      if (e.features.length > 0) {
+        if (hoveredStateId !== null) {
+          map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: false });
+        }
+        hoveredStateId = e.features[0].id;
+        map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: true });
+      }
+    });
+
+    map.on('mouseleave', unclusteredId, () => {
+      map.getCanvas().style.cursor = '';
+      if (hoveredStateId !== null) {
+        map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: false });
+      }
+      hoveredStateId = null;
+    });
+
+    map.on('click', unclusteredId, (ev) => {
+      if (!ev.features || ev.features.length === 0) return;
+      const clickedFeature = ev.features[0];
+      const props = clickedFeature.properties;
+      const clickedId = clickedFeature.id;
+
+      if (selectedFeatureId !== null && selectedSourceId !== null) {
+        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: false });
+      }
+
+      selectedFeatureId = clickedId;
+      selectedSourceId = sourceId;
+      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: true });
+
+      if (typeof window.handleFeatureClick === 'function') {
+        window.handleFeatureClick(tableName, props, ev.lngLat);
+      }
+    });
+
+    // También permitir click sobre el número del cluster (mismo comportamiento que el círculo)
+    map.on('click', clusterCountId, (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: [clusterLayerId] });
+      if (!features.length) return;
+      const clusterId = features[0].properties.cluster_id;
+      const src = map.getSource(sourceId);
+      if (typeof src.getClusterExpansionZoom === 'function') {
+        src.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          map.easeTo({ center: features[0].geometry.coordinates, zoom });
+        });
+      }
+    });
+    map.on('mouseenter', clusterCountId, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', clusterCountId, () => {
+      map.getCanvas().style.cursor = '';
+    });
+  } else {
+    // ---- Eventos originales para fill / line ----
+    if (map.listenedClicks.has(layerId)) return;
     map.listenedClicks.add(layerId);
+
     let hoveredStateId = null;
 
     map.on('mousemove', layerId, (e) => {

@@ -1,6 +1,7 @@
 // filters.js
 import { getMap } from './map-config.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
+import { setInfoPanelData, renderInfoPanel } from './info-panel.js';
 import * as turf from '@turf/turf';
 
 let estadosGeoJsonCache = null;
@@ -9,18 +10,15 @@ let isFilterActive = false;
 let isBloqueFilterActive = false;
 let selectedStateFeatureId = null;
 let selectedBloqueFeatureId = null;
+let selectedEstadoFeature = null;   // feature del estado seleccionado (para recalcular)
+let selectedBloqueFeature = null;   // feature del bloque seleccionado (para recalcular)
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
 let currentFilterData = null;
 let currentBloqueFilterData = null;
 
-export function setEstadosCache(data) {
-  estadosGeoJsonCache = data;
-}
-
-export function setBloquesCache(data) {
-  bloquesGeoJsonCache = data;
-}
+export function setEstadosCache(data) { estadosGeoJsonCache = data; }
+export function setBloquesCache(data) { bloquesGeoJsonCache = data; }
 
 export function getFilterState() {
   return { isFilterActive, isBloqueFilterActive, estadoSeleccionado, bloqueSeleccionado };
@@ -127,10 +125,15 @@ export function setupFilterDropdowns(estadosCache, bloquesCache) {
   }
 }
 
+// -------------------------------------------------------------------------
+// LIMPIAR FILTROS (independientes entre sí)
+// -------------------------------------------------------------------------
 export function limpiarFiltroEstado() {
   isFilterActive = false;
   estadoSeleccionado = '';
   currentFilterData = null;
+  selectedEstadoFeature = null;
+
   const map = getMap();
   if (map.getLayer('layer-estados-venezuela-line')) {
     map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', 'none');
@@ -150,13 +153,17 @@ export function limpiarFiltroEstado() {
     const todos = dropdown.querySelector('.loc-option[data-value=""]');
     if (todos) todos.classList.add('selected');
   }
-  if (window.updateInfoPanel) window.updateInfoPanel();
+
+  setInfoPanelData({ currentFilterData: null, isFilterActive: false });
+  renderInfoPanel();
 }
 
 export function limpiarFiltroBloque() {
   isBloqueFilterActive = false;
   bloqueSeleccionado = '';
   currentBloqueFilterData = null;
+  selectedBloqueFeature = null;
+
   const map = getMap();
   if (map.getLayer('layer-bloques-venezuela-filter-line')) {
     map.setLayoutProperty('layer-bloques-venezuela-filter-line', 'visibility', 'none');
@@ -176,9 +183,31 @@ export function limpiarFiltroBloque() {
     const todos = dropdown.querySelector('.loc-option[data-value=""]');
     if (todos) todos.classList.add('selected');
   }
-  if (window.updateInfoPanel) window.updateInfoPanel();
+
+  setInfoPanelData({ currentBloqueFilterData: null, isBloqueFilterActive: false });
+  renderInfoPanel();
 }
 
+// -------------------------------------------------------------------------
+// AJUSTAR VISTA A LOS FILTROS ACTIVOS (puede ser uno o ambos)
+// -------------------------------------------------------------------------
+function fitToActiveFilters() {
+  const map = getMap();
+  const features = [];
+  if (isFilterActive && selectedEstadoFeature) features.push(selectedEstadoFeature);
+  if (isBloqueFilterActive && selectedBloqueFeature) features.push(selectedBloqueFeature);
+  if (features.length === 0) return;
+  try {
+    const bbox = features.length === 1
+      ? turf.bbox(features[0])
+      : turf.bbox(turf.featureCollection(features));
+    map.fitBounds(bbox, { padding: 60, duration: 2000 });
+  } catch (err) { /* ignorar */ }
+}
+
+// -------------------------------------------------------------------------
+// APLICAR FILTROS (independientes)
+// -------------------------------------------------------------------------
 function aplicarFiltroEstado(nombreEstado) {
   if (!estadosGeoJsonCache) return;
   const map = getMap();
@@ -188,9 +217,10 @@ function aplicarFiltroEstado(nombreEstado) {
   });
   if (!estadoFeature) return;
 
-  if (isBloqueFilterActive) limpiarFiltroBloque();
-
+  // Ya NO se limpia el filtro de bloque: ambos pueden coexistir
   isFilterActive = true;
+  selectedEstadoFeature = estadoFeature;
+
   if (map.getLayer('layer-estados-venezuela-line')) {
     map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', 'visible');
   }
@@ -205,10 +235,8 @@ function aplicarFiltroEstado(nombreEstado) {
     selectedStateFeatureId = featureIndex;
     map.setFeatureState({ source: 'source-estados-venezuela', id: selectedStateFeatureId }, { selected: true });
   }
-  try {
-    const bbox = turf.bbox(estadoFeature);
-    map.fitBounds(bbox, { padding: 60, duration: 2000 });
-  } catch (err) {}
+
+  fitToActiveFilters();
 
   // Llamar a la función global pasando el nombre del estado
   if (window.calcularPuntosEnEstado) {
@@ -225,9 +253,10 @@ function aplicarFiltroBloque(nombreBloque) {
   });
   if (!bloqueFeature) return;
 
-  if (isFilterActive) limpiarFiltroEstado();
-
+  // Ya NO se limpia el filtro de estado: ambos pueden coexistir
   isBloqueFilterActive = true;
+  selectedBloqueFeature = bloqueFeature;
+
   if (map.getLayer('layer-bloques-venezuela-filter-line')) {
     map.setLayoutProperty('layer-bloques-venezuela-filter-line', 'visibility', 'visible');
   }
@@ -242,14 +271,26 @@ function aplicarFiltroBloque(nombreBloque) {
     selectedBloqueFeatureId = featureIndex;
     map.setFeatureState({ source: 'source-bloques-venezuela', id: selectedBloqueFeatureId }, { selected: true });
   }
-  try {
-    const bbox = turf.bbox(bloqueFeature);
-    map.fitBounds(bbox, { padding: 60, duration: 2000 });
-  } catch (err) {}
+
+  fitToActiveFilters();
 
   // Llamar a la función global pasando el nombre del bloque
   if (window.calcularPuntosEnBloque) {
     window.calcularPuntosEnBloque(bloqueFeature, nombreBloque);
+  }
+}
+
+// -------------------------------------------------------------------------
+// RECALCULAR FILTROS ACTIVOS
+// Se llama desde main.js cuando se activa/desactiva una capa,
+// para que los conteos de los filtros activos se actualicen.
+// -------------------------------------------------------------------------
+export function recalcularFiltrosActivos() {
+  if (isFilterActive && selectedEstadoFeature && typeof window.calcularPuntosEnEstado === 'function') {
+    window.calcularPuntosEnEstado(selectedEstadoFeature, estadoSeleccionado);
+  }
+  if (isBloqueFilterActive && selectedBloqueFeature && typeof window.calcularPuntosEnBloque === 'function') {
+    window.calcularPuntosEnBloque(selectedBloqueFeature, bloqueSeleccionado);
   }
 }
 

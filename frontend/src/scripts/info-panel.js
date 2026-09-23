@@ -20,6 +20,76 @@ let selectedLayerDisplayName = null;
 const layerMetadataCache = {};
 
 // ========================================================================
+// LOADER DE TARJETAS DE FILTRO
+// ========================================================================
+let filterLoadingCount = 0;
+
+function ensureFilterLoaderStyles() {
+  if (document.getElementById('filter-loader-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'filter-loader-styles';
+  style.textContent = `
+    .info-card.filter-card { position: relative; }
+    .info-card-loader {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      border-radius: inherit;
+      z-index: 10;
+      pointer-events: all;
+    }
+    .info-card.filter-card.is-loading .info-card-loader { display: flex; }
+    .info-card-spinner {
+      width: 26px;
+      height: 26px;
+      border: 2.5px solid #3182ce;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: info-spin 0.7s linear infinite;
+    }
+    .info-card-loader-text {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #1a365d;
+      letter-spacing: 0.02em;
+      animation: info-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes info-spin { to { transform: rotate(360deg); } }
+    @keyframes info-pulse {
+      0%, 100% { opacity: 0.55; }
+      50%      { opacity: 1; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+ensureFilterLoaderStyles();
+
+export function pushFilterLoading() {
+  filterLoadingCount++;
+  applyFilterLoadingState(true);
+}
+
+export function popFilterLoading() {
+  filterLoadingCount = Math.max(0, filterLoadingCount - 1);
+  applyFilterLoadingState(filterLoadingCount > 0);
+}
+
+function applyFilterLoadingState(loading) {
+  const infoContent = document.getElementById('infoPanelContent');
+  if (!infoContent) return;
+  infoContent.querySelectorAll('.info-card.filter-card').forEach(card => {
+    card.classList.toggle('is-loading', loading);
+  });
+}
+
+// ========================================================================
 // CARGA DEL LOGO (cacheado en Base64)
 // ========================================================================
 let logoBase64Cache = null;
@@ -122,9 +192,15 @@ export function renderInfoPanel() {
 
   infoContent.innerHTML = html;
 
+  // Reaplicar estado de loading si hay recálculo en curso
+  if (filterLoadingCount > 0) {
+    infoContent.querySelectorAll('.info-card.filter-card').forEach(card => {
+      card.classList.add('is-loading');
+    });
+  }
+
   if (filterHtml) attachFilterDownloadListeners();
   if (bloqueFilterHtml) attachBloqueFilterDownloadListeners();
-  agregarBotonLimpiarFiltroPanel();
 
   const infoPanel = document.getElementById('infoPanel');
   if (infoPanel && infoPanel.classList.contains('collapsed')) {
@@ -140,7 +216,7 @@ export function renderInfoPanel() {
 function buildFilterSummaryHtml() {
   if (!currentFilterData) return '';
   const { estadoSeleccionado: estadoNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentFilterData;
-  let html = `<div class="info-card"><div class="ic-label">Estado: ${estadoNombre}</div><hr class="info-divider">`;
+  let html = `<div class="info-card filter-card" data-filter="estado"><div class="ic-label">Estado: ${estadoNombre}</div><hr class="info-divider">`;
   html += `<div class="info-table-wrap"><table id="tablaPuntosEstado" class="info-table">`;
   html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
@@ -153,6 +229,8 @@ function buildFilterSummaryHtml() {
     html += `<button type="button" id="downloadPdfBtn" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtn" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
+  html += `<button type="button" id="clearFilterEstadoBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de estado</button>`;
+  html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
   html += `</div>`;
   return html;
 }
@@ -160,7 +238,7 @@ function buildFilterSummaryHtml() {
 function buildBloqueFilterSummaryHtml() {
   if (!currentBloqueFilterData) return '';
   const { bloqueSeleccionado: bloqueNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentBloqueFilterData;
-  let html = `<div class="info-card"><div class="ic-label">Bloque: ${bloqueNombre}</div><hr class="info-divider">`;
+  let html = `<div class="info-card filter-card" data-filter="bloque"><div class="ic-label">Bloque: ${bloqueNombre}</div><hr class="info-divider">`;
   html += `<div class="info-table-wrap"><table id="tablaPuntosBloque" class="info-table">`;
   html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
@@ -170,9 +248,11 @@ function buildBloqueFilterSummaryHtml() {
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
     html += `<div class="info-total"><span>Total de puntos en el bloque</span><b>${totalPuntosGeneral}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-secondary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnBloque" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
+  html += `<button type="button" id="clearFilterBloqueBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de bloque</button>`;
+  html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
   html += `</div>`;
   return html;
 }
@@ -285,7 +365,7 @@ function buildSelectedLayerMetadataHtml() {
 }
 
 // =========================================================================
-// ASIGNACIÓN DE EVENTOS DE DESCARGA (PDF / EXCEL)
+// ASIGNACIÓN DE EVENTOS DE DESCARGA (PDF / EXCEL) Y BOTONES DE LIMPIAR
 // =========================================================================
 function attachFilterDownloadListeners() {
   if (!currentFilterData) return;
@@ -300,6 +380,12 @@ function attachFilterDownloadListeners() {
   if (downloadExcelBtn) {
     downloadExcelBtn.addEventListener('click', () => {
       generarReporteExcel(estadoNombre, capasDetalleMap, document.getElementById('tablaPuntosEstado'));
+    });
+  }
+  const clearEstadoBtn = document.getElementById('clearFilterEstadoBtn');
+  if (clearEstadoBtn) {
+    clearEstadoBtn.addEventListener('click', () => {
+      if (typeof window.limpiarFiltroEstado === 'function') window.limpiarFiltroEstado();
     });
   }
 }
@@ -319,13 +405,18 @@ function attachBloqueFilterDownloadListeners() {
       generarReporteExcel(bloqueNombre, capasDetalleMap, document.getElementById('tablaPuntosBloque'));
     });
   }
+  const clearBloqueBtn = document.getElementById('clearFilterBloqueBtn');
+  if (clearBloqueBtn) {
+    clearBloqueBtn.addEventListener('click', () => {
+      if (typeof window.limpiarFiltroBloque === 'function') window.limpiarFiltroBloque();
+    });
+  }
 }
 
 // =========================================================================
 // GENERACIÓN DE REPORTES (PDF y EXCEL)
 // =========================================================================
 async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGeneral, capasDetalleMap, tablaResumenEl) {
-  // ✅ Ya no hay chequeo de window.jspdf: jsPDF viene del import.
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -337,7 +428,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   const lightGray = [240, 240, 240];
   const borderColor = [180, 180, 180];
 
-  // Cargar logo (cacheado)
   const logoData = await getLogoBase64();
   if (logoData) {
     try {
@@ -348,7 +438,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   }
   y += 12 + 4;
 
-  // Cabecera
   const headerHeight = 32;
   doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.rect(margin, y, pageWidth - 2 * margin, headerHeight, 'F');
@@ -368,7 +457,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  // Tabla de resumen
   if (tablaResumenEl) {
     const tableData = [];
     const rows = tablaResumenEl.querySelectorAll('tr');
@@ -378,7 +466,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
         tableData.push(Array.from(cells).map(cell => cell.textContent.trim()));
       }
     });
-    // ✅ Ahora autoTable(doc, {...}) en lugar de doc.autoTable({...})
     autoTable(doc, {
       head: tableData.slice(0, 1),
       body: tableData.slice(1),
@@ -396,7 +483,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
     y = doc.lastAutoTable.finalY + 6;
   }
 
-  // Total general
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -407,7 +493,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  // Tablas de detalle por capa
   if (Object.keys(capasDetalleMap).length > 0) {
     const excludedKeys = new Set(['id', 'geoid', 'gid', 'objectid']);
     for (let nombreCapa in capasDetalleMap) {
@@ -441,7 +526,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
         });
         body.push(row);
       });
-      // ✅ Segundo autoTable con la nueva firma
       autoTable(doc, {
         head: [head],
         body: body,
@@ -460,7 +544,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
     }
   }
 
-  // Pie de página
   const totalPages = doc.internal.getNumberOfPages();
   const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   for (let i = 1; i <= totalPages; i++) {
@@ -478,7 +561,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
 }
 
 function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl) {
-  // ✅ Ya no hay chequeo de typeof XLSX: viene del import.
   const wb = XLSX.utils.book_new();
   if (tablaResumenEl) {
     const wsResumen = XLSX.utils.table_to_sheet(tablaResumenEl);
@@ -508,42 +590,4 @@ function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl
     }
   }
   XLSX.writeFile(wb, `Reporte_Puntos_${nombreSeleccionado.replace(/\s+/g, '_')}.xlsx`);
-}
-
-// =========================================================================
-// BOTÓN PARA QUITAR FILTRO DESDE EL PANEL
-// =========================================================================
-function agregarBotonLimpiarFiltroPanel() {
-  const infoContent = document.getElementById('infoPanelContent');
-  if (!infoContent) return;
-  const hayFiltroActivo = isFilterActive || isBloqueFilterActive;
-  if (!hayFiltroActivo) return;
-  const existingBtn = document.getElementById('clearFilterPanelBtn');
-  if (existingBtn) return;
-  const firstInfoCard = infoContent.querySelector('.info-card');
-  if (!firstInfoCard) return;
-  const clearBtn = document.createElement('button');
-  clearBtn.id = 'clearFilterPanelBtn';
-  clearBtn.className = 'info-btn info-btn-danger';
-  clearBtn.style.marginTop = '12px';
-  clearBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Quitar filtro`;
-  clearBtn.addEventListener('click', () => {
-    if (isFilterActive) limpiarFiltroEstado();
-    if (isBloqueFilterActive) limpiarFiltroBloque();
-    renderInfoPanel();
-    getMap().flyTo({ center: [-65.75816, 7.17672], zoom: 4.8, duration: 1500 });
-  });
-  firstInfoCard.appendChild(clearBtn);
-}
-
-function limpiarFiltroEstado() {
-  if (typeof window.limpiarFiltroEstado === 'function') {
-    window.limpiarFiltroEstado();
-  }
-}
-
-function limpiarFiltroBloque() {
-  if (typeof window.limpiarFiltroBloque === 'function') {
-    window.limpiarFiltroBloque();
-  }
 }

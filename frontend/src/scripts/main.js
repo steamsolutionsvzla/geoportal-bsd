@@ -4,14 +4,28 @@ import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&ur
 import * as turf from '@turf/turf';
 
 import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls, setupBasemapSwitcher, getMap } from './map-config.js';
-import { setupFilterDropdowns, limpiarFiltroEstado as filtroEstadoOriginal, limpiarFiltroBloque as filtroBloqueOriginal, setEstadosCache, setBloquesCache } from './filters.js';
-import { renderInfoPanel, setInfoPanelData, showLayerMetadataInPanel, clearSelectedLayerMetadataIfMatches } from './info-panel.js';
+import {
+  setupFilterDropdowns,
+  limpiarFiltroEstado as filtroEstadoOriginal,
+  limpiarFiltroBloque as filtroBloqueOriginal,
+  setEstadosCache,
+  setBloquesCache,
+  recalcularFiltrosActivos
+} from './filters.js';
+import {
+  renderInfoPanel,
+  setInfoPanelData,
+  showLayerMetadataInPanel,
+  clearSelectedLayerMetadataIfMatches,
+  pushFilterLoading,
+  popFilterLoading
+} from './info-panel.js';
 import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode } from './utils.js';
 import { setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId, setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount, attachLayerOpacityEvents } from './layer-manager.js';
 import { openFeaturePopup } from './feature-popup.js';
+
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
-// Se debe configurar ANTES de crear cualquier instancia de Map.
 // =========================================================================
 setWorkerUrl(maplibreWorkerUrl);
 
@@ -174,9 +188,10 @@ async function loadWorkspaces() {
     groups.forEach(group => {
       group.layers.forEach(layer => {
         const id = layer.id.split(':').pop();
-        if (id === 'dpt_estadal_venezuela' || id === 'BLOQUES') {
+        if (id === 'División Político Territorial' || id === 'BLOQUES') {
           layer.type = 'fill';
-          if (id === 'dpt_estadal_venezuela') {
+          layer.noOpacity = true;   // 👈 NUEVO: sin slider de opacidad
+          if (id === 'División Político Territorial') {
             layer.color = '#1a365d';
           } else if (id === 'BLOQUES') {
             layer.color = '#8a4baf';
@@ -221,7 +236,7 @@ async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await fetch('/api/v1/layers/dpt_estadal_venezuela');
+    const response = await fetch('/api/v1/layers/División Político Territorial');
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -329,7 +344,7 @@ async function cargarCapaEstadosVenezuela() {
       });
     }
 
-    updateLayerFeatureCount('dpt_estadal_venezuela', data.features.length);
+    updateLayerFeatureCount('División Político Territorial', data.features.length);
   } catch (error) {
     console.error('Error al cargar la capa de estados:', error);
     mostrarError('No se pudo cargar la capa de estados. Verifica que el backend esté funcionando.');
@@ -491,7 +506,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     const map = getMap();
     const shortName = tableName.split(':').pop();
 
-    if (shortName === 'dpt_estadal_venezuela') {
+    if (shortName === 'División Político Territorial') {
       const vis = isVisible ? 'visible' : 'none';
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
@@ -542,7 +557,24 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         updateLayerFeatureCount(tn, featureCount);
       });
     } else {
-      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      // 👇 Detectar si es capa de puntos (con cluster) o capa normal (fill/line)
+      const layerConfig = getAvailableLayers().find(l => l.id === tableName);
+      const isPoint = layerConfig && (layerConfig.type === 'circle' || layerConfig.type === 'point');
+
+      if (isPoint) {
+        // Eliminar las 3 sub-capas del cluster antes de quitar el source
+        const idsToRemove = [
+          `${layerId}-cluster-count`,
+          `${layerId}-clusters`,
+          `${layerId}-unclustered`
+        ];
+        idsToRemove.forEach(id => {
+          if (map.getLayer(id)) map.removeLayer(id);
+        });
+      } else {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+      }
+
       if (map.getSource(sourceId)) map.removeSource(sourceId);
       if (getSelectedSourceId() === sourceId) {
         clearSelection();
@@ -553,6 +585,22 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     refreshCount();
     updateLegendUI(getAvailableLayers());
     renderInfoPanel();
+
+    if (typeof recalcularFiltrosActivos === 'function') {
+      // Mostrar loader sobre la(s) tarjeta(s) de filtro
+      pushFilterLoading();
+
+      setTimeout(() => {
+        try {
+          recalcularFiltrosActivos();
+        } catch (e) {
+          console.error('Error al recalcular filtros:', e);
+        } finally {
+          // Dejar un pequeño respiro para que se vea el spinner
+          setTimeout(() => popFilterLoading(), 150);
+        }
+      }, 300);
+    }
   } catch (error) {
     console.error('Error al cargar la capa:', error);
     mostrarError(`No se pudo cargar la capa "${tableName}". Verifica que esté publicada en GeoServer.`);
@@ -578,30 +626,63 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   let rowsHtml = '';
 
   const layers = getAvailableLayers();
+  const map = getMap();
+
   layers.forEach(layerConfig => {
     const sourceId = `source-${layerConfig.id}`;
-    const source = getMap().getSource(sourceId);
+    const source = map.getSource(sourceId);
+    if (!source) return;
 
-    if (source && (layerConfig.type === 'circle' || layerConfig.type === 'point')) {
-      const sourceData = source._data;
-      if (sourceData && sourceData.features) {
-        let countInPolygon = 0;
-        let featuresInLayer = [];
+    // source._data puede no estar listo aún; probar varias vías.
+    let sourceData = source._data;
+    if (!sourceData && typeof source.serialize === 'function') {
+      try { sourceData = source.serialize()?.data; } catch (_) { /* ignore */ }
+    }
 
-        sourceData.features.forEach(ptFeature => {
-          if (typeof turf !== 'undefined' && turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
-            countInPolygon++;
-            featuresInLayer.push(ptFeature.properties);
-          }
-        });
-
-        if (countInPolygon > 0) {
-          capasContadas++;
-          totalPuntosGeneral += countInPolygon;
-          capasDetalleMap[layerConfig.name] = featuresInLayer;
-          rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
+    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) {
+      try {
+        const rendered = map.querySourceFeatures(sourceId);
+        if (rendered && rendered.length) {
+          sourceData = { type: 'FeatureCollection', features: rendered };
         }
-      }
+      } catch (_) { /* ignore */ }
+    }
+
+    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
+
+    // Detección de capa de puntos: por type O por geometría real del primer feature.
+    const firstGeomType = sourceData.features[0]?.geometry?.type;
+    const isPointLayer =
+      layerConfig.type === 'circle' ||
+      layerConfig.type === 'point' ||
+      layerConfig.type === 'Point' ||
+      layerConfig.type === 'Punto' ||
+      firstGeomType === 'Point' ||
+      firstGeomType === 'MultiPoint';
+
+    if (!isPointLayer) return;
+
+    let countInPolygon = 0;
+    let featuresInLayer = [];
+
+    sourceData.features.forEach(ptFeature => {
+      if (!ptFeature || !ptFeature.geometry) return;
+      // 👈 Ignorar features de cluster (tienen properties.cluster === true)
+      if (ptFeature.properties && ptFeature.properties.cluster) return;
+      if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
+      try {
+        if (turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
+          countInPolygon++;
+          featuresInLayer.push(ptFeature.properties);
+        }
+      } catch (_) { /* geometría inválida, ignorar */ }
+    });
+
+    if (countInPolygon > 0) {
+      capasContadas++;
+      totalPuntosGeneral += countInPolygon;
+      capasDetalleMap[layerConfig.name] = featuresInLayer;
+      rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
     }
   });
 
@@ -627,30 +708,61 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
   let rowsHtml = '';
 
   const layers = getAvailableLayers();
+  const map = getMap();
+
   layers.forEach(layerConfig => {
     const sourceId = `source-${layerConfig.id}`;
-    const source = getMap().getSource(sourceId);
+    const source = map.getSource(sourceId);
+    if (!source) return;
 
-    if (source && (layerConfig.type === 'circle' || layerConfig.type === 'point')) {
-      const sourceData = source._data;
-      if (sourceData && sourceData.features) {
-        let countInPolygon = 0;
-        let featuresInLayer = [];
+    let sourceData = source._data;
+    if (!sourceData && typeof source.serialize === 'function') {
+      try { sourceData = source.serialize()?.data; } catch (_) { /* ignore */ }
+    }
 
-        sourceData.features.forEach(ptFeature => {
-          if (typeof turf !== 'undefined' && turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
-            countInPolygon++;
-            featuresInLayer.push(ptFeature.properties);
-          }
-        });
-
-        if (countInPolygon > 0) {
-          capasContadas++;
-          totalPuntosGeneral += countInPolygon;
-          capasDetalleMap[layerConfig.name] = featuresInLayer;
-          rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
+    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) {
+      try {
+        const rendered = map.querySourceFeatures(sourceId);
+        if (rendered && rendered.length) {
+          sourceData = { type: 'FeatureCollection', features: rendered };
         }
-      }
+      } catch (_) { /* ignore */ }
+    }
+
+    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
+
+    const firstGeomType = sourceData.features[0]?.geometry?.type;
+    const isPointLayer =
+      layerConfig.type === 'circle' ||
+      layerConfig.type === 'point' ||
+      layerConfig.type === 'Point' ||
+      layerConfig.type === 'Punto' ||
+      firstGeomType === 'Point' ||
+      firstGeomType === 'MultiPoint';
+
+    if (!isPointLayer) return;
+
+    let countInPolygon = 0;
+    let featuresInLayer = [];
+
+    sourceData.features.forEach(ptFeature => {
+      if (!ptFeature || !ptFeature.geometry) return;
+      // 👈 Ignorar features de cluster (tienen properties.cluster === true)
+      if (ptFeature.properties && ptFeature.properties.cluster) return;
+      if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
+      try {
+        if (turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
+          countInPolygon++;
+          featuresInLayer.push(ptFeature.properties);
+        }
+      } catch (_) { /* ignore */ }
+    });
+
+    if (countInPolygon > 0) {
+      capasContadas++;
+      totalPuntosGeneral += countInPolygon;
+      capasDetalleMap[layerConfig.name] = featuresInLayer;
+      rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
     }
   });
 
