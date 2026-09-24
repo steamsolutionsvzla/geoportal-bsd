@@ -1,14 +1,36 @@
 // layer-manager.js
 import { getPaletteForType, hashCode, refreshCount, updateLegendUI } from './utils.js';
 import { getMap } from './map-config.js';
+import { getFilterState } from './filters.js';
 
 let availableLayers = [];
 let selectedFeatureId = null;
 let selectedSourceId = null;
 
+// Estado actual del cluster en las capas de puntos activas.
+// true = cluster activado (sin filtros), false = desactivado (filtro activo).
+let clustersEnabled = true;
+
 // Recuerda el % de opacidad elegido por el usuario para cada capa de polígonos
 // (layerId -> factor 0..1), para que se respete si la capa se apaga y se vuelve a encender.
 const layerOpacityFactors = {};
+
+// 👇 NUEVO: Caché de datos crudos (GeoJSON original) por capa.
+// Necesario porque cuando el source tiene cluster activo, MapLibre
+// no expone las features individuales de forma fiable.
+const layerRawData = {};
+
+export function setLayerRawData(tableName, data) {
+  layerRawData[tableName] = data;
+}
+
+export function getLayerRawData(tableName) {
+  return layerRawData[tableName] || null;
+}
+
+export function clearLayerRawData(tableName) {
+  delete layerRawData[tableName];
+}
 
 // IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
 // Para estas no mostramos el slider de opacidad.
@@ -259,6 +281,10 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     if (!data.features || data.features.length === 0) {
       throw new Error('No features');
     }
+
+    // 👇 NUEVO: guardar los datos crudos en el caché
+    setLayerRawData(tableName, data);
+
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
 
@@ -266,22 +292,24 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     const geomType = layerConfig ? layerConfig.type : 'circle';
     const isPoint = isPointType(geomType);
 
-    // 👇 Opciones del source: cluster solo para capas de puntos
+    // 👇 Opciones del source: cluster solo para capas de puntos,
+    // y solo si NO hay ningún filtro de ubicación activo.
     const sourceOptions = {
       type: 'geojson',
       data: data,
       generateId: true
     };
 
-    if (isPoint) {
+    const debeClusterizar = isPoint && clusterDebeEstarActivo();
+    if (debeClusterizar) {
       sourceOptions.cluster = true;
       sourceOptions.clusterMaxZoom = 14;   // hasta qué zoom se agrupa
       sourceOptions.clusterRadius = 50;    // radio en píxeles
-      // Si quieres sumar/promediar algún campo dentro del cluster, usa clusterProperties.
-      // Ejemplo:
-      // sourceOptions.clusterProperties = {
-      //   suma: ['+', ['get', 'valor']]
-      // };
+    }
+
+    // Sincronizar clustersEnabled con el estado real al cargar una capa de puntos.
+    if (isPoint) {
+      clustersEnabled = clusterDebeEstarActivo();
     }
 
     if (map.getSource(sourceId)) {
@@ -296,6 +324,79 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     if (onError) onError(tableName, error);
     throw error;
   }
+}
+
+// ================================================================
+// CLUSTER: sincronización con los filtros de ubicación
+// ================================================================
+function clusterDebeEstarActivo() {
+  const { isFilterActive, isBloqueFilterActive } = getFilterState();
+  return !isFilterActive && !isBloqueFilterActive;
+}
+
+function getSourceData(source) {
+  let data = source._data;
+  if (!data && typeof source.serialize === 'function') {
+    try { data = source.serialize()?.data; } catch (_) { /* ignore */ }
+  }
+  return data;
+}
+
+// Recrea el source de cada capa de puntos ACTIVA con/sin cluster,
+// según el estado de los filtros. Devuelve true si hubo cambios.
+export function syncPointLayersClusterState() {
+  const shouldBeEnabled = clusterDebeEstarActivo();
+  const map = getMap();
+  let changed = false;
+
+  availableLayers.forEach(layerConfig => {
+    if (!isPointType(layerConfig.type)) return;
+
+    const sourceId = `source-${layerConfig.id}`;
+    const layerId = `layer-${layerConfig.id}`;
+    const source = map.getSource(sourceId);
+    if (!source) return;   // capa no activa en el mapa
+
+    // Verificar si el source actual YA tiene el estado deseado.
+    const sourceHasCluster = source.cluster === true;
+    if (sourceHasCluster === shouldBeEnabled) {
+      return;
+    }
+
+    const data = getSourceData(source);
+    if (!data) return;
+
+    // Quitar las 3 sub-capas antes de poder quitar el source
+    [
+      `${layerId}-cluster-count`,
+      `${layerId}-clusters`,
+      `${layerId}-unclustered`
+    ].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+    });
+
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+    const sourceOptions = {
+      type: 'geojson',
+      data: data,
+      generateId: true
+    };
+    if (shouldBeEnabled) {
+      sourceOptions.cluster = true;
+      sourceOptions.clusterMaxZoom = 14;
+      sourceOptions.clusterRadius = 50;
+    }
+    map.addSource(sourceId, sourceOptions);
+
+    // Reutiliza la lógica de orden z + eventos de siempre
+    addMapLayerDirectly(layerConfig.id, sourceId, layerId, availableLayers);
+
+    changed = true;
+  });
+
+  clustersEnabled = shouldBeEnabled;
+  return changed;
 }
 
 // ================================================================

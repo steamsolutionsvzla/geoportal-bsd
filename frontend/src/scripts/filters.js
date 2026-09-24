@@ -17,6 +17,14 @@ let bloqueSeleccionado = '';
 let currentFilterData = null;
 let currentBloqueFilterData = null;
 
+// Notifica a main.js para sincronizar el cluster de las capas de puntos
+// con el estado de los filtros (con loader incluido).
+function notificarCambioCluster() {
+  if (typeof window.syncClustersConFiltro === 'function') {
+    window.syncClustersConFiltro();
+  }
+}
+
 export function setEstadosCache(data) { estadosGeoJsonCache = data; }
 export function setBloquesCache(data) { bloquesGeoJsonCache = data; }
 
@@ -156,6 +164,7 @@ export function limpiarFiltroEstado() {
 
   setInfoPanelData({ currentFilterData: null, isFilterActive: false });
   renderInfoPanel();
+  notificarCambioCluster();
 }
 
 export function limpiarFiltroBloque() {
@@ -186,6 +195,7 @@ export function limpiarFiltroBloque() {
 
   setInfoPanelData({ currentBloqueFilterData: null, isBloqueFilterActive: false });
   renderInfoPanel();
+  notificarCambioCluster();
 }
 
 // -------------------------------------------------------------------------
@@ -242,6 +252,8 @@ function aplicarFiltroEstado(nombreEstado) {
   if (window.calcularPuntosEnEstado) {
     window.calcularPuntosEnEstado(estadoFeature, nombreEstado);
   }
+
+  notificarCambioCluster();
 }
 
 function aplicarFiltroBloque(nombreBloque) {
@@ -278,6 +290,8 @@ function aplicarFiltroBloque(nombreBloque) {
   if (window.calcularPuntosEnBloque) {
     window.calcularPuntosEnBloque(bloqueFeature, nombreBloque);
   }
+
+  notificarCambioCluster();
 }
 
 // -------------------------------------------------------------------------

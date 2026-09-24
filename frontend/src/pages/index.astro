@@ -3,6 +3,7 @@ import '../styles/index.css';
 import Layout from '../layouts/Layout.astro';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
+import Earth from '../components/Earth.astro';
 
 const features = [
   {
@@ -46,21 +47,8 @@ const stats = [
       <div class="hero-glow"></div>
       <div class="hero-glow hero-glow-2"></div>
 
-      <svg class="hero-compass" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="50" cy="50" r="46" fill="rgba(255,255,255,.85)" stroke="rgba(45,82,150,.25)" stroke-width="1.2"/>
-        <circle cx="50" cy="50" r="37" fill="none" stroke="rgba(45,82,150,.15)" stroke-width="0.8"/>
-        <g stroke="rgba(45,82,150,.45)" stroke-width="1.2">
-          <line x1="50" y1="5" x2="50" y2="14"/>
-          <line x1="50" y1="86" x2="50" y2="95"/>
-          <line x1="5" y1="50" x2="14" y2="50"/>
-          <line x1="86" y1="50" x2="95" y2="50"/>
-        </g>
-        <polygon points="50,13 43,50 50,50" fill="rgba(193,88,74,1)"/>
-        <polygon points="50,13 57,50 50,50" fill="rgba(160,70,60,.9)"/>
-        <polygon points="50,87 43,50 50,50" fill="rgba(45,82,150,.9)"/>
-        <polygon points="50,87 57,50 50,50" fill="rgba(30,60,120,.9)"/>
-        <circle cx="50" cy="50" r="4" fill="#fff" stroke="rgba(15,37,87,1)" stroke-width="1.5"/>
-      </svg>
+      <!-- 👇 Planeta 3D reemplaza a la brújula SVG -->
+      <Earth />
 
       <div class="wrap">
         <div class="hero-inner">
@@ -79,10 +67,10 @@ const stats = [
             <a href="#funciones" class="btn btn-ghost btn-lg">Ver funciones</a>
           </div>
           <div class="hero-coord mono reveal">
-            <span>LAT/LON <b>0.00000° N 0.00000° W</b></span>
-            <span>DATUM <b>WGS84 · EPSG:4326</b></span>
-            <span>ESTADO <b>Operativo</b></span>
-          </div>
+  <span>LAT/LON <b>10.3447° N 67.0436° W</b></span>
+  <span>DATUM <b>WGS84 · EPSG:4326</b></span>
+  <span>ESTADO <b>Operativo</b></span>
+</div>
         </div>
       </div>
     </section>

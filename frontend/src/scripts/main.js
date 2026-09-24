@@ -21,7 +21,13 @@ import {
   popFilterLoading
 } from './info-panel.js';
 import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode } from './utils.js';
-import { setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId, setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount, attachLayerOpacityEvents } from './layer-manager.js';
+import {
+  setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap,
+  getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
+  setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount,
+  attachLayerOpacityEvents, syncPointLayersClusterState,
+  getLayerRawData, clearLayerRawData   // 👈 NUEVOS
+} from './layer-manager.js';
 import { openFeaturePopup } from './feature-popup.js';
 
 // =========================================================================
@@ -142,6 +148,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.cerrarSesion = cerrarSesion;
+
+    // Sincroniza el cluster de las capas de puntos con el estado de los
+    // filtros (se llama desde filters.js al aplicar/limpiar un filtro).
+    window.syncClustersConFiltro = () => {
+      mostrarCargando(true);
+      // Pequeña pausa para que el navegador pinte el loader antes del trabajo síncrono
+      setTimeout(() => {
+        try {
+          syncPointLayersClusterState();
+        } catch (e) {
+          console.error('Error al sincronizar clusters:', e);
+        } finally {
+          mostrarCargando(false);
+        }
+      }, 50);
+    };
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
     document.querySelector('.icon-btn[title="Ajustes"]')?.addEventListener('click', () => {
@@ -557,7 +579,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         updateLayerFeatureCount(tn, featureCount);
       });
     } else {
-      // 👇 Detectar si es capa de puntos (con cluster) o capa normal (fill/line)
+      // Detectar si es capa de puntos (con cluster) o capa normal (fill/line)
       const layerConfig = getAvailableLayers().find(l => l.id === tableName);
       const isPoint = layerConfig && (layerConfig.type === 'circle' || layerConfig.type === 'point');
 
@@ -576,6 +598,10 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       }
 
       if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      // 👇 NUEVO: limpiar caché de datos crudos
+      clearLayerRawData(tableName);
+
       if (getSelectedSourceId() === sourceId) {
         clearSelection();
       }
@@ -615,6 +641,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
 // =========================================================================
 // CÁLCULO DE PUNTOS EN POLÍGONOS (para filtros)
+// 👇 AHORA LEEN DEL CACHÉ DE DATOS CRUDOS, NO DEL SOURCE DE MAPLIBRE
 // =========================================================================
 function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   const infoContent = document.getElementById('infoPanelContent');
@@ -631,26 +658,14 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   layers.forEach(layerConfig => {
     const sourceId = `source-${layerConfig.id}`;
     const source = map.getSource(sourceId);
-    if (!source) return;
+    if (!source) return; // capa no activa en el mapa
 
-    // source._data puede no estar listo aún; probar varias vías.
-    let sourceData = source._data;
-    if (!sourceData && typeof source.serialize === 'function') {
-      try { sourceData = source.serialize()?.data; } catch (_) { /* ignore */ }
-    }
-
-    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) {
-      try {
-        const rendered = map.querySourceFeatures(sourceId);
-        if (rendered && rendered.length) {
-          sourceData = { type: 'FeatureCollection', features: rendered };
-        }
-      } catch (_) { /* ignore */ }
-    }
-
+    // 👇 Leer SIEMPRE del caché de datos crudos, NUNCA del source.
+    // El source puede estar clusterizado y no exponer puntos individuales.
+    const sourceData = getLayerRawData(layerConfig.id);
     if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
 
-    // Detección de capa de puntos: por type O por geometría real del primer feature.
+    // Detección de capa de puntos
     const firstGeomType = sourceData.features[0]?.geometry?.type;
     const isPointLayer =
       layerConfig.type === 'circle' ||
@@ -667,8 +682,6 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
 
     sourceData.features.forEach(ptFeature => {
       if (!ptFeature || !ptFeature.geometry) return;
-      // 👈 Ignorar features de cluster (tienen properties.cluster === true)
-      if (ptFeature.properties && ptFeature.properties.cluster) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
@@ -713,22 +726,10 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
   layers.forEach(layerConfig => {
     const sourceId = `source-${layerConfig.id}`;
     const source = map.getSource(sourceId);
-    if (!source) return;
+    if (!source) return; // capa no activa en el mapa
 
-    let sourceData = source._data;
-    if (!sourceData && typeof source.serialize === 'function') {
-      try { sourceData = source.serialize()?.data; } catch (_) { /* ignore */ }
-    }
-
-    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) {
-      try {
-        const rendered = map.querySourceFeatures(sourceId);
-        if (rendered && rendered.length) {
-          sourceData = { type: 'FeatureCollection', features: rendered };
-        }
-      } catch (_) { /* ignore */ }
-    }
-
+    // 👇 Leer SIEMPRE del caché de datos crudos, NUNCA del source.
+    const sourceData = getLayerRawData(layerConfig.id);
     if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
 
     const firstGeomType = sourceData.features[0]?.geometry?.type;
@@ -747,8 +748,6 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
 
     sourceData.features.forEach(ptFeature => {
       if (!ptFeature || !ptFeature.geometry) return;
-      // 👈 Ignorar features de cluster (tienen properties.cluster === true)
-      if (ptFeature.properties && ptFeature.properties.cluster) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
