@@ -21,7 +21,7 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
       '@tailwindcss/vite':
-        specifier: ^4.3.3
+        specifier: 4.3.3
         version: 4.3.3(vite@8.3.0(esbuild@0.28.2)(jiti@2.7.0))
       '@turf/turf':
         specifier: 7.4.0
@@ -30,7 +30,7 @@ importers:
         specifier: 7.3.3
         version: 7.3.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(jiti@2.7.0)
       echarts:
-        specifier: ^6.1.0
+        specifier: 6.1.0
         version: 6.1.0
       jspdf:
         specifier: 4.2.1
@@ -42,17 +42,17 @@ importers:
         specifier: 6.10.0
         version: 6.10.0
       tailwindcss:
-        specifier: ^4.3.3
+        specifier: 4.3.3
         version: 4.3.3
       three:
-        specifier: ^0.186.0
+        specifier: 0.186.0
         version: 0.186.0
       xlsx:
         specifier: 0.18.5
         version: 0.18.5
     devDependencies:
       '@types/three':
-        specifier: ^0.186.0
+        specifier: 0.186.0
         version: 0.186.0
 
 packages:

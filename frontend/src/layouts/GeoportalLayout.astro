@@ -1,0 +1,36 @@
+---
+import '../styles/geoportal.css';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title?: string;
+  bodyClass?: string;
+}
+
+const {
+  title = 'Geoportal BSD',
+  bodyClass = ''
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+</head>
+
+<body class={bodyClass}>
+  <script is:inline>
+    if (!localStorage.getItem('auth_session')) {
+      window.location.href = '/login';
+    }
+  </script>
+
+  <slot />
+
+  <Footer />
+</body>
+</html>
