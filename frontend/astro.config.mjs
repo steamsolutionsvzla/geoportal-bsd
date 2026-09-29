@@ -13,7 +13,6 @@ export default defineConfig({
       watch: {
         ignored: ['**/public/**'],
       },
-      // 👇 Reenvía /api/* al backend en el puerto 8000
       proxy: {
         '/api': {
           target: 'http://localhost:8000',

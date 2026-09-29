@@ -1,0 +1,67 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AccessGrid from '../../components/admin/AccessGrid.astro';
+import StatCard from '../../components/admin/StatCard.astro';
+import BarChartBloquesAnio from '../../components/admin/BarChartBloquesAnio.astro';
+import LineChartVentasMes from '../../components/admin/LineChartVentasMes.astro';
+import DonutChartEstados from '../../components/admin/DonutChartEstados.astro';
+import HBarTopOrganismos from '../../components/admin/HBarTopOrganismos.astro';
+import RadarChartRegiones from '../../components/admin/RadarChartRegiones.astro';
+import Footer from '../../components/Footer.astro';
+
+import { kpis } from '../../lib/adminMockData';
+---
+
+<AdminLayout
+  title="Dashboard · Admin BSD"
+  subtitle="Panel de administración del geoportal"
+>
+
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">Panel de administración</span>
+      <h1>Dashboard</h1>
+      <p>Resumen operativo de bloques petroleros y paquetes de capas.</p>
+    </div>
+  </header>
+
+  <section class="kpi-grid">
+    <StatCard
+      label="Bloques vendidos"
+      value={kpis.bloquesVendidos.value}
+      delta={kpis.bloquesVendidos.delta}
+      deltaLabel={kpis.bloquesVendidos.deltaLabel}
+      accent="#2d5296"
+    />
+    <StatCard
+      label="Bloques en construcción"
+      value={kpis.bloquesConstruccion.value}
+      delta={kpis.bloquesConstruccion.delta}
+      deltaLabel={kpis.bloquesConstruccion.deltaLabel}
+      accent="#0f766e"
+    />
+    <StatCard
+      label="Paquetes por entregar"
+      value={kpis.paquetesPorEntregar.value}
+      delta={kpis.paquetesPorEntregar.delta}
+      deltaLabel={kpis.paquetesPorEntregar.deltaLabel}
+      accent="#b45309"
+    />
+  </section>
+
+  <AccessGrid />
+
+  <section class="charts-row two">
+    <BarChartBloquesAnio />
+    <LineChartVentasMes />
+  </section>
+
+  <section class="charts-row three">
+    <DonutChartEstados />
+    <HBarTopOrganismos />
+    <RadarChartRegiones />
+  </section>
+
+  <Footer />
+
+</AdminLayout>

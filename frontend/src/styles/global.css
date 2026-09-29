@@ -1,3 +1,8 @@
+/* ============================================================
+   GLOBAL · Geoportal BSD
+   ============================================================ */
+
+/* ---------- Variables ---------- */
 :root{
   /* Base clara */
   --white:#ffffff;
@@ -30,19 +35,23 @@
   --line-200:#e6ebf3;
   --line-300:#d6dded;
 
+  /* Radios */
   --radius-s:6px;
   --radius-m:12px;
   --radius-l:20px;
   --radius-xl:28px;
 
+  /* Sombras */
   --shadow-1:0 1px 2px rgba(10,26,61,.04), 0 4px 16px rgba(10,26,61,.06);
   --shadow-2:0 12px 40px rgba(10,26,61,.10), 0 2px 8px rgba(10,26,61,.05);
   --shadow-3:0 30px 80px rgba(10,26,61,.16);
 
+  /* Gradientes */
   --grad-navy:linear-gradient(135deg, var(--navy-800), var(--navy-600));
   --grad-soft:linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
 }
 
+/* ---------- Reset ---------- */
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{
@@ -58,9 +67,10 @@ a{color:inherit;text-decoration:none;}
 
 .mono{font-family:'JetBrains Mono',monospace;}
 
+/* ---------- Layout ---------- */
 .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
 
-/* Eyebrow */
+/* ---------- Eyebrow ---------- */
 .eyebrow{
   font-family:'JetBrains Mono',monospace;
   font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
@@ -77,7 +87,7 @@ a{color:inherit;text-decoration:none;}
   box-shadow:0 0 0 3px var(--accent-soft);
 }
 
-/* Botones */
+/* ---------- Botones ---------- */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   padding:12px 22px;border-radius:var(--radius-m);
@@ -122,11 +132,16 @@ a{color:inherit;text-decoration:none;}
 
 .btn-lg{padding:15px 28px;font-size:.92rem;border-radius:14px;}
 
-/* Reveal on scroll */
-.reveal{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1);}
+/* ---------- Animaciones ---------- */
+.reveal{
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .8s cubic-bezier(.2,.8,.2,1),
+             transform .8s cubic-bezier(.2,.8,.2,1);
+}
 .reveal.is-visible{opacity:1;transform:none;}
 
-/* Grilla ambiental sutil */
+/* ---------- Utilidades ---------- */
 .grid-bg{
   background-image:
     linear-gradient(rgba(45,82,150,.06) 1px, transparent 1px),
@@ -134,7 +149,6 @@ a{color:inherit;text-decoration:none;}
   background-size:56px 56px;
 }
 
-/* Marco con ticks */
 .coord-frame{position:relative;}
 .coord-frame .tick{
   position:absolute;width:20px;height:20px;
@@ -144,3 +158,4 @@ a{color:inherit;text-decoration:none;}
 .coord-frame .tick-tr{top:-1px;right:-1px;border-top:2px solid;border-right:2px solid;}
 .coord-frame .tick-bl{bottom:-1px;left:-1px;border-bottom:2px solid;border-left:2px solid;}
 .coord-frame .tick-br{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid;}
+

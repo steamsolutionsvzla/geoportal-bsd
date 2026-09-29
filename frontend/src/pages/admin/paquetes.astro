@@ -1,0 +1,64 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { paquetesTabla } from '../../lib/adminMockData';
+
+const estadoBadge = (estado: string) => {
+  if (estado === 'Entregado') return 'green';
+  if (estado === 'En construcción') return 'blue';
+  if (estado === 'Por entregar') return 'amber';
+  return 'gray';
+};
+---
+
+<AdminLayout title="Paquetes · Admin BSD">
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">Sección</span>
+      <h1>Paquetes de capas</h1>
+      <p>Entrega y construcción de paquetes asociados a bloques.</p>
+    </div>
+  </header>
+
+  <div class="admin-table-wrap">
+    <div class="admin-table-head">
+      <h2>Listado de paquetes</h2>
+      <input
+        type="search"
+        class="admin-search"
+        placeholder="Buscar paquete, bloque, estado..."
+        oninput="filtrarTabla(this.value)"
+      />
+    </div>
+    <table class="admin-table" id="tabla-paquetes">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Bloque</th>
+          <th>Estado</th>
+          <th>Fecha entrega</th>
+          <th>Capas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {paquetesTabla.map((p) => (
+          <tr>
+            <td>{p.id}</td>
+            <td>{p.bloque}</td>
+            <td><span class={`badge ${estadoBadge(p.estado)}`}>{p.estado}</span></td>
+            <td>{p.fechaEntrega}</td>
+            <td>{p.capas}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <script is:inline>
+    window.filtrarTabla = (q) => {
+      const term = (q || '').toLowerCase();
+      document.querySelectorAll('#tabla-paquetes tbody tr').forEach((tr) => {
+        tr.style.display = tr.innerText.toLowerCase().includes(term) ? '' : 'none';
+      });
+    };
+  </script>
+</AdminLayout>

@@ -1,0 +1,30 @@
+---
+interface Props {
+  label: string;
+  value: number | string;
+  delta?: number;
+  deltaLabel?: string;
+  accent?: string;
+}
+
+const {
+  label,
+  value,
+  delta,
+  deltaLabel = '',
+  accent = '#2d5296',
+} = Astro.props;
+
+const isUp = (delta ?? 0) >= 0;
+---
+
+<div class="kpi-card" style={`--accent:${accent}`}>
+  <div class="kpi-label">{label}</div>
+  <div class="kpi-value">{value}</div>
+  {delta !== undefined && (
+    <div class={`kpi-delta ${isUp ? 'up' : 'down'}`}>
+      {isUp ? '▲' : '▼'} {Math.abs(delta)}%
+      <span>{deltaLabel}</span>
+    </div>
+  )}
+</div>

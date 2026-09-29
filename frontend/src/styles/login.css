@@ -6,7 +6,7 @@
 body.login-page{
   min-height:100vh;
   display:flex;
-  flex-direction:column;   /* 👈 clave: en columna, no en fila */
+  flex-direction:column;
   font-family:'Inter',system-ui,sans-serif;
   color:var(--ink-500);
   background:
@@ -45,13 +45,13 @@ body.login-page::before{
 }
 @keyframes spin{to{transform:rotate(360deg);}}
 
-
+/* ---------- Main ---------- */
 .login-main{
   min-height:100vh;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:110px 20px 60px;  /* 👈 antes era 40px 20px, ahora empuja desde arriba */
+  padding:110px 20px 60px;
   position:relative;
   z-index:2;
 }
@@ -110,25 +110,36 @@ body.login-page::before{
   to{opacity:1;transform:translateY(0);}
 }
 
-/* ---------- Logo ---------- */
-.login-logo{text-align:center;margin-bottom:34px;}
-.logo-img{
+/* ---------- Logo del formulario ---------- */
+.login-logo{
+  text-align:center;
+  margin-bottom:34px;
+}
+
+.login-logo .logo-img{
   display:block;
-  max-width:180px;
-  max-height:56px;
-  width:auto;height:auto;
+  width:auto;
+  height:64px;
+  max-width:220px;
   margin:0 auto 18px;
   object-fit:contain;
 }
+
 .login-logo h1{
-  font-family:'Fraunces',serif;font-weight:600;
-  font-size:1.6rem;color:var(--navy-900);
-  margin-bottom:6px;letter-spacing:-.015em;
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:1.6rem;
+  color:var(--navy-900);
+  margin:0 0 6px;
+  letter-spacing:-.015em;
 }
+
 .login-logo p{
   font-family:'JetBrains Mono',monospace;
-  font-size:.72rem;letter-spacing:.04em;
+  font-size:.72rem;
+  letter-spacing:.04em;
   color:var(--ink-400);
+  margin:0;
 }
 
 /* ---------- Inputs ---------- */
@@ -322,7 +333,7 @@ body.login-page::before{
   margin-top:18px;padding:0 4px;
 }
 
-/* ---------- Marco con ticks (coord-frame) ---------- */
+/* ---------- Marco con ticks ---------- */
 .coord-frame{position:relative;}
 .coord-frame .tick{
   position:absolute;width:20px;height:20px;

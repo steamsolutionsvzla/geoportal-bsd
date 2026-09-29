@@ -1,0 +1,86 @@
+---
+import '../styles/global.css';
+import '../styles/nav.css';
+import '../styles/hub.css';
+import '../styles/admin.css';
+
+interface Props {
+  title?: string;
+  subtitle?: string;
+}
+
+const {
+  title = 'Admin · BSD Geoportal',
+  subtitle = 'Panel de administración',
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={subtitle} />
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+</head>
+
+<body class="hub-body admin-body">
+  <div class="hub-root">
+
+    <header class="hub-topbar">
+      <div class="hub-topbar-inner">
+        <a href="/admin" class="brand-block">
+          <img src="/img/logo.png" alt="BSD" class="brand-mark-img" />
+          <span class="brand-name">Geoportal · Admin</span>
+        </a>
+
+        <div class="hub-topbar-actions">
+          <div class="hub-user-chip" title="Sesión iniciada">
+            <div class="hub-user-info">
+              <span class="hub-u-name">Juan Fernández</span>
+              <span class="hub-u-role">Administrador</span>
+            </div>
+            <div class="hub-avatar">JF</div>
+          </div>
+          <button
+            type="button"
+            class="hub-icon-btn hub-logout-btn"
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+            onclick="cerrarSesion()"
+          >
+            <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <slot />
+    </main>
+
+  </div>
+
+  <script is:inline>
+    if (!localStorage.getItem('auth_session')) {
+      window.location.href = '/login';
+    }
+    window.cerrarSesion = () => {
+      localStorage.removeItem('auth_session');
+      window.location.href = '/login';
+    };
+  </script>
+</body>
+</html>

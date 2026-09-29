@@ -1,0 +1,65 @@
+---
+import EChart from './EChart.astro';
+import { ventasMensuales } from '../../lib/adminMockData';
+
+const { months, ventasActual, ventasAnterior } = ventasMensuales;
+
+const options = {
+  tooltip: { trigger: 'axis' },
+  legend: {
+    data: ['2026', '2025'],
+    bottom: 0,
+    textStyle: { fontSize: 11, color: '#6b7280' },
+  },
+  grid: { left: 8, right: 12, top: 20, bottom: 32, containLabel: true },
+  xAxis: {
+    type: 'category',
+    boundaryGap: false,
+    data: months,
+    axisLine: { lineStyle: { color: '#e5e7eb' } },
+    axisLabel: { color: '#6b7280', fontSize: 11 },
+  },
+  yAxis: {
+    type: 'value',
+    splitLine: { lineStyle: { color: '#f1f5f9' } },
+    axisLabel: { color: '#6b7280', fontSize: 11 },
+  },
+  series: [
+    {
+      name: '2026',
+      type: 'line',
+      smooth: true,
+      data: ventasActual,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { width: 3, color: '#0f766e' },
+      itemStyle: { color: '#0f766e' },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: 'rgba(15,118,110,.22)' },
+            { offset: 1, color: 'rgba(15,118,110,0)' },
+          ],
+        },
+      },
+    },
+    {
+      name: '2025',
+      type: 'line',
+      smooth: true,
+      data: ventasAnterior,
+      symbol: 'circle',
+      symbolSize: 5,
+      lineStyle: { width: 2, color: '#94a3b8', type: 'dashed' },
+      itemStyle: { color: '#94a3b8' },
+    },
+  ],
+};
+---
+
+<div class="chart-card">
+  <h3>Ventas mensuales</h3>
+  <p class="chart-sub">Año actual vs anterior</p>
+  <EChart id="chart-ventas-mes" options={options} height="280px" />
+</div>

@@ -1,0 +1,45 @@
+---
+import EChart from './EChart.astro';
+import { regiones } from '../../lib/adminMockData';
+
+const paleta = ['#2d5296', '#0f766e', '#b45309', '#7c3aed', '#94a3b8'];
+
+const options = {
+  tooltip: {},
+  legend: {
+    bottom: 0,
+    textStyle: { fontSize: 10, color: '#6b7280' },
+    itemWidth: 10,
+    itemHeight: 10,
+  },
+  radar: {
+    indicator: regiones.indicadores.map((name) => ({ name, max: 100 })),
+    radius: '62%',
+    center: ['50%', '46%'],
+    splitLine: { lineStyle: { color: '#e5e7eb' } },
+    splitArea: { areaStyle: { color: ['#fff', '#f8fafc'] } },
+    axisName: { color: '#6b7280', fontSize: 10 },
+  },
+  series: [
+    {
+      type: 'radar',
+      data: regiones.data.map((r, i) => ({
+        name: r.name,
+        value: r.value,
+        lineStyle: { color: paleta[i % paleta.length], width: 2 },
+        itemStyle: { color: paleta[i % paleta.length] },
+        areaStyle: {
+          color: paleta[i % paleta.length],
+          opacity: 0.08,
+        },
+      })),
+    },
+  ],
+};
+---
+
+<div class="chart-card">
+  <h3>Desempeño por región</h3>
+  <p class="chart-sub">Índice 0–100</p>
+  <EChart id="chart-regiones" options={options} height="240px" />
+</div>

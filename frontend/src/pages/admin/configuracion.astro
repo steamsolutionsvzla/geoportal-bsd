@@ -1,0 +1,99 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { usuariosTabla } from '../../lib/adminMockData';
+---
+
+<AdminLayout title="Configuración · Admin BSD">
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">Sección</span>
+      <h1>Configuración</h1>
+      <p>Usuarios, roles y organismos del sistema.</p>
+    </div>
+  </header>
+
+  <div class="admin-table-wrap" style="margin-bottom:24px">
+    <div class="admin-table-head">
+      <h2>Nuevo usuario</h2>
+    </div>
+    <form
+      style="padding:18px 20px;display:grid;grid-template-columns:repeat(3,1fr) auto;gap:12px;align-items:end"
+      onsubmit="event.preventDefault();alert('Usuario creado (mock)')"
+    >
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:.8rem;color:#6b7280">
+        Nombre
+        <input class="admin-search" placeholder="Nombre completo" required />
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:.8rem;color:#6b7280">
+        Rol
+        <select class="admin-search">
+          <option>Admin</option>
+          <option>Operador</option>
+          <option>Consulta</option>
+        </select>
+      </label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:.8rem;color:#6b7280">
+        Organismo
+        <select class="admin-search">
+          <option>PDVSA</option>
+          <option>INTEVEP</option>
+          <option>Min. Petróleo</option>
+          <option>Filial Mixta Orinoco</option>
+        </select>
+      </label>
+      <button
+        type="submit"
+        style="padding:10px 18px;border-radius:8px;border:0;background:#2d5296;color:#fff;font-weight:600;cursor:pointer"
+      >
+        Crear
+      </button>
+    </form>
+  </div>
+
+  <div class="admin-table-wrap">
+    <div class="admin-table-head">
+      <h2>Usuarios</h2>
+      <input
+        type="search"
+        class="admin-search"
+        placeholder="Buscar usuario..."
+        oninput="filtrarTabla(this.value)"
+      />
+    </div>
+    <table class="admin-table" id="tabla-usuarios">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Rol</th>
+          <th>Organismo</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {usuariosTabla.map((u) => (
+          <tr>
+            <td>{u.id}</td>
+            <td>{u.nombre}</td>
+            <td>{u.rol}</td>
+            <td>{u.organismo}</td>
+            <td>
+              <span class={`badge ${u.activo ? 'green' : 'gray'}`}>
+                {u.activo ? 'Activo' : 'Inactivo'}
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <script is:inline>
+    window.filtrarTabla = (q) => {
+      const term = (q || '').toLowerCase();
+      document.querySelectorAll('#tabla-usuarios tbody tr').forEach((tr) => {
+        tr.style.display = tr.innerText.toLowerCase().includes(term) ? '' : 'none';
+      });
+    };
+  </script>
+</AdminLayout>

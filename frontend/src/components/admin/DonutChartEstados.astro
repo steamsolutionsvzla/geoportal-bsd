@@ -1,0 +1,38 @@
+---
+import EChart from './EChart.astro';
+import { estadosPaquetes } from '../../lib/adminMockData';
+
+const options = {
+  tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+  legend: {
+    orient: 'vertical',
+    right: 0,
+    top: 'center',
+    textStyle: { fontSize: 11, color: '#6b7280' },
+  },
+  series: [
+    {
+      name: 'Paquetes',
+      type: 'pie',
+      radius: ['55%', '75%'],
+      center: ['38%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderColor: '#fff', borderWidth: 3 },
+      label: { show: false },
+      labelLine: { show: false },
+      data: [
+        { ...estadosPaquetes[0], itemStyle: { color: '#0f766e' } },
+        { ...estadosPaquetes[1], itemStyle: { color: '#2d5296' } },
+        { ...estadosPaquetes[2], itemStyle: { color: '#b45309' } },
+        { ...estadosPaquetes[3], itemStyle: { color: '#94a3b8' } },
+      ],
+    },
+  ],
+};
+---
+
+<div class="chart-card">
+  <h3>Estados de paquetes</h3>
+  <p class="chart-sub">Distribución actual</p>
+  <EChart id="chart-estados" options={options} height="240px" />
+</div>

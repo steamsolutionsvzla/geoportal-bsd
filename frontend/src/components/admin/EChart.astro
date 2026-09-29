@@ -1,0 +1,52 @@
+---
+interface Props {
+  id: string;
+  options: Record<string, any>;
+  height?: string;
+}
+
+const { id, options, height = '280px' } = Astro.props;
+---
+
+<div
+  class="chart-box echart-root"
+  data-echart-id={id}
+  data-echart-options={JSON.stringify(options)}
+  style={`height:${height}`}
+></div>
+
+<script>
+  import * as echarts from 'echarts';
+
+  function initCharts() {
+    document.querySelectorAll<HTMLElement>('.echart-root').forEach((el) => {
+      if (el.dataset.echartReady === '1') return;
+      el.dataset.echartReady = '1';
+
+      const optionsRaw = el.dataset.echartOptions;
+      if (!optionsRaw) return;
+
+      let options: any;
+      try {
+        options = JSON.parse(optionsRaw);
+      } catch (e) {
+        console.error('[EChart] JSON parse error', e);
+        return;
+      }
+
+      const chart = echarts.init(el, null, { renderer: 'canvas' });
+      chart.setOption(options);
+
+      const onResize = () => chart.resize();
+      window.addEventListener('resize', onResize);
+    });
+  }
+
+  // Astro navega con ViewTransitions en algunos setups; cubrimos ambos casos.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCharts);
+  } else {
+    initCharts();
+  }
+  document.addEventListener('astro:after-swap', initCharts);
+</script>

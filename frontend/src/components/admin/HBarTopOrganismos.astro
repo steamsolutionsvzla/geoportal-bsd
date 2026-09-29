@@ -1,0 +1,52 @@
+---
+import EChart from './EChart.astro';
+import { topOrganismos } from '../../lib/adminMockData';
+
+const nombres = topOrganismos.map((o) => o.name).reverse();
+const valores = topOrganismos.map((o) => o.value).reverse();
+
+const options = {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 8, right: 24, top: 10, bottom: 10, containLabel: true },
+  xAxis: {
+    type: 'value',
+    splitLine: { lineStyle: { color: '#f1f5f9' } },
+    axisLabel: { color: '#6b7280', fontSize: 11 },
+  },
+  yAxis: {
+    type: 'category',
+    data: nombres,
+    axisLine: { lineStyle: { color: '#e5e7eb' } },
+    axisLabel: { color: '#374151', fontSize: 11 },
+  },
+  series: [
+    {
+      type: 'bar',
+      data: valores,
+      barWidth: '55%',
+      itemStyle: {
+        borderRadius: [0, 6, 6, 0],
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+          colorStops: [
+            { offset: 0, color: '#2d5296' },
+            { offset: 1, color: '#0f766e' },
+          ],
+        },
+      },
+      label: {
+        show: true,
+        position: 'right',
+        color: '#6b7280',
+        fontSize: 11,
+      },
+    },
+  ],
+};
+---
+
+<div class="chart-card">
+  <h3>Top organismos</h3>
+  <p class="chart-sub">Bloques adjudicados</p>
+  <EChart id="chart-organismos" options={options} height="240px" />
+</div>

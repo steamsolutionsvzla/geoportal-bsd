@@ -1,0 +1,66 @@
+---
+import '../../styles/geoportal.css';
+import Footer from '../../components/Footer.astro';
+
+const sections = [
+  { id: 'capas',      title: 'Capas',      desc: 'CRUD de capas, fuentes y estilos.' },
+  { id: 'organismos', title: 'Organismos', desc: 'Dependencias y sus permisos.' },
+  { id: 'usuarios',   title: 'Usuarios',   desc: 'Altas, roles y sesiones activas.' },
+  { id: 'versionado', title: 'Versionado', desc: 'Historial y publicación de datasets.' },
+];
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuración · Geoportal BSD</title>
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+</head>
+<body class="config-body">
+  <script is:inline>
+    if (!localStorage.getItem('auth_session')) window.location.href = '/login';
+  </script>
+
+  <header class="config-topbar">
+    <a href="/hub" class="config-back">← Hub</a>
+    <h1>Configuración del Geoportal</h1>
+    <a href="/geoportal" class="config-link">Ir al visor →</a>
+  </header>
+
+  <main class="config-main">
+    <p class="config-lead">
+      Panel de administración. Aquí conectarás los formularios y tablas del backend
+      (endpoints <code>/api/layers</code>, <code>/api/features</code>, <code>/api/auth</code>).
+    </p>
+
+    <div class="config-grid">
+      {sections.map((s) => (
+        <section class="config-card" id={s.id}>
+          <h2>{s.title}</h2>
+          <p>{s.desc}</p>
+          <button class="config-btn">Administrar</button>
+        </section>
+      ))}
+    </div>
+  </main>
+
+  <Footer />
+</body>
+
+<style>
+  .config-body { background:#f6f7f9; min-height:100vh; font-family:'Plus Jakarta Sans', system-ui, sans-serif; }
+  .config-topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; background:#fff; border-bottom:1px solid #e5e7eb; }
+  .config-topbar h1 { font-family:'Fraunces', serif; font-size:20px; color:#122b5a; margin:0; }
+  .config-back, .config-link { color:#2d5296; text-decoration:none; font-weight:600; font-size:14px; }
+  .config-main { max-width:1100px; margin:0 auto; padding:40px 24px; }
+  .config-lead { color:#475569; margin-bottom:32px; line-height:1.6; }
+  .config-lead code { font-family:'JetBrains Mono', monospace; background:#eef2ff; padding:2px 6px; border-radius:4px; font-size:12px; }
+  .config-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px; }
+  .config-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:22px; display:flex; flex-direction:column; gap:8px; }
+  .config-card h2 { font-family:'Fraunces', serif; font-size:18px; color:#122b5a; margin:0; }
+  .config-card p { color:#64748b; font-size:13px; flex:1; }
+  .config-btn { align-self:flex-start; margin-top:8px; background:#122b5a; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-weight:600; font-size:13px; cursor:pointer; }
+  .config-btn:hover { background:#2d5296; }
+</style>

@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mostrarAlerta('Inicio de sesión exitoso. Redirigiendo...', 'success');
 
         setTimeout(() => {
-          window.location.href = '/geoportal';
+          window.location.href = '/hub';
         }, 1200);
 
         btnLogin.disabled = false;

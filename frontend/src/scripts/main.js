@@ -85,6 +85,8 @@ let isFilterActive = false;
 let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
+const IS_SHOWROOM = document.body.dataset.showroom === 'true';
+const SHOWROOM_WORKSPACE = 'Showroom';
 
 // =========================================================================
 // INICIALIZACIÓN
@@ -103,14 +105,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSidebarToggle();
     setupInfoPanelToggle();
 
-    (async () => {
+      (async () => {
       await loadWorkspaces();
-      await cargarCapaEstadosVenezuela();
-      await cargarCapaBloques();
-      if (estadosGeoJsonCache && bloquesGeoJsonCache) {
-        setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
-      } else {
-        mostrarError('No se pudieron cargar los datos de estados o bloques.');
+
+      if (!IS_SHOWROOM) {
+        await cargarCapaEstadosVenezuela();
+        await cargarCapaBloques();
+        if (estadosGeoJsonCache && bloquesGeoJsonCache) {
+          setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
+        } else {
+          mostrarError('No se pudieron cargar los datos de estados o bloques.');
+        }
       }
 
       const sidebar = document.getElementById('sidebar');
@@ -201,11 +206,21 @@ async function loadWorkspaces() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await fetch('/api/v1/layers/workspaces');
+     const url = IS_SHOWROOM
+      ? `/api/v1/layers/workspaces?workspace=${encodeURIComponent(SHOWROOM_WORKSPACE)}`
+      : '/api/v1/layers/workspaces';
+    const response = await fetch(url);
+
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
-    const groups = await response.json();
+    let groups = await response.json();
+
+     if (IS_SHOWROOM) {
+      groups = groups.filter(
+        g => (g.name || '').toLowerCase() === SHOWROOM_WORKSPACE.toLowerCase()
+      );
+    }
 
     groups.forEach(group => {
       group.layers.forEach(layer => {
@@ -599,7 +614,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-      // 👇 NUEVO: limpiar caché de datos crudos
+      
       clearLayerRawData(tableName);
 
       if (getSelectedSourceId() === sourceId) {
@@ -612,7 +627,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     updateLegendUI(getAvailableLayers());
     renderInfoPanel();
 
-    if (typeof recalcularFiltrosActivos === 'function') {
+       if (!IS_SHOWROOM && typeof recalcularFiltrosActivos === 'function') {
       // Mostrar loader sobre la(s) tarjeta(s) de filtro
       pushFilterLoading();
 

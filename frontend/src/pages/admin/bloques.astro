@@ -1,0 +1,66 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { bloquesTabla } from '../../lib/adminMockData';
+
+const estadoBadge = (estado: string) => {
+  if (estado === 'Vendido') return 'green';
+  if (estado === 'En construcción') return 'blue';
+  if (estado === 'Por entregar') return 'amber';
+  return 'gray';
+};
+---
+
+<AdminLayout title="Bloques · Admin BSD">
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">Sección</span>
+      <h1>Bloques petroleros</h1>
+      <p>Inventario y estado de los bloques de capas petroleras.</p>
+    </div>
+  </header>
+
+  <div class="admin-table-wrap">
+    <div class="admin-table-head">
+      <h2>Listado de bloques</h2>
+      <input
+        type="search"
+        class="admin-search"
+        placeholder="Buscar bloque, organismo..."
+        oninput="filtrarTabla(this.value)"
+      />
+    </div>
+    <table class="admin-table" id="tabla-bloques">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Año</th>
+          <th>Organismo</th>
+          <th>Estado</th>
+          <th>Hectáreas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bloquesTabla.map((b) => (
+          <tr>
+            <td>{b.id}</td>
+            <td>{b.nombre}</td>
+            <td>{b.anio}</td>
+            <td>{b.organismo}</td>
+            <td><span class={`badge ${estadoBadge(b.estado)}`}>{b.estado}</span></td>
+            <td>{b.hectareas.toLocaleString('es-VE')}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <script is:inline>
+    window.filtrarTabla = (q) => {
+      const term = (q || '').toLowerCase();
+      document.querySelectorAll('#tabla-bloques tbody tr').forEach((tr) => {
+        tr.style.display = tr.innerText.toLowerCase().includes(term) ? '' : 'none';
+      });
+    };
+  </script>
+</AdminLayout>

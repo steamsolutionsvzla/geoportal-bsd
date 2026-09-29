@@ -1,0 +1,140 @@
+---
+import HubLayout from '../layouts/HubLayout.astro';
+import Footer from '../components/Footer.astro';
+
+const modes = [
+  {
+    href: '/geoportal/config',
+    tag: 'Administración',
+    title: 'Configuración',
+    desc: 'Gestiona capas, organismos, usuarios y roles. Define qué ve cada dependencia y cómo se versionan los datos.',
+    accent: 'blue',
+    icon: `<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>`,
+  },
+  {
+    href: '/geoportal',
+    tag: 'Operación',
+    title: 'Geoportal',
+    desc: 'Visualiza, filtra y consulta las capas activas. Acceso completo según tu rol y organismo asignado.',
+    accent: 'teal',
+    icon: `<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>`,
+  },
+  {
+    href: '/showroom',
+    tag: 'Demostración',
+    title: 'Showroom',
+    desc: 'Recorrido guiado por las capacidades del portal con datos de ejemplo. Ideal para presentaciones y capacitación.',
+    accent: 'amber',
+    icon: `<polygon points="6 3 20 12 6 21 6 3"></polygon>`,
+  },
+];
+
+const accents = {
+  blue: {
+    barStyle: 'background:#2d5296',
+    iconStyle: 'color:#2d5296;background:rgba(45,82,150,.10);border-color:rgba(45,82,150,.20)',
+    textStyle: 'color:#2d5296',
+    dividerStyle: 'background:#2d5296',
+    radialColor: 'rgba(45,82,150,.12)',
+  },
+  teal: {
+    barStyle: 'background:#0f766e',
+    iconStyle: 'color:#0f766e;background:rgba(15,118,110,.10);border-color:rgba(15,118,110,.20)',
+    textStyle: 'color:#0f766e',
+    dividerStyle: 'background:#0f766e',
+    radialColor: 'rgba(15,118,110,.12)',
+  },
+  amber: {
+    barStyle: 'background:#b45309',
+    iconStyle: 'color:#b45309;background:rgba(180,83,9,.10);border-color:rgba(180,83,9,.20)',
+    textStyle: 'color:#b45309',
+    dividerStyle: 'background:#b45309',
+    radialColor: 'rgba(180,83,9,.12)',
+  },
+};
+
+const modesWithAccent = modes.map((m) => ({
+  ...m,
+  ...accents[m.accent as keyof typeof accents],
+}));
+---
+
+<HubLayout
+  title="Hub · BSD Geoportal"
+  subtitle="Elige tu modo de acceso al banco soberano de datos"
+>
+
+  <section class="hub-hero">
+    <div class="hub-hero-grid"></div>
+    <div class="hub-hero-glow"></div>
+    <div class="hub-hero-glow hub-hero-glow-2"></div>
+
+    <div class="hub-hero-inner">
+      <span class="hub-eyebrow">
+        <span class="hub-eyebrow-dot"></span>
+        Selección de modo
+      </span>
+
+      <h1>
+        ¿Cómo quieres entrar<br />
+        al <em>Geoportal</em>?
+      </h1>
+
+      <p>
+        Tres modos de operación sobre el mismo banco de datos soberano:
+        administración, consulta y demostración.
+      </p>
+    </div>
+  </section>
+
+  <div class="hub-modes">
+    <div class="hub-modes-grid">
+      {modesWithAccent.map((m) => (
+        <a href={m.href} class="hub-card">
+          <span class="hub-card-bar" style={m.barStyle}></span>
+
+          <span
+            class="hub-card-radial"
+            style={`background: radial-gradient(420px 240px at 50% -20%, ${m.radialColor}, transparent 65%);`}
+          ></span>
+
+          <div class="hub-card-icon" style={m.iconStyle}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              set:html={m.icon}
+            />
+          </div>
+
+          <span class="hub-card-tag" style={m.textStyle}>{m.tag}</span>
+
+          <h2>{m.title}</h2>
+
+          <span class="hub-card-divider" style={m.dividerStyle}></span>
+
+          <p class="hub-card-desc">{m.desc}</p>
+
+          <span class="hub-card-cta" style={m.textStyle}>
+            Entrar
+            <svg viewBox="0 0 24 24"
+                 stroke="currentColor" stroke-width="2" fill="none"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
+
+  <Footer />
+
+</HubLayout>

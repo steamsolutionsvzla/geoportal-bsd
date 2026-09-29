@@ -1,0 +1,50 @@
+---
+import EChart from './EChart.astro';
+import { bloquesPorAnio } from '../../lib/adminMockData';
+
+const { years, vendidos, construccion } = bloquesPorAnio;
+
+const options = {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  legend: {
+    data: ['Vendidos', 'En construcción'],
+    bottom: 0,
+    textStyle: { fontSize: 11, color: '#6b7280' },
+  },
+  grid: { left: 8, right: 12, top: 20, bottom: 32, containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: years,
+    axisLine: { lineStyle: { color: '#e5e7eb' } },
+    axisLabel: { color: '#6b7280', fontSize: 11 },
+  },
+  yAxis: {
+    type: 'value',
+    splitLine: { lineStyle: { color: '#f1f5f9' } },
+    axisLabel: { color: '#6b7280', fontSize: 11 },
+  },
+  series: [
+    {
+      name: 'Vendidos',
+      type: 'bar',
+      stack: 'total',
+      data: vendidos,
+      itemStyle: { color: '#2d5296', borderRadius: [0, 0, 0, 0] },
+      barWidth: '46%',
+    },
+    {
+      name: 'En construcción',
+      type: 'bar',
+      stack: 'total',
+      data: construccion,
+      itemStyle: { color: '#93b4e0', borderRadius: [6, 6, 0, 0] },
+    },
+  ],
+};
+---
+
+<div class="chart-card">
+  <h3>Bloques por año</h3>
+  <p class="chart-sub">Vendidos vs en construcción · 2019–2026</p>
+  <EChart id="chart-bloques-anio" options={options} height="280px" />
+</div>

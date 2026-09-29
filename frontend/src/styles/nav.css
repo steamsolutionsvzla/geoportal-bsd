@@ -24,9 +24,17 @@
   height:70px;display:flex;align-items:center;gap:28px;
 }
 
-/* ---------- Marca ---------- */
+/* ---------- Marca (logo + nombre) ---------- */
 .brand-block{display:flex;align-items:center;gap:12px;}
-.brand-mark-img{height:38px;width:auto;object-fit:contain;}
+
+/* 👇 ÚNICA fuente de verdad del tamaño del logo del header */
+.brand-mark-img{
+  height:38px;
+  width:auto;
+  object-fit:contain;
+  display:block;
+}
+
 .brand-name{
   font-family:'Fraunces',serif;font-weight:600;font-size:1.08rem;
   color:var(--navy-900);letter-spacing:-.01em;
