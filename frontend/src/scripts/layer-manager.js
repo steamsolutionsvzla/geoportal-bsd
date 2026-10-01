@@ -1,5 +1,5 @@
 // layer-manager.js
-import { getPaletteForType, hashCode, refreshCount, updateLegendUI } from './utils.js';
+import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch } from './utils.js';
 import { getMap } from './map-config.js';
 import { getFilterState } from './filters.js';
 
@@ -193,6 +193,24 @@ function createLayerRow(layerInfo) {
 }
 
 // ================================================================
+// Color del panel según el estilo guardado por el analista
+// (polígonos/puntos → fill_color, líneas → stroke_color)
+// ================================================================
+export function applySavedStyleColors(stylesMap) {
+  availableLayers.forEach((layer) => {
+    const st = stylesMap.get(layer.id);
+    if (!st) return;
+    const t = (layer.type || '').toLowerCase();
+    const color = t === 'line' ? st.stroke_color : st.fill_color;
+    if (!color) return;
+
+    layer.color = color; // la leyenda también lee layer.color
+    const icon = document.querySelector(`.layer-item[data-table="${CSS.escape(layer.id)}"] .layer-icon`);
+    if (icon) icon.style.setProperty('--geom-color', color);
+  });
+}
+
+// ================================================================
 // Contador de elementos (features) por capa, mostrado bajo el nombre
 // ================================================================
 export function updateLayerFeatureCount(tableName, count) {
@@ -276,7 +294,7 @@ export function attachLayerOpacityEvents(sidebarElement) {
 // ================================================================
 export async function loadLayerToMap(tableName, map, availableLayers, onSuccess, onError) {
   try {
-    const response = await fetch(`/api/v1/layers/${tableName}`);
+    const response = await apiFetch(`/api/v1/layers/${tableName}`);
     const data = await response.json();
     if (!data.features || data.features.length === 0) {
       throw new Error('No features');

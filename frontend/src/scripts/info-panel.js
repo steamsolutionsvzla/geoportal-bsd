@@ -1,5 +1,6 @@
 // info-panel.js
 import { getMap } from './map-config.js';
+import { apiFetch } from './utils.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -150,7 +151,7 @@ async function loadLayerMetadataForPanel(tableName) {
   if (selectedLayerTableName === tableName) renderInfoPanel();
 
   try {
-    const response = await fetch(`/api/v1/layers/${tableName}/metadata`);
+    const response = await apiFetch(`/api/v1/layers/${tableName}/metadata`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
 

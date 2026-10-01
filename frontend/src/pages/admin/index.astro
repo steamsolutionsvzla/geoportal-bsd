@@ -17,51 +17,55 @@ import { kpis } from '../../lib/adminMockData';
   subtitle="Panel de administración del geoportal"
 >
 
-  <header class="admin-header">
-    <div>
-      <span class="admin-eyebrow">Panel de administración</span>
-      <h1>Dashboard</h1>
-      <p>Resumen operativo de bloques petroleros y paquetes de capas.</p>
-    </div>
-  </header>
+  <div class="admin-dashboard">
 
-  <section class="kpi-grid">
-    <StatCard
-      label="Bloques vendidos"
-      value={kpis.bloquesVendidos.value}
-      delta={kpis.bloquesVendidos.delta}
-      deltaLabel={kpis.bloquesVendidos.deltaLabel}
-      accent="#2d5296"
-    />
-    <StatCard
-      label="Bloques en construcción"
-      value={kpis.bloquesConstruccion.value}
-      delta={kpis.bloquesConstruccion.delta}
-      deltaLabel={kpis.bloquesConstruccion.deltaLabel}
-      accent="#0f766e"
-    />
-    <StatCard
-      label="Paquetes por entregar"
-      value={kpis.paquetesPorEntregar.value}
-      delta={kpis.paquetesPorEntregar.delta}
-      deltaLabel={kpis.paquetesPorEntregar.deltaLabel}
-      accent="#b45309"
-    />
-  </section>
+    <header class="admin-header">
+      <div>
+        <span class="admin-eyebrow">Panel de administración</span>
+        <h1>Dashboard</h1>
+        <p>Resumen operativo de bloques petroleros y paquetes de capas.</p>
+      </div>
+    </header>
 
-  <AccessGrid />
+    <section class="kpi-grid">
+      <StatCard
+        label="Bloques vendidos"
+        value={kpis.bloquesVendidos.value}
+        delta={kpis.bloquesVendidos.delta}
+        deltaLabel={kpis.bloquesVendidos.deltaLabel}
+        accent="#2d5296"
+      />
+      <StatCard
+        label="Bloques en construcción"
+        value={kpis.bloquesConstruccion.value}
+        delta={kpis.bloquesConstruccion.delta}
+        deltaLabel={kpis.bloquesConstruccion.deltaLabel}
+        accent="#0f766e"
+      />
+      <StatCard
+        label="Paquetes por entregar"
+        value={kpis.paquetesPorEntregar.value}
+        delta={kpis.paquetesPorEntregar.delta}
+        deltaLabel={kpis.paquetesPorEntregar.deltaLabel}
+        accent="#b45309"
+      />
+    </section>
 
-  <section class="charts-row two">
-    <BarChartBloquesAnio />
-    <LineChartVentasMes />
-  </section>
+    <AccessGrid />
 
-  <section class="charts-row three">
-    <DonutChartEstados />
-    <HBarTopOrganismos />
-    <RadarChartRegiones />
-  </section>
+    <section class="charts-row two">
+      <BarChartBloquesAnio />
+      <LineChartVentasMes />
+    </section>
 
-  <Footer />
+    <section class="charts-row three">
+      <DonutChartEstados />
+      <HBarTopOrganismos />
+      <RadarChartRegiones />
+    </section>
+
+  </div>
+
+  <Footer slot="footer" />
 
 </AdminLayout>

@@ -1,0 +1,159 @@
+---
+import 'maplibre-gl/dist/maplibre-gl.css';
+// Fuentes (instaladas con @fontsource)
+import '@fontsource/fraunces/400.css';
+import '@fontsource/fraunces/500.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/plus-jakarta-sans/400.css';
+import '@fontsource/plus-jakarta-sans/500.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/plus-jakarta-sans/800.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '../styles/geoportal.css';
+import '../styles/analista.css';
+import Footer from '../components/Footer.astro';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar estilos · Geoportal-BSD</title>
+  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+</head>
+<body>
+  <script>
+    import '../scripts/session.js';
+  </script>
+
+  <script is:inline>
+    const sesionActiva = localStorage.getItem('auth_token');
+    if (!sesionActiva) {
+      window.location.href = '/login';
+    }
+    window.cerrarSesion = () => {
+      localStorage.removeItem('auth_session');
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+    };
+  </script>
+
+  <div class="app app-analista">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="/img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo">
+      </div>
+      <div class="brand-text">
+        <span class="name">Geoportal</span>
+      </div>
+      <div class="topbar-actions">
+        <a href="/hub" class="icon-btn" title="Volver al hub" aria-label="Volver al hub">
+          <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12l9-9 9 9"/>
+            <path d="M5 10v10h14V10"/>
+          </svg>
+        </a>
+        <button class="icon-btn logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión" onclick="cerrarSesion()">
+          <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+        <div class="user-chip" title="Sesión iniciada">
+          <div class="user-info">
+            <span class="u-name">Juan Fernández</span>
+            <span class="u-role">Dpto. de Datos Digitales</span>
+          </div>
+          <div class="avatar">JF</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- SIDEBAR: capas y estilos -->
+    <aside class="sidebar" id="sidebar">
+      <div class="panel-heading">
+        <span class="eyebrow">Estilos de capas</span>
+        <span class="count" id="layerCount">0 activas</span>
+      </div>
+      <p class="sidebar-hint">Activa una capa y haz clic en un elemento del mapa para elegir qué campos muestra su popup. Los cambios se aplican al recargar el Geoportal.</p>
+      <div class="layers-scroll-area">
+        <div id="panel-capas" class="panel-capas"></div>
+      </div>
+    </aside>
+
+    <!-- MAP -->
+    <div class="map-wrap">
+      <div id="map"></div>
+
+      <div class="basemap-switch">
+        <button type="button" class="basemap-btn" id="basemapToggleBtn" title="Cambiar mapa base">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+            <line x1="8" y1="2" x2="8" y2="18"></line>
+            <line x1="16" y1="6" x2="16" y2="22"></line>
+          </svg>
+        </button>
+        <div class="basemap-dropdown" id="basemapDropdown">
+          <div class="basemap-title">Mapa Base</div>
+          <div class="basemap-option active" data-basemap="clara">
+            <div class="basemap-preview bm-light"></div>
+            <div class="basemap-info">
+              <span class="bm-name">Estándar</span>
+              <span class="bm-desc">Vectorial Claro</span>
+            </div>
+          </div>
+          <div class="basemap-option" data-basemap="satelite">
+            <div class="basemap-preview bm-sat"></div>
+            <div class="basemap-info">
+              <span class="bm-name">Satélite</span>
+              <span class="bm-desc">Imágenes Esri + Híbrido</span>
+            </div>
+          </div>
+          <div class="basemap-option" data-basemap="relieve3d">
+            <div class="basemap-preview bm-relief3d" style="background: linear-gradient(160deg, #dfe8f2 0%, #b7c9a8 25%, #8fa876 45%, #6a8a56 60%, #7d6b4a 78%, #ffffff 100%); box-shadow: inset 0 -6px 8px rgba(0,0,0,0.25);"></div>
+            <div class="basemap-info">
+              <span class="bm-name">Relieve 3D</span>
+              <span class="bm-desc">Terreno real · Andes de Venezuela</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoomIn">+</button>
+        <button class="zoom-btn" id="zoomOut">–</button>
+      </div>
+    </div>
+
+
+    <footer class="statusbar">
+      <div class="stat">LAT/LON <b id="statCoord">0.00000° N 0.00000° W</b></div>
+      <div class="divider"></div>
+      <div class="stat">Escala <b id="statScale">-- km</b></div>
+      <div class="divider"></div>
+      <div class="stat">ZOOM <b id="statZoom">6.8</b></div>
+      <div class="divider"></div>
+      <div class="stat">DATUM <b>WGS84 (EPSG:4326)</b></div>
+      <div class="grow"></div>
+      <div class="stat">GEOPORTAL v0.1</div>
+    </footer>
+  </div>
+
+
+  <!-- Footer compartido (el mismo del index) -->
+  <Footer />
+
+  <script>
+    import '../scripts/analista-main.js';
+  </script>
+</body>
+</html>

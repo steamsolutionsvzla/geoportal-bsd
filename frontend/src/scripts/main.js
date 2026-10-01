@@ -2,6 +2,8 @@
 import { setWorkerUrl } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import * as turf from '@turf/turf';
+import { fetchStyles } from '../services/styles.js';
+import { applyStyle } from '../lib/mapStyles.js';
 
 import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls, setupBasemapSwitcher, getMap } from './map-config.js';
 import {
@@ -20,15 +22,15 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode } from './utils.js';
+import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
 import {
-  setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap,
+  setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
   setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount,
   attachLayerOpacityEvents, syncPointLayersClusterState,
   getLayerRawData, clearLayerRawData   // 👈 NUEVOS
 } from './layer-manager.js';
-import { openFeaturePopup } from './feature-popup.js';
+import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
@@ -77,6 +79,7 @@ function mostrarCargando(mostrar) {
 // VARIABLES GLOBALES
 // =========================================================================
 let availableLayers = [];
+let stylesMap = new Map();
 let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;
 let currentFilterData = null;
@@ -107,6 +110,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       (async () => {
       await loadWorkspaces();
+
+      // Cargar estilos guardados por el analista
+
+try {
+  const styles = await fetchStyles();
+  styles.forEach(s => stylesMap.set(s.layer_name, s));
+  applySavedStyleColors(stylesMap);
+} catch (e) {
+  console.warn('No se pudieron cargar estilos:', e);
+}
 
       if (!IS_SHOWROOM) {
         await cargarCapaEstadosVenezuela();
@@ -144,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.handleFeatureClick = (tableName, props, lngLat) => {
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
-      if (lngLat) openFeaturePopup(map, displayName, props, lngLat);
+      if (lngLat) openFeaturePopup(map, displayName, props, lngLat, stylesMap.get(tableName)?.visible_attributes ?? null, tableName);
     };
 
     window.calcularPuntosEnEstado = (feature, nombre) => calcularPuntosEnEstado(feature, nombre);
@@ -206,10 +219,7 @@ async function loadWorkspaces() {
   try {
     ocultarError();
     mostrarCargando(true);
-     const url = IS_SHOWROOM
-      ? `/api/v1/layers/workspaces?workspace=${encodeURIComponent(SHOWROOM_WORKSPACE)}`
-      : '/api/v1/layers/workspaces';
-    const response = await fetch(url);
+    const response = await apiFetch('/api/v1/layers/workspaces');
 
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -273,7 +283,7 @@ async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await fetch('/api/v1/layers/División Político Territorial');
+    const response = await apiFetch('/api/v1/layers/División Político Territorial');
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -394,7 +404,7 @@ async function cargarCapaBloques() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await fetch('/api/v1/layers/BLOQUES');
+    const response = await apiFetch('/api/v1/layers/BLOQUES');
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -539,6 +549,8 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
   if (isLoading) return;
   isLoading = true;
 
+  if (!isVisible) closeFeaturePopup(tableName);
+
   try {
     const map = getMap();
     const shortName = tableName.split(':').pop();
@@ -590,9 +602,22 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     const layerId = `layer-${tableName}`;
 
     if (isVisible) {
-      await loadLayerToMap(tableName, map, getAvailableLayers(), (tn, srcId, lyrId, featureCount) => {
-        updateLayerFeatureCount(tn, featureCount);
-      });
+      mostrarCargando(true);
+      try {
+        await loadLayerToMap(tableName, map, getAvailableLayers(), (tn, srcId, lyrId, featureCount) => {
+          updateLayerFeatureCount(tn, featureCount);
+
+          const style = stylesMap.get(tableName);
+          if (style) {
+            const layerConfig = getAvailableLayers().find(l => l.id === tableName);
+            applyStyle(map, `layer-${tableName}`, layerConfig?.type || 'fill', style);
+          }
+        });
+        // Mantiene el loader hasta que la capa ya está pintada en el mapa
+        await esperarMapaListo(map);
+      } finally {
+        mostrarCargando(false);
+      }
     } else {
       // Detectar si es capa de puntos (con cluster) o capa normal (fill/line)
       const layerConfig = getAvailableLayers().find(l => l.id === tableName);
@@ -827,6 +852,7 @@ function setupInfoPanelToggle() {
 // CIERRE DE SESIÓN
 // =========================================================================
 function cerrarSesion() {
+  localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_session');
   sessionStorage.clear();
   window.location.href = '/login';

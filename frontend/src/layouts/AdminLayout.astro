@@ -30,6 +30,10 @@ const {
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
+
+  <script>
+  import '../scripts/session.js';
+</script>
 </head>
 
 <body class="hub-body admin-body">
@@ -71,16 +75,20 @@ const {
       <slot />
     </main>
 
+    <slot name="footer" />
+
   </div>
 
   <script is:inline>
-    if (!localStorage.getItem('auth_session')) {
+    if (!localStorage.getItem('auth_token')) {
       window.location.href = '/login';
     }
     window.cerrarSesion = () => {
       localStorage.removeItem('auth_session');
+      localStorage.removeItem('auth_token');
       window.location.href = '/login';
     };
   </script>
+
 </body>
 </html>

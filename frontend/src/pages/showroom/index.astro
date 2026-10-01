@@ -34,12 +34,13 @@ import Footer from '../../components/Footer.astro';
   </div>
 
   <script is:inline>
-    const sesionActiva = localStorage.getItem('auth_session');
+    const sesionActiva = localStorage.getItem('auth_token');
     if (!sesionActiva) {
       window.location.href = '/login';
     }
     window.cerrarSesion = () => {
       localStorage.removeItem('auth_session');
+       localStorage.removeItem('auth_token'); 
       window.location.href = '/login';
     };
   </script>

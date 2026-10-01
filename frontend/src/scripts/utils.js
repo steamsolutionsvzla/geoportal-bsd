@@ -103,3 +103,55 @@ export function updateLegendUI(availableLayers, legendListId = 'legendList') {
     });
   });
 }
+// ============================================================
+// API: Bearer + ruteo automático a /api/v1/showroom/* en Showroom
+// ============================================================
+const IS_SHOWROOM_PAGE = () => document.body?.dataset.showroom === 'true';
+
+export function getAuthToken() {
+  return localStorage.getItem('auth_token');
+}
+
+export function clearSession() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('auth_session');
+}
+
+function resolveApiPath(path) {
+  if (!IS_SHOWROOM_PAGE()) return path;
+  // Showroom: el backend fuerza el workspace "Showroom"
+  if (path.startsWith('/api/v1/layers/workspaces')) return '/api/v1/showroom/workspaces';
+  if (path.startsWith('/api/v1/layers/')) return path.replace('/api/v1/layers/', '/api/v1/showroom/layers/');
+  return path;
+}
+
+export async function apiFetch(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  const token = getAuthToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(resolveApiPath(path), { ...options, headers });
+
+  if (response.status === 401) {
+    clearSession();
+    window.location.href = '/login';
+  }
+  return response;
+}
+
+// Resuelve cuando el mapa termina de pintar (evento 'idle'), con un tope
+// para no dejar el loader colgado si 'idle' no llega.
+export function esperarMapaListo(map, timeoutMs = 6000) {
+  return new Promise((resolve) => {
+    let hecho = false;
+    const fin = () => {
+      if (hecho) return;
+      hecho = true;
+      clearTimeout(t);
+      map.off('idle', fin);
+      resolve();
+    };
+    const t = setTimeout(fin, timeoutMs);
+    map.once('idle', fin);
+  });
+}

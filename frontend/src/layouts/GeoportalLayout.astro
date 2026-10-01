@@ -20,16 +20,20 @@ const {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title}</title>
   <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
+  
 </head>
 
 <body class={bodyClass}>
   <script is:inline>
-    if (!localStorage.getItem('auth_session')) {
+    if (!localStorage.getItem('auth_token')) {
       window.location.href = '/login';
     }
   </script>
 
   <slot />
+  <script>
+  import '../scripts/session.js';   
+</script>
 
   <Footer />
 </body>

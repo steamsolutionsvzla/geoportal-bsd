@@ -1,6 +1,7 @@
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     PORT: int = 8000
     HOST: str = "127.0.0.1"
@@ -22,14 +23,23 @@ class Settings(BaseSettings):
     GEOSERVER_USER: str = ""
     GEOSERVER_PASSWORD: str = ""
 
+    # -------------------------------------------------------------------
+    # Odoo / Geoportal: el backend hace de proxy hacia Odoo.
+    # -------------------------------------------------------------------
+    ODOO_URL: str = "https://bsd.steamsolutions.tech"
+    ODOO_DB: str = "bsd"          # 👈 ESTA LÍNEA ES LA QUE FALTABA
+    AUTH_MOCK: bool = False       # SOLO desarrollo local. Nunca true en producción.
+
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     model_config = SettingsConfigDict(
-        env_file=None,  # Desactiva la búsqueda obligatoria de archivo físico y lee del entorno del sistema
-        extra="ignore"
+        env_file=".env",          # 👈 ahora sí lee tu .env
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
+
 
 settings = Settings()

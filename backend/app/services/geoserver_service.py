@@ -4,7 +4,7 @@ import httpx
 import logging
 from fastapi import HTTPException
 from app.config import settings
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 
 # Bindings Java/JTS para geometría
 _GEOM_BINDING_TO_TYPE = {
@@ -276,11 +276,14 @@ class GeoServerService:
             return await GeoServerService._collect_layers_for_workspace(client, base_url, workspace, auth)
 
     @staticmethod
-    async def get_workspaces_with_layers() -> List[Dict]:
+    async def get_workspaces_with_layers(only: Optional[Set[str]] = None) -> List[Dict]:
         """
         Obtiene TODOS los workspaces de GeoServer y, para cada uno,
         la lista de capas (feature types) con su tipo de geometría.
         Si un workspace falla, se omite y se continúa con los demás.
+
+        `only`: conjunto de nombres de workspace en casefold para filtrar.
+        None = sin restricción (todos).
         """
         base_url = settings.GEOSERVER_URL.rstrip('/')
         auth = GeoServerService._auth()
@@ -292,8 +295,9 @@ class GeoServerService:
                     raise HTTPException(502, f"Error al obtener workspaces: {resp.status_code}")
 
                 workspaces = resp.json().get("workspaces", {}).get("workspace", [])
-                names = [ws.get("name") for ws in workspaces if ws.get("name")]
-
+                names = [w["name"] for w in workspaces if w.get("name")]
+                if only is not None:  # set en casefold; None = todos
+                    names = [n for n in names if n.strip().casefold() in only]
                 result = []
                 for ws_name in names:
                     try:

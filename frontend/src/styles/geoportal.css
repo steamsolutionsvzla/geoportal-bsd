@@ -111,7 +111,8 @@ input { font-family: inherit; }
   border-right: 1px solid var(--line-700);
   height: 56px;
 }
-.brand-logo { height: 42px; width: auto; object-fit: contain; display: block; }
+/* Mismo tamaño que .brand-mark-img de nav.css (hub, admin, inicio): 38px */
+.brand-logo { height: 38px; width: auto; object-fit: contain; display: block; }
 .brand-text { display: flex; flex-direction: column; line-height: 1.15; padding-left: 2px; }
 .brand-text .name {
   font-family: 'Fraunces', serif;

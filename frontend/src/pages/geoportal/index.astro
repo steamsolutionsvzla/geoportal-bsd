@@ -26,20 +26,25 @@ import Footer from '../../components/Footer.astro';
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Geoportal-BSD</title>
   <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
+  
 </head>
 <body>
   <div id="global-error" style="display:none; background-color: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin: 10px; border: 1px solid #fecaca; font-size: 0.9rem; position: relative; z-index: 9999;">
     <strong>⚠️ Error:</strong> <span id="error-text">No se pudo conectar con el servidor.</span>
     <button onclick="document.getElementById('global-error').style.display='none'" style="float:right; background:transparent; border:none; color:#991b1b; font-weight:bold; cursor:pointer;">✕</button>
   </div>
+  <script>
+  import '../../scripts/session.js';   
+</script>
 
   <script is:inline>
-    const sesionActiva = localStorage.getItem('auth_session');
+    const sesionActiva = localStorage.getItem('auth_token');
     if (!sesionActiva) {
       window.location.href = '/login';
     }
     window.cerrarSesion = () => {
       localStorage.removeItem('auth_session');
+      localStorage.removeItem('auth_token'); 
       window.location.href = '/login';
     };
   </script>
@@ -59,9 +64,6 @@ import Footer from '../../components/Footer.astro';
             <path d="M3 12l9-9 9 9"/>
             <path d="M5 10v10h14V10"/>
           </svg>
-        </a>
-        <a href="/geoportal/config" class="icon-btn" title="Configuración" aria-label="Configuración">
-          <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </a>
         <button class="icon-btn logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión" onclick="cerrarSesion()">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">

@@ -1,0 +1,336 @@
+/* =========================================================================
+   Analista · Configuración de estilos
+   Se apoya en geoportal.css (header, sidebar, statusbar, grupos, toggles).
+   Aquí solo van las diferencias de esta vista: layout de 2 columnas y el
+   diseño de los controles de estilo dentro del panel izquierdo.
+   ========================================================================= */
+
+/* ---------- Layout: panel de estilos + mapa (sin panel de información) ---------- */
+.app.app-analista {
+  grid-template-columns: 344px 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "sidebar map"
+    "status status";
+}
+.app.app-analista .sidebar { width: 344px; }
+
+.sidebar-hint {
+  margin: -4px 18px 10px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--muted-500);
+}
+
+.panel-capas { padding: 0 8px 18px; }
+
+/* ---------- Tarjeta de capa (reutiliza .layer-item de geoportal.css) ---------- */
+.capa-card { overflow: hidden; }
+
+.capa-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+}
+.capa-nombre {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--accent-navy-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.capa-card:not(.active) .capa-nombre { color: var(--muted-500); font-weight: 400; }
+
+/* Botón para desplegar los ajustes */
+.capa-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-500);
+  transition: background .15s ease, color .15s ease;
+}
+.capa-expand:hover { background: var(--paper-3); color: var(--accent-navy); }
+.capa-expand svg { transition: transform .2s ease; }
+.capa-expand.open { color: var(--accent-navy); }
+.capa-expand.open svg { transform: rotate(180deg); }
+
+/* Interruptor (mismo aspecto que .toggle del geoportal) */
+.switch { position: relative; flex-shrink: 0; width: 30px; height: 17px; cursor: pointer; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+.switch-track {
+  position: absolute;
+  inset: 0;
+  background: var(--line-600);
+  border-radius: 20px;
+  transition: background .15s ease;
+}
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 13px; height: 13px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform .18s ease;
+}
+.switch input:checked + .switch-track { background: var(--accent-navy); }
+.switch input:checked + .switch-track::after { transform: translateX(13px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--accent-navy); outline-offset: 2px; }
+
+/* ---------- Controles de estilo ---------- */
+.capa-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 12px;
+  border-top: 1px solid var(--line-700);
+  background: var(--paper);
+}
+.capa-controles[hidden] { display: none; }
+
+.ctrl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ctrl > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-500);
+}
+.ctrl > span b {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--accent-navy-dim);
+  background: var(--accent-navy-soft);
+  border-radius: 20px;
+  padding: 1px 8px;
+}
+
+.ctrl input[type="color"] {
+  width: 100%;
+  height: 32px;
+  padding: 3px;
+  border: 1px solid var(--line-600);
+  border-radius: var(--radius-s);
+  background: var(--white);
+  cursor: pointer;
+}
+.ctrl input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.ctrl input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+.ctrl input[type="color"]::-moz-color-swatch { border: none; border-radius: 4px; }
+
+.ctrl input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line-600);
+  outline: none;
+  cursor: pointer;
+}
+.ctrl input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent-navy);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.ctrl input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent-navy);
+  border: 2px solid #fff;
+}
+
+.ctrl input[type="number"] {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line-600);
+  border-radius: var(--radius-s);
+  background: var(--white);
+  font-size: 0.75rem;
+  color: var(--accent-navy-dim);
+  transition: border-color .15s ease;
+}
+.ctrl input[type="number"]:focus { outline: none; border-color: var(--accent-navy); }
+
+.ctrl-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ---------- Editor de campos dentro del popup del mapa ---------- */
+.fp.fp-edit { max-height: 400px; width: 300px; }
+.fp-sub {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  color: var(--muted-500);
+  line-height: 1.4;
+}
+.fp-edit-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-700);
+  font-size: 0.68rem;
+  color: var(--muted-500);
+}
+.fp-edit-tools span { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; }
+.fp-edit-tools button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent-navy);
+  cursor: pointer;
+}
+.fp-edit-tools button:hover { text-decoration: underline; }
+
+.fp-edit .fp-body { flex: 1; min-height: 0; padding-top: 2px; }
+.fp-edit-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line-700);
+  cursor: pointer;
+  min-width: 0;
+}
+.fp-edit-row:last-child { border-bottom: none; }
+.fp-edit-row input { margin: 2px 0 0; accent-color: var(--accent-navy); flex-shrink: 0; }
+.fp-edit-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fp-edit-row:has(input:not(:checked)) .fp-val { color: var(--muted-500); font-weight: 400; }
+.fp-edit-row:has(input:not(:checked)) .fp-key { opacity: .7; }
+
+.fp-edit-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--line-700);
+  background: var(--paper);
+}
+.fp-edit-status { flex: 1; min-width: 0; font-size: 0.68rem; color: var(--muted-500); line-height: 1.35; }
+.fp-edit-status.ok { color: #166534; font-weight: 500; }
+.fp-edit-status.error { color: #991b1b; font-weight: 500; }
+.fp-edit-foot .btn-primary { flex: none; padding: 0 14px; }
+.btn-primary:disabled { opacity: .55; cursor: default; }
+
+/* ---------- Acciones ---------- */
+.capa-acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.btn-primary,
+.btn-ghost {
+  height: 32px;
+  border-radius: var(--radius-s);
+  font-size: 0.72rem;
+  font-weight: 600;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn-primary {
+  background: var(--accent-navy);
+  color: #fff;
+  border: 1px solid var(--accent-navy);
+}
+.btn-primary:hover { background: var(--accent-navy-dim); border-color: var(--accent-navy-dim); }
+.btn-ghost {
+  background: var(--white);
+  color: var(--muted-500);
+  border: 1px solid var(--line-600);
+}
+.btn-ghost:hover { color: var(--accent-navy-dim); border-color: var(--accent-navy); background: var(--paper-2); }
+
+/* ---------- Feedback ---------- */
+.flash {
+  margin: 0 12px 12px;
+  padding: 7px 10px;
+  border-radius: var(--radius-s);
+  font-size: 0.72rem;
+  font-weight: 500;
+  animation: an-fade .2s ease;
+}
+.flash-ok    { background: #dcfce7; color: #166534; }
+.flash-error { background: #fee2e2; color: #991b1b; }
+@keyframes an-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .app.app-analista { grid-template-columns: 300px 1fr; grid-template-areas: "topbar topbar" "sidebar map" "status status"; }
+  .app.app-analista .sidebar { width: 300px; }
+}
+@media (max-width: 768px) {
+  .app.app-analista,
+  .app.app-analista.has-collapsed-sidebar {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px minmax(0, 42vh) minmax(0, 1fr) 32px;
+    grid-template-areas: "topbar" "sidebar" "map" "status";
+  }
+  .app.app-analista .sidebar {
+    position: relative;
+    top: auto; left: auto; bottom: auto;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    box-shadow: none;
+    border-right: none;
+    border-bottom: 1px solid var(--line-700);
+  }
+}
+
+/* ---------- Loader del mapa ---------- */
+.map-loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.map-loader-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #38bdf8;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: an-spin .8s linear infinite;
+}
+@keyframes an-spin { to { transform: rotate(360deg); } }
