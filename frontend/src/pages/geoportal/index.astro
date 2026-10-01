@@ -38,6 +38,18 @@ import Footer from '../../components/Footer.astro';
 </script>
 
   <script is:inline>
+    // Si se abrió desde el panel de admin, la casita vuelve a /admin
+    document.addEventListener('DOMContentLoaded', () => {
+      if (new URLSearchParams(location.search).get('from') !== 'admin') return;
+      const home = document.getElementById('homeBtn');
+      if (!home) return;
+      home.setAttribute('href', '/admin');
+      home.setAttribute('title', 'Volver a admin');
+      home.setAttribute('aria-label', 'Volver a admin');
+    });
+  </script>
+
+  <script is:inline>
     const sesionActiva = localStorage.getItem('auth_token');
     if (!sesionActiva) {
       window.location.href = '/login';
@@ -59,7 +71,7 @@ import Footer from '../../components/Footer.astro';
         <span class="name">Geoportal</span>
       </div>
       <div class="topbar-actions">
-        <a href="/hub" class="icon-btn" title="Volver al hub" aria-label="Volver al hub">
+        <a href="/hub" class="icon-btn" id="homeBtn" title="Volver al hub" aria-label="Volver al hub">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 12l9-9 9 9"/>
             <path d="M5 10v10h14V10"/>
