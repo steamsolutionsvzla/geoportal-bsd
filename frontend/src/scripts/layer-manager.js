@@ -29,7 +29,7 @@ export function clearLayerRawData(tableName) {
 // IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
 // Para estas no mostramos el slider de opacidad.
 const NO_OPACITY_IDS = new Set([
-  'BLOQUES',
+  'Bloques petroleros',
   'División Político Territorial'
 ]);
 
@@ -147,7 +147,7 @@ export function getAvailableLayers() {
 // ================================================================
 export function getLayerDisplayName(tableName) {
   if (tableName === 'dpt_estadal_venezuela') return 'Entidades Federales (Estados)';
-  if (tableName === 'BLOQUES') return 'Bloques';
+  if (tableName === 'Bloques petroleros') return 'Bloques petroleros';
   const layerConfig = availableLayers.find(l => l.id === tableName);
   return layerConfig ? layerConfig.name : tableName;
 }

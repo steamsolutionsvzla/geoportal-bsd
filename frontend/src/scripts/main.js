@@ -39,6 +39,11 @@ import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 setWorkerUrl(maplibreWorkerUrl);
 
 // =========================================================================
+// CONSTANTES DE CAPAS ESPECIALES
+// =========================================================================
+const BLOQUES_LAYER_NAME = 'Bloques petroleros';
+
+// =========================================================================
 // MANEJO DE ERRORES GLOBAL
 // =========================================================================
 function mostrarError(mensaje) {
@@ -226,12 +231,12 @@ async function loadWorkspaces() {
     groups.forEach(group => {
       group.layers.forEach(layer => {
         const id = layer.id.split(':').pop();
-        if (id === 'División Político Territorial' || id === 'BLOQUES') {
+        if (id === 'División Político Territorial' || id === BLOQUES_LAYER_NAME) {
           layer.type = 'fill';
           layer.noOpacity = true;   // 👈 NUEVO: sin slider de opacidad
           if (id === 'División Político Territorial') {
             layer.color = '#1a365d';
-          } else if (id === 'BLOQUES') {
+          } else if (id === BLOQUES_LAYER_NAME) {
             layer.color = '#8a4baf';
           }
         }
@@ -395,7 +400,7 @@ async function cargarCapaBloques() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch('/api/v1/layers/BLOQUES');
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(BLOQUES_LAYER_NAME)}`);
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -517,12 +522,12 @@ async function cargarCapaBloques() {
         if (!ev.features || ev.features.length === 0) return;
         const props = ev.features[0].properties;
         if (typeof window.handleFeatureClick === 'function') {
-          window.handleFeatureClick('BLOQUES', props, ev.lngLat);
+          window.handleFeatureClick(BLOQUES_LAYER_NAME, props, ev.lngLat);
         }
       });
     }
 
-    updateLayerFeatureCount('BLOQUES', data.features.length);
+    updateLayerFeatureCount(BLOQUES_LAYER_NAME, data.features.length);
   } catch (error) {
     console.error('Error al cargar la capa de bloques:', error);
     mostrarError('No se pudo cargar la capa de bloques. Verifica que el backend esté funcionando.');
@@ -557,7 +562,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       return;
     }
 
-    if (shortName === 'BLOQUES') {
+    if (shortName === BLOQUES_LAYER_NAME) {
       const vis = isVisible ? 'visible' : 'none';
       const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
       const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
@@ -581,7 +586,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       }
 
       if (!isVisible) {
-        clearSelectedLayerMetadataIfMatches('BLOQUES');
+        clearSelectedLayerMetadataIfMatches(BLOQUES_LAYER_NAME);
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
