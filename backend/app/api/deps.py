@@ -37,9 +37,14 @@ hub_area   = role_guard(Rol.ADMIN, Rol.ANALISTA)  # hub + acompañantes
 users_area = role_guard(Rol.ADMIN)                # gestión users/roles
 
 # workspaceGuard
+# Workspaces con acceso universal para cualquier rol autenticado (sin importar Odoo).
+ALWAYS_ALLOWED_WORKSPACES = {"rasters"}
+
 def allowed_workspaces(user: CurrentUser) -> Optional[Set[str]]:
     """None = sin restricción (Administrador)."""
-    return None if user.rol == Rol.ADMIN else {_norm(w) for w in user.workspaces}
+    if user.rol == Rol.ADMIN:
+        return None
+    return {_norm(w) for w in user.workspaces} | ALWAYS_ALLOWED_WORKSPACES
 
 def filter_layers_by_workspace(user: CurrentUser, layers: Iterable[dict]) -> List[dict]:
     allowed = allowed_workspaces(user)

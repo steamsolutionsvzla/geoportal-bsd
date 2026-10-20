@@ -51,3 +51,10 @@ async def get_config():
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "Geoportal API Backend activo"}
+
+# ============================================================
+# HEALTHCHECK (lo usa el healthcheck del Dockerfile)
+# ============================================================
+@app.get("/health")
+def health():
+    return {"status": "ok"}

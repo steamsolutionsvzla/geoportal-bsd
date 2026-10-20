@@ -10,7 +10,7 @@ automáticamente en el Geoportal al recargar.
 """
 
 import json
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -41,12 +41,26 @@ class LayerStyleIn(BaseModel):
     min_zoom:     Optional[float] = Field(None, ge=0.0, le=24.0)
     max_zoom:     Optional[float] = Field(None, ge=0.0, le=24.0)
     visible_attributes: List[str] = []
+    # Nombre custom por atributo: {campo_original: "Etiqueta visible"}.
+    # Campo ausente o vacío ⇒ se muestra el nombre original.
+    attribute_labels: Dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _check_zoom_range(self):
         if self.min_zoom is not None and self.max_zoom is not None:
             if self.min_zoom > self.max_zoom:
                 raise ValueError("min_zoom no puede ser mayor que max_zoom")
+        return self
+
+    @model_validator(mode="after")
+    def _norm_labels(self):
+        limpio: Dict[str, str] = {}
+        for k, v in (self.attribute_labels or {}).items():
+            campo = (k or "").strip()
+            etiqueta = (v or "").strip()
+            if campo and etiqueta and len(campo) <= 100 and len(etiqueta) <= 120:
+                limpio[campo] = etiqueta
+        self.attribute_labels = limpio
         return self
 
 
@@ -59,6 +73,7 @@ class LayerStyleOut(BaseModel):
     min_zoom:           Optional[float] = None
     max_zoom:           Optional[float] = None
     visible_attributes: List[str]       = []
+    attribute_labels:   Dict[str, str]  = {}
     updated_by:         Optional[str]   = None
     updated_at:         Optional[str]   = None  # ISO string
 
@@ -77,6 +92,13 @@ def _row_to_style(row) -> dict:
             d["visible_attributes"] = []
     elif va is None:
         d["visible_attributes"] = []
+    al = d.get("attribute_labels")
+    if isinstance(al, str):
+        try:
+            al = json.loads(al)
+        except json.JSONDecodeError:
+            al = {}
+    d["attribute_labels"] = al if isinstance(al, dict) else {}
     if d.get("updated_at") is not None:
         d["updated_at"] = d["updated_at"].isoformat()
     return d
@@ -117,7 +139,8 @@ async def list_styles(user: CurrentUser = Depends(auth_guard)):
     rows = await pool.fetch(
         """
         SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, updated_by, updated_at
+               min_zoom, max_zoom, visible_attributes, attribute_labels,
+               updated_by, updated_at
         FROM layer_style_configs
         ORDER BY layer_name;
         """
@@ -134,7 +157,8 @@ async def get_style(
     row = await pool.fetchrow(
         """
         SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, updated_by, updated_at
+               min_zoom, max_zoom, visible_attributes, attribute_labels,
+               updated_by, updated_at
         FROM layer_style_configs
         WHERE layer_name = $1;
         """,
@@ -162,8 +186,9 @@ async def upsert_style(
         """
         INSERT INTO layer_style_configs
             (layer_name, fill_color, stroke_color, opacity, line_width,
-             min_zoom, max_zoom, visible_attributes, updated_by, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, NOW())
+             min_zoom, max_zoom, visible_attributes, attribute_labels,
+             updated_by, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, NOW())
         ON CONFLICT (layer_name) DO UPDATE SET
             fill_color         = EXCLUDED.fill_color,
             stroke_color       = EXCLUDED.stroke_color,
@@ -172,6 +197,7 @@ async def upsert_style(
             min_zoom           = EXCLUDED.min_zoom,
             max_zoom           = EXCLUDED.max_zoom,
             visible_attributes = EXCLUDED.visible_attributes,
+            attribute_labels   = EXCLUDED.attribute_labels,
             updated_by         = EXCLUDED.updated_by,
             updated_at         = NOW();
         """,
@@ -183,13 +209,15 @@ async def upsert_style(
         payload.min_zoom,
         payload.max_zoom,
         json.dumps(payload.visible_attributes),
+        json.dumps(payload.attribute_labels),
         f"{user.nombre} {user.apellido}".strip(),
     )
 
     row = await pool.fetchrow(
         """
         SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, updated_by, updated_at
+               min_zoom, max_zoom, visible_attributes, attribute_labels,
+               updated_by, updated_at
         FROM layer_style_configs
         WHERE layer_name = $1;
         """,

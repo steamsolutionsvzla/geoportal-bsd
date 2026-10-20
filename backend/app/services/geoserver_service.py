@@ -27,6 +27,23 @@ _LAYER_MAPPING_CACHE_TIME = 0
 # logger = logging.getLogger(__name__)
 
 
+def _as_list(value) -> list:
+    """GeoServer REST devuelve '' (vacío), dict (uno) o lista; normaliza a lista."""
+    if not value or isinstance(value, str):
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def _json_items(payload, *keys) -> list:
+    """Navega una cadena de claves JSON tolerando '' y ausencias; devuelve lista."""
+    current = payload
+    for key in keys:
+        if not isinstance(current, dict):
+            return []
+        current = current.get(key)
+    return _as_list(current)
+
+
 class GeoServerService:
     """Intermediario entre el frontend y GeoServer, con soporte para múltiples workspaces."""
 
@@ -57,7 +74,7 @@ class GeoServerService:
             resp = await client.get(f"{base_url}/rest/workspaces.json", auth=auth)
             if resp.status_code != 200:
                 return {}
-            workspaces = resp.json().get("workspaces", {}).get("workspace", [])
+            workspaces = _json_items(resp.json(), "workspaces", "workspace")
             mapping = {}
             for ws in workspaces:
                 ws_name = ws.get("name")
@@ -67,7 +84,7 @@ class GeoServerService:
                 ds_resp = await client.get(f"{base_url}/rest/workspaces/{ws_name}/datastores.json", auth=auth)
                 if ds_resp.status_code != 200:
                     continue
-                datastores = ds_resp.json().get("dataStores", {}).get("dataStore", [])
+                datastores = _json_items(ds_resp.json(), "dataStores", "dataStore")
                 for ds in datastores:
                     ds_name = ds.get("name")
                     if not ds_name:
@@ -79,11 +96,30 @@ class GeoServerService:
                     )
                     if ft_resp.status_code != 200:
                         continue
-                    feature_types = ft_resp.json().get("featureTypes", {}).get("featureType", [])
-                    for ft in feature_types:
+                    feature_types = _json_items(ft_resp.json(), "featureTypes", "featureType")
+                    for ft in _as_list(feature_types):
                         ft_name = ft.get("name")
                         if ft_name:
                             mapping[ft_name] = ws_name
+
+                # 4. Capas raster: coveragestores -> coverages
+                cs_resp = await client.get(f"{base_url}/rest/workspaces/{ws_name}/coveragestores.json", auth=auth)
+                if cs_resp.status_code != 200:
+                    continue
+                for cs in _json_items(cs_resp.json(), "coverageStores", "coverageStore"):
+                    cs_name = cs.get("name")
+                    if not cs_name:
+                        continue
+                    cov_resp = await client.get(
+                        f"{base_url}/rest/workspaces/{ws_name}/coveragestores/{cs_name}/coverages.json",
+                        auth=auth
+                    )
+                    if cov_resp.status_code != 200:
+                        continue
+                    for cov in _json_items(cov_resp.json(), "coverages", "coverage"):
+                        cov_name = cov.get("name")
+                        if cov_name:
+                            mapping[cov_name] = ws_name
 
         _LAYER_MAPPING_CACHE = mapping
         _LAYER_MAPPING_CACHE_TIME = now
@@ -228,7 +264,7 @@ class GeoServerService:
         if ds_resp.status_code != 200:
             return []
 
-        datastores = ds_resp.json().get("dataStores", {}).get("dataStore", [])
+        datastores = _json_items(ds_resp.json(), "dataStores", "dataStore")
         pending = []
         for ds in datastores:
             ds_name = ds.get("name")
@@ -238,14 +274,13 @@ class GeoServerService:
             ft_resp = await client.get(ft_url, auth=auth)
             if ft_resp.status_code != 200:
                 continue
-            feature_types = ft_resp.json().get("featureTypes", {}).get("featureType", [])
+            feature_types = _json_items(ft_resp.json(), "featureTypes", "featureType")
             for ft in feature_types:
                 ft_name = ft.get("name")
                 if ft_name:
                     pending.append((ds_name, ft_name, ft.get("title") or ft_name))
 
-        if not pending:
-            return []
+        # (sin return anticipado: un workspace puede tener SOLO capas raster)
 
         # Obtener tipos de geometría de manera robusta
         geom_results = await asyncio.gather(*[
@@ -264,6 +299,28 @@ class GeoServerService:
                 "name": title,
                 "type": geom_type,
             })
+
+        # --- Capas raster (coveragestores) ---
+        cs_url = f"{base_url}/rest/workspaces/{ws_name}/coveragestores.json"
+        cs_resp = await client.get(cs_url, auth=auth)
+        if cs_resp.status_code == 200:
+            for cs in _json_items(cs_resp.json(), "coverageStores", "coverageStore"):
+                cs_name = cs.get("name")
+                if not cs_name:
+                    continue
+                cov_url = f"{base_url}/rest/workspaces/{ws_name}/coveragestores/{cs_name}/coverages.json"
+                cov_resp = await client.get(cov_url, auth=auth)
+                if cov_resp.status_code != 200:
+                    continue
+                for cov in _json_items(cov_resp.json(), "coverages", "coverage"):
+                    cov_name = cov.get("name")
+                    if not cov_name:
+                        continue
+                    layers.append({
+                        "id": f"{ws_name}:{cov_name}",
+                        "name": cov.get("title") or cov_name,
+                        "type": "raster",
+                    })
         return layers
 
     @staticmethod
@@ -294,7 +351,7 @@ class GeoServerService:
                 if resp.status_code != 200:
                     raise HTTPException(502, f"Error al obtener workspaces: {resp.status_code}")
 
-                workspaces = resp.json().get("workspaces", {}).get("workspace", [])
+                workspaces = _json_items(resp.json(), "workspaces", "workspace")
                 names = [w["name"] for w in workspaces if w.get("name")]
                 if only is not None:  # set en casefold; None = todos
                     names = [n for n in names if n.strip().casefold() in only]
