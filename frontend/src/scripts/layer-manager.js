@@ -1,23 +1,17 @@
 // layer-manager.js
 import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch } from './utils.js';
 import { getMap } from './map-config.js';
-import { getFilterState } from './filters.js';
 
 let availableLayers = [];
 let selectedFeatureId = null;
 let selectedSourceId = null;
 
-// Estado actual del cluster en las capas de puntos activas.
-// true = cluster activado (sin filtros), false = desactivado (filtro activo).
-let clustersEnabled = true;
-
 // Recuerda el % de opacidad elegido por el usuario para cada capa de polígonos
 // (layerId -> factor 0..1), para que se respete si la capa se apaga y se vuelve a encender.
 const layerOpacityFactors = {};
 
-// 👇 NUEVO: Caché de datos crudos (GeoJSON original) por capa.
-// Necesario porque cuando el source tiene cluster activo, MapLibre
-// no expone las features individuales de forma fiable.
+// Caché de datos crudos (GeoJSON original) por capa, usado para los
+// cálculos de filtros sin depender del source de MapLibre.
 const layerRawData = {};
 
 export function setLayerRawData(tableName, data) {
@@ -40,6 +34,7 @@ const NO_OPACITY_IDS = new Set([
 ]);
 
 function layerHasOpacityControl(layerInfo) {
+  if (layerInfo.type === 'raster') return true;
   if (layerInfo.type !== 'fill') return false;
   if (layerInfo.noOpacity) return false;
   const shortId = layerInfo.id ? layerInfo.id.split(':').pop() : '';
@@ -70,6 +65,72 @@ function buildFillOpacityExpression(factor) {
 
 function isPointType(geomType) {
   return geomType === 'circle' || geomType === 'point';
+}
+
+// ================================================================
+// CAPAS RASTER (imágenes vía WMS de GeoServer local)
+// ================================================================
+// Por defecto pasa por el proxy del dev server ('/geoserver' → :8081),
+// que evita CORS. En producción se puede sobreescribir con
+// PUBLIC_GEOSERVER_URL (p. ej. http://192.168.x.x:8081/geoserver).
+const GEOSERVER_WMS_BASE =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_GEOSERVER_URL) ||
+  '/geoserver';
+
+export function isRasterLayer(layerInfo) {
+  return !!layerInfo && layerInfo.type === 'raster';
+}
+
+export function addRasterLayerToMap(layerInfo, map) {
+  const sourceId = `source-${layerInfo.id}`;
+  const layerId = `layer-${layerInfo.id}`;
+  if (map.getLayer(layerId)) {
+    map.setLayoutProperty(layerId, 'visibility', 'visible');
+    return;
+  }
+
+  // WMS 1.1.1 con bbox de Web Mercator; tileSize fijo 512 (igual que width/height)
+  const wmsUrl =
+    `${GEOSERVER_WMS_BASE}/wms?service=WMS&version=1.1.1&request=GetMap` +
+    `&layers=${encodeURIComponent(layerInfo.id)}` +
+    `&styles=&srs=EPSG:3857&format=image/png&transparent=true` +
+    `&width=512&height=512&bbox={bbox-epsg-3857}`;
+
+  if (!map.getSource(sourceId)) {
+    map.addSource(sourceId, {
+      type: 'raster',
+      tiles: [wmsUrl],
+      tileSize: 512,
+      attribution: 'Ortofoto &copy; BSD'
+    });
+  }
+
+  // Encima de los fondos, debajo de las capas vectoriales (las 'layer-*')
+  let beforeLayerId;
+  for (const l of map.getStyle().layers) {
+    if (l.id.startsWith('layer-') && l.id !== layerId) {
+      beforeLayerId = l.id;
+      break;
+    }
+  }
+
+  const savedFactor = layerOpacityFactors[layerId] ?? 1;
+  map.addLayer({
+    id: layerId,
+    type: 'raster',
+    source: sourceId,
+    paint: {
+      'raster-opacity': savedFactor,
+      'raster-fade-duration': 200
+    }
+  }, beforeLayerId);
+}
+
+export function removeRasterLayer(tableName, map) {
+  const layerId = `layer-${tableName}`;
+  const sourceId = `source-${tableName}`;
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
 }
 
 export function setAvailableLayers(layers) {
@@ -166,7 +227,7 @@ function createLayerRow(layerInfo) {
   const color = layerInfo.color || '#6fa3e0';
   const geomClass = (layerInfo.type === 'circle' || layerInfo.type === 'point') ? 'geom-point'
     : layerInfo.type === 'line' ? 'geom-line'
-    : layerInfo.type === 'fill' ? 'geom-fill' : 'geom-point';
+    : (layerInfo.type === 'fill' || layerInfo.type === 'raster') ? 'geom-fill' : 'geom-point';
 
   // 👇 Solo mostramos slider si la capa fill realmente tiene relleno controlable.
   const isFill = layerHasOpacityControl(layerInfo);
@@ -273,7 +334,12 @@ export function setLayerFillOpacity(tableName, opacityPercent) {
   const factor = Math.max(0, Math.min(100, Number(opacityPercent))) / 100;
   layerOpacityFactors[layerId] = factor;
   if (map.getLayer(layerId)) {
-    map.setPaintProperty(layerId, 'fill-opacity', buildFillOpacityExpression(factor));
+    const info = availableLayers.find(l => l.id === tableName);
+    if (info && info.type === 'raster') {
+      map.setPaintProperty(layerId, 'raster-opacity', factor);
+    } else {
+      map.setPaintProperty(layerId, 'fill-opacity', buildFillOpacityExpression(factor));
+    }
   }
 }
 
@@ -306,29 +372,11 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
 
-    const layerConfig = availableLayers.find(l => l.id === tableName);
-    const geomType = layerConfig ? layerConfig.type : 'circle';
-    const isPoint = isPointType(geomType);
-
-    // 👇 Opciones del source: cluster solo para capas de puntos,
-    // y solo si NO hay ningún filtro de ubicación activo.
     const sourceOptions = {
       type: 'geojson',
       data: data,
       generateId: true
     };
-
-    const debeClusterizar = isPoint && clusterDebeEstarActivo();
-    if (debeClusterizar) {
-      sourceOptions.cluster = true;
-      sourceOptions.clusterMaxZoom = 14;   // hasta qué zoom se agrupa
-      sourceOptions.clusterRadius = 50;    // radio en píxeles
-    }
-
-    // Sincronizar clustersEnabled con el estado real al cargar una capa de puntos.
-    if (isPoint) {
-      clustersEnabled = clusterDebeEstarActivo();
-    }
 
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData(data);
@@ -342,79 +390,6 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
     if (onError) onError(tableName, error);
     throw error;
   }
-}
-
-// ================================================================
-// CLUSTER: sincronización con los filtros de ubicación
-// ================================================================
-function clusterDebeEstarActivo() {
-  const { isFilterActive, isBloqueFilterActive } = getFilterState();
-  return !isFilterActive && !isBloqueFilterActive;
-}
-
-function getSourceData(source) {
-  let data = source._data;
-  if (!data && typeof source.serialize === 'function') {
-    try { data = source.serialize()?.data; } catch (_) { /* ignore */ }
-  }
-  return data;
-}
-
-// Recrea el source de cada capa de puntos ACTIVA con/sin cluster,
-// según el estado de los filtros. Devuelve true si hubo cambios.
-export function syncPointLayersClusterState() {
-  const shouldBeEnabled = clusterDebeEstarActivo();
-  const map = getMap();
-  let changed = false;
-
-  availableLayers.forEach(layerConfig => {
-    if (!isPointType(layerConfig.type)) return;
-
-    const sourceId = `source-${layerConfig.id}`;
-    const layerId = `layer-${layerConfig.id}`;
-    const source = map.getSource(sourceId);
-    if (!source) return;   // capa no activa en el mapa
-
-    // Verificar si el source actual YA tiene el estado deseado.
-    const sourceHasCluster = source.cluster === true;
-    if (sourceHasCluster === shouldBeEnabled) {
-      return;
-    }
-
-    const data = getSourceData(source);
-    if (!data) return;
-
-    // Quitar las 3 sub-capas antes de poder quitar el source
-    [
-      `${layerId}-cluster-count`,
-      `${layerId}-clusters`,
-      `${layerId}-unclustered`
-    ].forEach(id => {
-      if (map.getLayer(id)) map.removeLayer(id);
-    });
-
-    if (map.getSource(sourceId)) map.removeSource(sourceId);
-
-    const sourceOptions = {
-      type: 'geojson',
-      data: data,
-      generateId: true
-    };
-    if (shouldBeEnabled) {
-      sourceOptions.cluster = true;
-      sourceOptions.clusterMaxZoom = 14;
-      sourceOptions.clusterRadius = 50;
-    }
-    map.addSource(sourceId, sourceOptions);
-
-    // Reutiliza la lógica de orden z + eventos de siempre
-    addMapLayerDirectly(layerConfig.id, sourceId, layerId, availableLayers);
-
-    changed = true;
-  });
-
-  clustersEnabled = shouldBeEnabled;
-  return changed;
 }
 
 // ================================================================
@@ -435,15 +410,10 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
 
   const isPoint = isPointType(geomType);
 
-  // Sub-capas de cluster
-  const clusterLayerId  = `${layerId}-clusters`;
-  const clusterCountId  = `${layerId}-cluster-count`;
-  const unclusteredId   = `${layerId}-unclustered`;
-
   // ---------------- Añadir capas ----------------
   if (isPoint) {
-    // ---- 1) Círculos de cluster ----
-    if (!map.getLayer(clusterLayerId)) {
+    // ---- Capa de puntos individuales ----
+    if (!map.getLayer(layerId)) {
       let beforeLayerId = undefined;
       const existingLayers = map.getStyle().layers;
       for (let l of existingLayers) {
@@ -460,56 +430,9 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       }
 
       map.addLayer({
-        id: clusterLayerId,
+        id: layerId,
         type: 'circle',
         source: sourceId,
-        filter: ['has', 'point_count'],
-        paint: {
-          'circle-color': [
-            'step',
-            ['get', 'point_count'],
-            geomColor,        // < 10
-            10, '#4a7fc1',    // 10–49
-            50, '#1a365d'     // >= 50
-          ],
-          'circle-radius': [
-            'step',
-            ['get', 'point_count'],
-            16,               // < 10
-            10, 22,           // 10–49
-            50, 30            // >= 50
-          ],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      }, beforeLayerId);
-    }
-
-    // ---- 2) Contador dentro del cluster ----
-    if (!map.getLayer(clusterCountId)) {
-      map.addLayer({
-        id: clusterCountId,
-        type: 'symbol',
-        source: sourceId,
-        filter: ['has', 'point_count'],
-        layout: {
-          'text-field': ['get', 'point_count_abbreviated'],
-          'text-font': ['Open Sans Bold'],
-          'text-size': 12
-        },
-        paint: {
-          'text-color': '#ffffff'
-        }
-      });
-    }
-
-    // ---- 3) Puntos individuales (no clusterizados) ----
-    if (!map.getLayer(unclusteredId)) {
-      map.addLayer({
-        id: unclusteredId,
-        type: 'circle',
-        source: sourceId,
-        filter: ['!', ['has', 'point_count']],
         paint: {
           'circle-radius': [
             'case',
@@ -526,7 +449,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           ],
           'circle-stroke-color': '#000000'
         }
-      });
+      }, beforeLayerId);
     }
   } else {
     // -------- Capas no-punto (fill / line) --------
@@ -604,36 +527,13 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
   if (!map.listenedClicks) map.listenedClicks = new Set();
 
   if (isPoint) {
-    // Para puntos: eventos ligados al cluster y al unclustered
-    const eventsKey = `${layerId}-cluster-events`;
-    if (map.listenedClicks.has(eventsKey)) return;
-    map.listenedClicks.add(eventsKey);
+    // Para puntos: hover + click sobre los puntos individuales
+    if (map.listenedClicks.has(layerId)) return;
+    map.listenedClicks.add(layerId);
 
-    // --- Zoom al hacer click sobre un cluster ---
-    map.on('click', clusterLayerId, (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [clusterLayerId] });
-      if (!features.length) return;
-      const clusterId = features[0].properties.cluster_id;
-      const src = map.getSource(sourceId);
-      if (typeof src.getClusterExpansionZoom === 'function') {
-        src.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return;
-          map.easeTo({ center: features[0].geometry.coordinates, zoom });
-        });
-      }
-    });
-
-    map.on('mouseenter', clusterLayerId, () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', clusterLayerId, () => {
-      map.getCanvas().style.cursor = '';
-    });
-
-    // --- Hover + click sobre puntos individuales ---
     let hoveredStateId = null;
 
-    map.on('mousemove', unclusteredId, (e) => {
+    map.on('mousemove', layerId, (e) => {
       map.getCanvas().style.cursor = 'pointer';
       if (e.features.length > 0) {
         if (hoveredStateId !== null) {
@@ -644,7 +544,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       }
     });
 
-    map.on('mouseleave', unclusteredId, () => {
+    map.on('mouseleave', layerId, () => {
       map.getCanvas().style.cursor = '';
       if (hoveredStateId !== null) {
         map.setFeatureState({ source: sourceId, id: hoveredStateId }, { hover: false });
@@ -652,7 +552,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       hoveredStateId = null;
     });
 
-    map.on('click', unclusteredId, (ev) => {
+    map.on('click', layerId, (ev) => {
       if (!ev.features || ev.features.length === 0) return;
       const clickedFeature = ev.features[0];
       const props = clickedFeature.properties;
@@ -669,26 +569,6 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       if (typeof window.handleFeatureClick === 'function') {
         window.handleFeatureClick(tableName, props, ev.lngLat);
       }
-    });
-
-    // También permitir click sobre el número del cluster (mismo comportamiento que el círculo)
-    map.on('click', clusterCountId, (e) => {
-      const features = map.queryRenderedFeatures(e.point, { layers: [clusterLayerId] });
-      if (!features.length) return;
-      const clusterId = features[0].properties.cluster_id;
-      const src = map.getSource(sourceId);
-      if (typeof src.getClusterExpansionZoom === 'function') {
-        src.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return;
-          map.easeTo({ center: features[0].geometry.coordinates, zoom });
-        });
-      }
-    });
-    map.on('mouseenter', clusterCountId, () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
-    map.on('mouseleave', clusterCountId, () => {
-      map.getCanvas().style.cursor = '';
     });
   } else {
     // ---- Eventos originales para fill / line ----

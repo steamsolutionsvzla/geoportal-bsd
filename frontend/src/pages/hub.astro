@@ -32,27 +32,9 @@ const modes = [
 ];
 
 const accents = {
-  blue: {
-    barStyle: 'background:#2d5296',
-    iconStyle: 'color:#2d5296;background:rgba(45,82,150,.10);border-color:rgba(45,82,150,.20)',
-    textStyle: 'color:#2d5296',
-    dividerStyle: 'background:#2d5296',
-    radialColor: 'rgba(45,82,150,.12)',
-  },
-  teal: {
-    barStyle: 'background:#0f766e',
-    iconStyle: 'color:#0f766e;background:rgba(15,118,110,.10);border-color:rgba(15,118,110,.20)',
-    textStyle: 'color:#0f766e',
-    dividerStyle: 'background:#0f766e',
-    radialColor: 'rgba(15,118,110,.12)',
-  },
-  amber: {
-    barStyle: 'background:#b45309',
-    iconStyle: 'color:#b45309;background:rgba(180,83,9,.10);border-color:rgba(180,83,9,.20)',
-    textStyle: 'color:#b45309',
-    dividerStyle: 'background:#b45309',
-    radialColor: 'rgba(180,83,9,.12)',
-  },
+  blue: { acc: '#2d5296', rgb: '45, 82, 150' },
+  teal: { acc: '#0f766e', rgb: '15, 118, 110' },
+  amber: { acc: '#b45309', rgb: '180, 83, 9' },
 };
 
 const modesWithAccent = modes.map((m) => ({
@@ -92,15 +74,11 @@ const modesWithAccent = modes.map((m) => ({
   <div class="hub-modes">
     <div class="hub-modes-grid">
       {modesWithAccent.map((m) => (
-        <a href={m.href} class="hub-card">
-          <span class="hub-card-bar" style={m.barStyle}></span>
+        <a href={m.href} class="hub-card" style={`--acc:${m.acc};--acc-rgb:${m.rgb};`}>
+          <span class="hub-card-bar"></span>
+          <span class="hub-card-radial"></span>
 
-          <span
-            class="hub-card-radial"
-            style={`background: radial-gradient(420px 240px at 50% -20%, ${m.radialColor}, transparent 65%);`}
-          ></span>
-
-          <div class="hub-card-icon" style={m.iconStyle}>
+          <div class="hub-card-icon">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -115,28 +93,58 @@ const modesWithAccent = modes.map((m) => ({
             />
           </div>
 
-          <span class="hub-card-tag" style={m.textStyle}>{m.tag}</span>
+          <span class="hub-card-tag">{m.tag}</span>
 
           <h2>{m.title}</h2>
 
-          <span class="hub-card-divider" style={m.dividerStyle}></span>
+          <span class="hub-card-divider"></span>
 
           <p class="hub-card-desc">{m.desc}</p>
 
-          <span class="hub-card-cta" style={m.textStyle}>
+          <span class="hub-card-cta">
             Entrar
-            <svg viewBox="0 0 24 24"
-                 stroke="currentColor" stroke-width="2" fill="none"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
+            <span class="hub-card-cta-arrow">
+              <svg viewBox="0 0 24 24"
+                   stroke="currentColor" stroke-width="2" fill="none"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </span>
           </span>
         </a>
       ))}
     </div>
   </div>
 
-  <Footer />
+  <Footer slot="footer" />
+
+  <style>
+    /* Entrada escalonada (solo /hub, no afecta al admin) */
+    .hub-hero-inner > * {
+      animation: hubRise .7s cubic-bezier(.2, .8, .2, 1) backwards;
+    }
+    .hub-hero-inner .hub-eyebrow { animation-delay: .05s; }
+    .hub-hero-inner h1 { animation-delay: .15s; }
+    .hub-hero-inner p { animation-delay: .28s; }
+
+    .hub-card {
+      animation: hubRise .65s cubic-bezier(.2, .8, .2, 1) backwards;
+    }
+    .hub-card:nth-child(1) { animation-delay: .38s; }
+    .hub-card:nth-child(2) { animation-delay: .5s; }
+    .hub-card:nth-child(3) { animation-delay: .62s; }
+
+    @keyframes hubRise {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hub-hero-inner > *,
+      .hub-card { animation: none; }
+      .hub-hero-glow { animation: none; }
+    }
+  </style>
 
 </HubLayout>

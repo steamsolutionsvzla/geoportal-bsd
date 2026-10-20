@@ -18,6 +18,11 @@ export default defineConfig({
           target: 'http://localhost:8000',
           changeOrigin: true,
         },
+        // WMS de GeoServer (evita CORS: mismo origen que el dev server)
+        '/geoserver': {
+          target: 'http://localhost:8081',
+          changeOrigin: true,
+        },
       },
     },
     optimizeDeps: {

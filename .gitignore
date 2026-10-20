@@ -77,3 +77,8 @@ tmp/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ---------- Artefactos locales ----------
+.archify/
+frontend/tiles-generate.err
+

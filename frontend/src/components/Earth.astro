@@ -70,12 +70,12 @@
     const textureLoader = new THREE.TextureLoader();
 
     const texturaColor = textureLoader.load(
-      'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'
+      '/textures/earth_atmos_2048.jpg'
     );
     texturaColor.colorSpace = THREE.SRGBColorSpace;
 
     const texturaEspecular = textureLoader.load(
-      'https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'
+      '/textures/earth_specular_2048.jpg'
     );
 
     texturaColor.onUpdate = () => canvas.classList.add('is-ready');

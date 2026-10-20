@@ -21,6 +21,7 @@ export async function saveStyle(layerName, style) {
       min_zoom: style.min_zoom ?? null,
       max_zoom: style.max_zoom ?? null,
       visible_attributes: style.visible_attributes ?? [],
+      attribute_labels: style.attribute_labels ?? {},
     }),
   });
   if (!r.ok) {

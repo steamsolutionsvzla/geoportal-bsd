@@ -214,19 +214,37 @@
 
 .fp-edit .fp-body { flex: 1; min-height: 0; padding-top: 2px; }
 .fp-edit-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  gap: 5px;
   padding: 8px 0;
   border-bottom: 1px dashed var(--line-700);
-  cursor: pointer;
   min-width: 0;
 }
 .fp-edit-row:last-child { border-bottom: none; }
-.fp-edit-row input { margin: 2px 0 0; accent-color: var(--accent-navy); flex-shrink: 0; }
+.fp-edit-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+.fp-edit-check input { margin: 2px 0 0; accent-color: var(--accent-navy); flex-shrink: 0; }
 .fp-edit-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.fp-edit-row:has(input:not(:checked)) .fp-val { color: var(--muted-500); font-weight: 400; }
-.fp-edit-row:has(input:not(:checked)) .fp-key { opacity: .7; }
+.fp-edit-row:has(input[type="checkbox"]:not(:checked)) .fp-val { color: var(--muted-500); font-weight: 400; }
+.fp-edit-row:has(input[type="checkbox"]:not(:checked)) .fp-key { opacity: .7; }
+.fp-edit-label {
+  margin-left: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line-600);
+  border-radius: var(--radius-s);
+  background: var(--white);
+  font-size: 0.68rem;
+  color: var(--accent-navy-dim);
+  min-width: 0;
+}
+.fp-edit-label:focus { outline: none; border-color: var(--accent-navy); }
+.fp-edit-label::placeholder { color: var(--muted-500); }
 
 .fp-edit-foot {
   display: flex;

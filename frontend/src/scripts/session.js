@@ -10,7 +10,8 @@ const ALL = Object.values(ROL);
 // Matriz de acceso. Gana el prefijo más largo que coincida.
 export const ROUTES = [
   ['/admin/configuracion', [ROL.ADMIN]],                        // gestión users/roles → solo admin
-  ['/geoportal/config',    [ROL.ADMIN,ROL.ANALISTA]],                        // gestión users/roles → solo admin
+  ['/analista-mapa',       [ROL.ADMIN, ROL.ANALISTA]],          // editor de estilos sobre el mapa
+  ['/analista',            [ROL.ADMIN, ROL.ANALISTA]],          // personalización de capas del geoportal
   ['/admin',               [ROL.ADMIN, ROL.GERENTE]],           // admin.astro + acompañantes
   ['/hub',                 [ROL.ADMIN, ROL.ANALISTA]],          // hub + acompañantes
   ['/geoportal',           [ROL.ADMIN, ROL.ANALISTA, ROL.GERENTE]], // geoportal (agregado gerente)

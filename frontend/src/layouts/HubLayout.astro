@@ -2,6 +2,18 @@
 import '../styles/global.css';
 import '../styles/nav.css';
 import '../styles/hub.css';
+// Fuentes self-hosted (sin Google Fonts / sin internet)
+import '@fontsource/fraunces/400.css';
+import '@fontsource/fraunces/500.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/fraunces/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/500.css';
+import '@fontsource/jetbrains-mono/600.css';
 
 interface Props {
   title?: string;
@@ -23,12 +35,6 @@ const {
   <meta name="description" content={subtitle} />
   <link rel="icon" type="image/svg+xml" href="/img/favicon.svg" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet"
-  />
   <script>
   import '../scripts/session.js';   
 </script>
@@ -73,6 +79,8 @@ const {
     <main class="hub-main">
       <slot />
     </main>
+
+    <slot name="footer" />
 
   </div>
 

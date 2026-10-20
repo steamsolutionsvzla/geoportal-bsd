@@ -7,6 +7,7 @@ import {
 } from './map-config.js';
 import {
   setAvailableLayers, loadLayerToMap, getLayerDisplayName,
+  addRasterLayerToMap, isRasterLayer,
 } from './layer-manager.js';
 import { apiFetch, getPaletteForType, hashCode, esperarMapaListo } from './utils.js';
 import { applyStyle } from '../lib/mapStyles.js';
@@ -332,6 +333,7 @@ function leerPatch(card, layer) {
     max_zoom:     get('max_zoom'),
     // Los atributos del popup se editan desde el popup del mapa (clic en un elemento)
     visible_attributes: stylesMap.get(layer.id)?.visible_attributes ?? [],
+    attribute_labels: stylesMap.get(layer.id)?.attribute_labels ?? {},
   };
 }
 
@@ -370,6 +372,19 @@ function setExpandido(card, layerId, open) {
 
 async function handleToggle(layer, isVisible, card) {
   try {
+    // Capas raster (WMS): sin GeoJSON ni editor de estilo
+    if (isRasterLayer(layer)) {
+      if (isVisible) {
+        mostrarCargando(true);
+        addRasterLayerToMap(layer, map);
+        await esperarMapaListo(map);
+      } else {
+        removeLayerFromMap(layer);
+      }
+      layerToggleState.set(layer.id, isVisible);
+      card.classList.toggle('active', isVisible);
+      return;
+    }
     if (isVisible) {
       mostrarCargando(true);
       await loadLayerToMap(layer.id, map, availableLayers, () => {});
@@ -408,17 +423,10 @@ async function handleToggle(layer, isVisible, card) {
 }
 
 function removeLayerFromMap(layer) {
-  const t = (layer.type || '').toLowerCase();
   const sourceId = `source-${layer.id}`;
   const baseId   = `layer-${layer.id}`;
 
-  if (t === 'circle' || t === 'point') {
-    [`${baseId}-cluster-count`, `${baseId}-clusters`, `${baseId}-unclustered`].forEach(id => {
-      if (map.getLayer(id)) map.removeLayer(id);
-    });
-  } else {
-    if (map.getLayer(baseId)) map.removeLayer(baseId);
-  }
+  if (map.getLayer(baseId)) map.removeLayer(baseId);
   if (map.getSource(sourceId)) map.removeSource(sourceId);
 }
 
@@ -459,6 +467,7 @@ async function abrirEditorPopup(layerId, props, lngLat) {
   const seleccion = new Set(
     guardados.length ? guardados.filter(k => campos.includes(k)) : campos.filter(k => !esCampoId(k))
   );
+  const etiquetas = { ...(stylesMap.get(layerId)?.attribute_labels ?? {}) };
 
   cerrarEditorPopup();
 
@@ -468,7 +477,7 @@ async function abrirEditorPopup(layerId, props, lngLat) {
 
   const head = document.createElement('div');
   head.className = 'fp-head';
-  head.innerHTML = '<span class="fp-title"></span><span class="fp-sub">Elige los campos que se muestran en el popup</span>';
+  head.innerHTML = '<span class="fp-title"></span><span class="fp-sub">Elige los campos y su nombre visible en el popup</span>';
   head.querySelector('.fp-title').textContent = getLayerDisplayName(layerId);
   root.appendChild(head);
 
@@ -486,8 +495,11 @@ async function abrirEditorPopup(layerId, props, lngLat) {
   body.className = 'fp-body';
   const checks = [];
   campos.forEach(k => {
-    const row = document.createElement('label');
+    const row = document.createElement('div');
     row.className = 'fp-edit-row';
+
+    const check = document.createElement('label');
+    check.className = 'fp-edit-check';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = seleccion.has(k);
@@ -507,8 +519,21 @@ async function abrirEditorPopup(layerId, props, lngLat) {
     const v = props[k];
     val.textContent = (v === null || v === undefined || v === '') ? '—' : String(v);
     txt.append(key, val);
+    check.append(cb, txt);
 
-    row.append(cb, txt);
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.className = 'fp-edit-label';
+    label.maxLength = 120;
+    label.placeholder = 'Etiqueta visible (opcional)';
+    label.title = 'Nombre que se muestra para este campo en el popup';
+    label.value = etiquetas[k] ?? '';
+    label.addEventListener('input', () => {
+      const t = label.value.trim();
+      if (t) etiquetas[k] = t; else delete etiquetas[k];
+    });
+
+    row.append(check, label);
     body.appendChild(row);
   });
   if (!campos.length) body.innerHTML = '<p class="fp-empty">Esta capa no tiene atributos.</p>';
@@ -549,7 +574,11 @@ async function abrirEditorPopup(layerId, props, lngLat) {
       // Mantiene el resto del estilo guardado (colores, opacidad, zoom…)
       const visible_attributes = campos.filter(k => seleccion.has(k));
       const actual = stylesMap.get(layerId) ?? {};
-      const guardado = await saveStyle(layerId, { ...actual, visible_attributes });
+      const guardado = await saveStyle(layerId, {
+        ...actual,
+        visible_attributes,
+        attribute_labels: etiquetas,
+      });
       stylesMap.set(layerId, guardado);
       estado.textContent = 'Aplicado a todos los popups de esta capa';
       estado.className = 'fp-edit-status ok';

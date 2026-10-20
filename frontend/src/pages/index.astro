@@ -75,7 +75,8 @@ const stats = [
       </div>
     </section>
 
-    <!-- ===================== SHOWCASE ===================== -->
+    {/* ===================== SHOWCASE (oculta, conservar) ===================== */}
+    {/*
     <section class="showcase" id="cobertura">
       <div class="wrap">
         <div class="showcase-head">
@@ -106,6 +107,7 @@ const stats = [
         </div>
       </div>
     </section>
+    */}
 
     <!-- ===================== FEATURES ===================== -->
     <section class="features" id="funciones">
@@ -132,6 +134,15 @@ const stats = [
     <!-- ===================== STATS ===================== -->
     <section class="stats-band">
       <div class="wrap">
+        <div class="stats-head">
+          <span class="eyebrow reveal">La plataforma en cifras</span>
+          <h2 class="reveal">Datos petroleros listos para la toma de decisiones.</h2>
+          <p class="reveal">
+            Un vistazo al volumen, la cobertura y la disponibilidad de la información
+            que sostiene al geoportal.
+          </p>
+        </div>
+
         <div class="stats-grid mono">
           {stats.map((s) => (
             <div class="cell reveal">
@@ -150,21 +161,14 @@ const stats = [
       </div>
     </section>
 
-    <!-- ===================== CTA ===================== -->
-    <section class="cta">
-      <div class="cta-text">
-        <span class="eyebrow">Acceso restringido</span>
-        <h2>Entra con tus credenciales y retoma donde quedaste.</h2>
-      </div>
-      <div class="cta-actions">
-        <a href="/login" class="btn btn-primary btn-lg">Acceder al geoportal</a>
-        <a href="#funciones" class="btn btn-ghost btn-lg">Solicitar información</a>
-      </div>
-    </section>
-
   </main>
 
-  <Footer />
+  <Footer
+    sections={[
+      { href: '#plataforma', label: 'Resumen' },
+      { href: '#funciones', label: 'Funciones' },
+    ]}
+  />
 </Layout>
 
 <script>

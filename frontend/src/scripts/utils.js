@@ -85,6 +85,8 @@ export function updateLegendUI(availableLayers, legendListId = 'legendList') {
       let symbolHTML = '';
       if (layerConfig.type === 'fill') {
         symbolHTML = `<div style="width: 20px; height: 14px; background: ${layerConfig.color || '#3182ce'}; opacity: 0.8; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
+      } else if (layerConfig.type === 'raster') {
+        symbolHTML = `<div style="width: 20px; height: 14px; background: linear-gradient(135deg,#8fae7a,#d8c9a3 60%,#9fb7c9); opacity: 0.9; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
       } else if (layerConfig.type === 'line') {
         symbolHTML = `<div style="width: 24px; height: 4px; background: ${layerConfig.color || '#3182ce'}; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
       } else {

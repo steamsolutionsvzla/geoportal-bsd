@@ -1,64 +1,40 @@
 ---
+import GeoportalLayout from '../layouts/GeoportalLayout.astro';
 import 'maplibre-gl/dist/maplibre-gl.css';
-// Fuentes (instaladas con @fontsource)
 import '@fontsource/fraunces/400.css';
 import '@fontsource/fraunces/500.css';
 import '@fontsource/fraunces/600.css';
-import '@fontsource/plus-jakarta-sans/400.css';
-import '@fontsource/plus-jakarta-sans/500.css';
-import '@fontsource/plus-jakarta-sans/600.css';
-import '@fontsource/plus-jakarta-sans/700.css';
-import '@fontsource/plus-jakarta-sans/800.css';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
-import '../styles/geoportal.css';
-import '../styles/analista.css';
-import Footer from '../components/Footer.astro';
+import '../styles/config.css';
 ---
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Configurar estilos · Geoportal-BSD</title>
-  <link rel="icon" type="image/svg+xml" href="/img/favicon.svg">
-</head>
-<body>
-  <script>
-    import '../scripts/session.js';
-  </script>
-
-  <script is:inline>
-    const sesionActiva = localStorage.getItem('auth_token');
-    if (!sesionActiva) {
-      window.location.href = '/login';
-    }
-    window.cerrarSesion = () => {
-      localStorage.removeItem('auth_session');
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
-    };
-  </script>
-
-  <div class="app app-analista">
-    <!-- TOPBAR -->
+<GeoportalLayout title="Personalizar Geoportal · BSD" bodyClass="config-body">
+  <div class="cfg-shell">
     <header class="topbar">
       <div class="brand">
-        <img src="/img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo">
+        <img src="/img/logo.png" alt="Banco Soberano de Datos de Petróleo y Gas" class="brand-logo" />
       </div>
       <div class="brand-text">
         <span class="name">Geoportal</span>
+        <span class="cfg-brand-sub">Personalizar Geoportal</span>
       </div>
+
       <div class="topbar-actions">
+        <a href="/geoportal" class="cfg-toplink">
+          Ir al visor
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
         <a href="/hub" class="icon-btn" title="Volver al hub" aria-label="Volver al hub">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12l9-9 9 9"/>
-            <path d="M5 10v10h14V10"/>
+            <path d="M3 12l9-9 9 9"></path>
+            <path d="M5 10v10h14V10"></path>
           </svg>
         </a>
         <button class="icon-btn logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión" onclick="cerrarSesion()">
@@ -70,90 +46,251 @@ import Footer from '../components/Footer.astro';
         </button>
         <div class="user-chip" title="Sesión iniciada">
           <div class="user-info">
-            <span class="u-name">Juan Fernández</span>
-            <span class="u-role">Dpto. de Datos Digitales</span>
+            <span class="u-name">—</span>
+            <span class="u-role">—</span>
           </div>
-          <div class="avatar">JF</div>
+          <div class="avatar">—</div>
         </div>
       </div>
     </header>
 
-    <!-- SIDEBAR: capas y estilos -->
-    <aside class="sidebar" id="sidebar">
-      <div class="panel-heading">
-        <span class="eyebrow">Estilos de capas</span>
-        <span class="count" id="layerCount">0 activas</span>
-      </div>
-      <p class="sidebar-hint">Activa una capa y haz clic en un elemento del mapa para elegir qué campos muestra su popup. Los cambios se aplican al recargar el Geoportal.</p>
-      <div class="layers-scroll-area">
-        <div id="panel-capas" class="panel-capas"></div>
-      </div>
-    </aside>
-
-    <!-- MAP -->
-    <div class="map-wrap">
-      <div id="map"></div>
-
-      <div class="basemap-switch">
-        <button type="button" class="basemap-btn" id="basemapToggleBtn" title="Cambiar mapa base">
-          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-            <line x1="8" y1="2" x2="8" y2="18"></line>
-            <line x1="16" y1="6" x2="16" y2="22"></line>
-          </svg>
-        </button>
-        <div class="basemap-dropdown" id="basemapDropdown">
-          <div class="basemap-title">Mapa Base</div>
-          <div class="basemap-option active" data-basemap="clara">
-            <div class="basemap-preview bm-light"></div>
-            <div class="basemap-info">
-              <span class="bm-name">Estándar</span>
-              <span class="bm-desc">Vectorial Claro</span>
-            </div>
+    <div class="cfg-workspace">
+      <aside class="cfg-nav" aria-label="Capas del Geoportal">
+        <div class="cfg-nav-head">
+          <div>
+            <span class="cfg-eyebrow">Capas del Geoportal</span>
+            <span class="cfg-nav-count" id="cfgLayerCount">0 capas</span>
           </div>
-          <div class="basemap-option" data-basemap="satelite">
-            <div class="basemap-preview bm-sat"></div>
-            <div class="basemap-info">
-              <span class="bm-name">Satélite</span>
-              <span class="bm-desc">Imágenes Esri + Híbrido</span>
-            </div>
-          </div>
-          <div class="basemap-option" data-basemap="relieve3d">
-            <div class="basemap-preview bm-relief3d" style="background: linear-gradient(160deg, #dfe8f2 0%, #b7c9a8 25%, #8fa876 45%, #6a8a56 60%, #7d6b4a 78%, #ffffff 100%); box-shadow: inset 0 -6px 8px rgba(0,0,0,0.25);"></div>
-            <div class="basemap-info">
-              <span class="bm-name">Relieve 3D</span>
-              <span class="bm-desc">Terreno real · Andes de Venezuela</span>
-            </div>
-          </div>
+          <a href="/analista-mapa" class="cfg-nav-link" title="Abrir el editor sobre el mapa">Editor en mapa</a>
         </div>
-      </div>
 
-      <div class="zoom-controls">
-        <button class="zoom-btn" id="zoomIn">+</button>
-        <button class="zoom-btn" id="zoomOut">–</button>
-      </div>
+        <div class="cfg-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="search" id="cfgSearch" placeholder="Buscar capa o workspace…" autocomplete="off" />
+        </div>
+
+        <div class="cfg-nav-scroll" id="cfgLayerList">
+          <p class="cfg-empty-mini">Cargando capas…</p>
+        </div>
+
+        <div class="cfg-nav-modules">
+          <span class="cfg-nav-modules-title">Otros módulos</span>
+          <a href="/admin/configuracion" class="cfg-module-link">
+            <span>Usuarios y roles</span>
+            <span class="cfg-soon">Admin</span>
+          </a>
+          <a href="/admin/configuracion" class="cfg-module-link">
+            <span>Organismos</span>
+            <span class="cfg-soon">Admin</span>
+          </a>
+          <span class="cfg-module-link disabled">
+            <span>Versionado de datasets</span>
+            <span class="cfg-soon">Pronto</span>
+          </span>
+        </div>
+      </aside>
+
+      <main class="cfg-main">
+        <div id="cfgNotice" class="cfg-notice" hidden></div>
+
+        <section id="cfgEmpty" class="cfg-empty">
+          <div class="cfg-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path>
+            </svg>
+          </div>
+          <h2>Selecciona una capa para configurarla</h2>
+          <p>
+            Ajusta colores, opacidad y rango de zoom, define los campos del popup con sus
+            nombres visibles y revisa los metadatos de la capa antes de publicar.
+          </p>
+        </section>
+
+        <section id="cfgEditor" class="cfg-editor" hidden>
+          <header class="cfg-head">
+            <div class="cfg-head-main">
+              <span class="cfg-eyebrow">Configuración de capa</span>
+              <h1 id="cfgLayerTitle">—</h1>
+              <code id="cfgLayerId" class="cfg-layer-id">—</code>
+              <div class="cfg-badges">
+                <span class="cfg-badge" id="cfgWorkspaceBadge">—</span>
+                <span class="cfg-badge" id="cfgTypeBadge">—</span>
+                <span class="cfg-badge status" id="cfgStatusBadge">Sin configurar</span>
+              </div>
+            </div>
+            <div class="cfg-head-actions">
+              <span class="cfg-dirty" id="cfgDirty" hidden>Cambios sin guardar</span>
+              <button type="button" class="cfg-btn ghost" id="cfgResetBtn" disabled>Restablecer</button>
+              <button type="button" class="cfg-btn primary" id="cfgSaveBtn" disabled>Guardar cambios</button>
+              <span class="cfg-save-state" id="cfgSaveState"></span>
+            </div>
+          </header>
+
+          <section class="cfg-stats">
+            <div class="cfg-stat">
+              <span class="cfg-stat-label">Campos</span>
+              <b class="cfg-stat-value" id="statCampos">0</b>
+              <span class="cfg-stat-hint">detectados en la capa</span>
+            </div>
+            <div class="cfg-stat">
+              <span class="cfg-stat-label">Visibles en popup</span>
+              <b class="cfg-stat-value" id="statVisibles">0</b>
+              <span class="cfg-stat-hint">atributos configurados</span>
+            </div>
+            <div class="cfg-stat">
+              <span class="cfg-stat-label">Estado</span>
+              <b class="cfg-stat-value" id="statEstado">Por defecto</b>
+              <span class="cfg-stat-hint">de la simbología</span>
+            </div>
+            <div class="cfg-stat wide">
+              <span class="cfg-stat-label">Última actualización</span>
+              <b class="cfg-stat-value small" id="cfgUpdatedBy">—</b>
+              <span class="cfg-stat-hint">responsable del último cambio</span>
+            </div>
+          </section>
+
+          <nav class="cfg-tabs" role="tablist" aria-label="Secciones de configuración">
+            <button type="button" class="cfg-tab active" role="tab" aria-selected="true" data-tab="simbologia">Simbología</button>
+            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="popup">Popup</button>
+            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="metadatos">Metadatos</button>
+          </nav>
+
+          <div class="cfg-body">
+            <div class="cfg-panels">
+              <section class="cfg-panel" data-panel="simbologia" role="tabpanel">
+                <div id="cfgRasterNotice" class="cfg-notice inline" hidden>
+                  Esta capa es un raster (WMS). La simbología vectorial y el popup de atributos
+                  no aplican; se muestra únicamente la ficha de metadatos.
+                </div>
+
+                <div id="cfgFormFields" class="cfg-form">
+                  <div class="cfg-section">
+                    <h2 class="cfg-section-title">Color</h2>
+                    <p class="cfg-section-desc">Relleno y borde de la geometría en el visor.</p>
+                    <div class="cfg-grid-2">
+                      <label class="cfg-field">
+                        <span>Color de relleno</span>
+                        <div class="cfg-color">
+                          <input type="color" id="cfgFill" value="#2d5296" aria-label="Color de relleno" />
+                          <input type="text" id="cfgFillHex" value="#2d5296" maxlength="7" spellcheck="false" aria-label="Hex de relleno" />
+                        </div>
+                      </label>
+                      <label class="cfg-field">
+                        <span>Color de borde</span>
+                        <div class="cfg-color">
+                          <input type="color" id="cfgStroke" value="#122b5a" aria-label="Color de borde" />
+                          <input type="text" id="cfgStrokeHex" value="#122b5a" maxlength="7" spellcheck="false" aria-label="Hex de borde" />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="cfg-section">
+                    <h2 class="cfg-section-title">Geometría</h2>
+                    <p class="cfg-section-desc">Opacidad y grosor de línea del elemento.</p>
+                    <label class="cfg-field">
+                      <span class="cfg-field-head">Opacidad <b id="cfgOpacityOut">0.50</b></span>
+                      <input type="range" id="cfgOpacity" min="0" max="1" step="0.05" value="0.5" />
+                    </label>
+                    <label class="cfg-field">
+                      <span class="cfg-field-head">Grosor de línea <b id="cfgLineWidthOut">1 px</b></span>
+                      <input type="range" id="cfgLineWidth" min="0" max="10" step="0.5" value="1" />
+                    </label>
+                  </div>
+
+                  <div class="cfg-section">
+                    <h2 class="cfg-section-title">Visibilidad por zoom</h2>
+                    <p class="cfg-section-desc">Rango en el que la capa permanece visible.</p>
+                    <div class="cfg-grid-2">
+                      <label class="cfg-field">
+                        <span>Zoom mínimo</span>
+                        <input type="number" id="cfgMinZoom" min="0" max="24" step="1" value="0" />
+                      </label>
+                      <label class="cfg-field">
+                        <span>Zoom máximo</span>
+                        <input type="number" id="cfgMaxZoom" min="0" max="24" step="1" value="24" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="cfg-panel" data-panel="popup" role="tabpanel" hidden>
+                <div class="cfg-section">
+                  <h2 class="cfg-section-title">Campos del popup</h2>
+                  <p class="cfg-section-desc">
+                    Marca los atributos que se muestran al hacer clic en un elemento y, si lo
+                    necesitas, asígnales un nombre visible para el usuario final.
+                  </p>
+
+                  <div class="cfg-popup-toolbar">
+                    <div class="cfg-search compact">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="11" cy="11" r="7"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                      <input type="search" id="cfgFieldSearch" placeholder="Buscar campo…" autocomplete="off" />
+                    </div>
+                    <div class="cfg-toolbar-actions">
+                      <span id="cfgVisibleCount" class="cfg-count">0 de 0</span>
+                      <button type="button" class="cfg-text-btn" id="cfgAllFields">Todos</button>
+                      <button type="button" class="cfg-text-btn" id="cfgNoFields">Ninguno</button>
+                    </div>
+                  </div>
+
+                  <div id="cfgFields" class="cfg-fields">
+                    <p class="cfg-empty-mini">Cargando atributos…</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="cfg-panel" data-panel="metadatos" role="tabpanel" hidden>
+                <div class="cfg-section">
+                  <h2 class="cfg-section-title">Ficha de metadatos</h2>
+                  <p class="cfg-section-desc">Información declarada en el catálogo de datos.</p>
+                  <div id="cfgMetadata">
+                    <p class="cfg-empty-mini">Cargando metadatos…</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="cfg-preview" aria-label="Vista previa">
+              <div class="cfg-preview-card">
+                <div class="cfg-preview-head">
+                  <span class="cfg-eyebrow">Vista previa en el mapa</span>
+                  <span class="cfg-preview-tag">Tiempo real</span>
+                </div>
+                <div class="cfg-preview-map-wrap">
+                  <div class="cfg-preview-map" id="cfgPreviewMap"></div>
+                  <div class="cfg-preview-map-state" id="cfgPreviewState">Cargando vista previa…</div>
+                </div>
+                <div class="cfg-preview-popup" id="cfgPreviewPopup"></div>
+                <p class="cfg-preview-hint">
+                  La capa se dibuja en el mapa con la simbología actual. Al guardar, el cambio
+                  se aplica para todas las sesiones del Geoportal.
+                </p>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
     </div>
-
-
-    <footer class="statusbar">
-      <div class="stat">LAT/LON <b id="statCoord">0.00000° N 0.00000° W</b></div>
-      <div class="divider"></div>
-      <div class="stat">Escala <b id="statScale">-- km</b></div>
-      <div class="divider"></div>
-      <div class="stat">ZOOM <b id="statZoom">6.8</b></div>
-      <div class="divider"></div>
-      <div class="stat">DATUM <b>WGS84 (EPSG:4326)</b></div>
-      <div class="grow"></div>
-      <div class="stat">GEOPORTAL v0.1</div>
-    </footer>
   </div>
 
-
-  <!-- Footer compartido (el mismo del index) -->
-  <Footer />
+  <script is:inline>
+    window.cerrarSesion = () => {
+      localStorage.removeItem('auth_session');
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+    };
+  </script>
 
   <script>
-    import '../scripts/analista-main.js';
+    import '../scripts/config-main.js';
   </script>
-</body>
-</html>
+</GeoportalLayout>

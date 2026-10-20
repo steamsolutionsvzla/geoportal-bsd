@@ -6,6 +6,7 @@
 .admin-body { background: var(--navy-50, #f6f8fc); }
 
 .admin-main {
+  flex: 1;
   max-width: 1280px;
   margin: 0 auto;
   padding: 40px 24px 80px;

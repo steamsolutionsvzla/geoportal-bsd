@@ -27,8 +27,9 @@ import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
   setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount,
-  attachLayerOpacityEvents, syncPointLayersClusterState,
-  getLayerRawData, clearLayerRawData   // 👈 NUEVOS
+  attachLayerOpacityEvents,
+  getLayerRawData, clearLayerRawData,   // 👈 NUEVOS
+  isRasterLayer, addRasterLayerToMap, removeRasterLayer
 } from './layer-manager.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 
@@ -157,7 +158,13 @@ try {
     window.handleFeatureClick = (tableName, props, lngLat) => {
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
-      if (lngLat) openFeaturePopup(map, displayName, props, lngLat, stylesMap.get(tableName)?.visible_attributes ?? null, tableName);
+      const style = stylesMap.get(tableName);
+      if (lngLat) openFeaturePopup(
+        map, displayName, props, lngLat,
+        style?.visible_attributes ?? null,
+        tableName,
+        style?.attribute_labels ?? null,
+      );
     };
 
     window.calcularPuntosEnEstado = (feature, nombre) => calcularPuntosEnEstado(feature, nombre);
@@ -166,22 +173,6 @@ try {
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.cerrarSesion = cerrarSesion;
-
-    // Sincroniza el cluster de las capas de puntos con el estado de los
-    // filtros (se llama desde filters.js al aplicar/limpiar un filtro).
-    window.syncClustersConFiltro = () => {
-      mostrarCargando(true);
-      // Pequeña pausa para que el navegador pinte el loader antes del trabajo síncrono
-      setTimeout(() => {
-        try {
-          syncPointLayersClusterState();
-        } catch (e) {
-          console.error('Error al sincronizar clusters:', e);
-        } finally {
-          mostrarCargando(false);
-        }
-      }, 50);
-    };
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
     document.querySelector('.icon-btn[title="Ajustes"]')?.addEventListener('click', () => {
@@ -601,6 +592,28 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
 
+    // ---- Capas raster (WMS): sin GeoJSON, sin conteo de features ----
+    const layerInfo = getAvailableLayers().find(l => l.id === tableName);
+    if (isRasterLayer(layerInfo)) {
+      if (isVisible) {
+        mostrarCargando(true);
+        try {
+          addRasterLayerToMap(layerInfo, map);
+          await esperarMapaListo(map);
+        } finally {
+          mostrarCargando(false);
+        }
+      } else {
+        removeRasterLayer(tableName, map);
+        clearSelectedLayerMetadataIfMatches(tableName);
+      }
+      refreshCount();
+      updateLegendUI(getAvailableLayers());
+      renderInfoPanel();
+      isLoading = false;
+      return;
+    }
+
     if (isVisible) {
       mostrarCargando(true);
       try {
@@ -619,24 +632,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         mostrarCargando(false);
       }
     } else {
-      // Detectar si es capa de puntos (con cluster) o capa normal (fill/line)
-      const layerConfig = getAvailableLayers().find(l => l.id === tableName);
-      const isPoint = layerConfig && (layerConfig.type === 'circle' || layerConfig.type === 'point');
-
-      if (isPoint) {
-        // Eliminar las 3 sub-capas del cluster antes de quitar el source
-        const idsToRemove = [
-          `${layerId}-cluster-count`,
-          `${layerId}-clusters`,
-          `${layerId}-unclustered`
-        ];
-        idsToRemove.forEach(id => {
-          if (map.getLayer(id)) map.removeLayer(id);
-        });
-      } else {
-        if (map.getLayer(layerId)) map.removeLayer(layerId);
-      }
-
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
       
@@ -701,7 +697,6 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
     if (!source) return; // capa no activa en el mapa
 
     // 👇 Leer SIEMPRE del caché de datos crudos, NUNCA del source.
-    // El source puede estar clusterizado y no exponer puntos individuales.
     const sourceData = getLayerRawData(layerConfig.id);
     if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
 

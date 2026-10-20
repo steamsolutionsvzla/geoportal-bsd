@@ -23,6 +23,7 @@ export interface LayerStyle {
   min_zoom?: number | null;
   max_zoom?: number | null;
   visible_attributes: string[];
+  attribute_labels?: Record<string, string>;
   updated_by?: string | null;
   updated_at?: string | null;
 }
@@ -49,6 +50,7 @@ export async function saveStyle(
       min_zoom: style.min_zoom ?? null,
       max_zoom: style.max_zoom ?? null,
       visible_attributes: style.visible_attributes ?? [],
+      attribute_labels: style.attribute_labels ?? {},
     }),
   });
   if (!r.ok) {
