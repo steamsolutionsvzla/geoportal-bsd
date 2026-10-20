@@ -365,13 +365,14 @@ async function cargarCapaEstadosVenezuela() {
     }
 
     if (!map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      const styleEstados = stylesMap.get('División Político Territorial');
       map.addLayer({
         id: ESTADO_LABEL_LAYER_ID,
         type: 'symbol',
         source: ESTADO_LABEL_SOURCE_ID,
         layout: {
           'visibility': 'none',
-          'text-field': ['get', 'entidad'],
+          'text-field': ['get', styleEstados?.label_attribute || 'entidad'],
           'text-font': ['Open Sans Bold'],
           'text-size': 11,
           'text-allow-overlap': false,
@@ -380,7 +381,7 @@ async function cargarCapaEstadosVenezuela() {
           'symbol-placement': 'point'
         },
         paint: {
-          'text-color': '#1a2a3a',
+          'text-color': styleEstados?.label_color || '#1a2a3a',
           'text-halo-color': '#ffffff',
           'text-halo-width': 1.8
         }
@@ -408,12 +409,41 @@ async function cargarCapaBloques() {
     bloquesGeoJsonCache = data;
     setBloquesCache(data);
 
+    // Centroides por bloque: una etiqueta por feature, fija en el mismo
+    // lugar geográfico (evita duplicados/saltos al hacer zoom, que pasan
+    // al colocar symbols directamente sobre polígonos tilingeados).
+    const puntosEtiquetasBloques = {
+      type: 'FeatureCollection',
+      features: []
+    };
+    data.features.forEach(f => {
+      try {
+        const centroide = turf.centerOfMass(f);
+        centroide.properties = {
+          ...f.properties,
+          nombre_bloque: obtenerNombreBloque(f.properties) || f.properties?.bloque || ''
+        };
+        puntosEtiquetasBloques.features.push(centroide);
+      } catch (e) {}
+    });
+
     const map = getMap();
     const BLOQUE_SOURCE_ID = 'source-bloques-venezuela';
+    const BLOQUE_LABEL_SOURCE_ID = 'source-bloques-venezuela-labels';
     const BLOQUE_LAYER_ID = 'layer-bloques-venezuela-fill';
     const BLOQUE_FILTER_LINE_LAYER_ID = 'layer-bloques-venezuela-filter-line';
     const BLOQUE_THEMATIC_LINE_LAYER_ID = 'layer-bloques-venezuela-thematic-line';
     const BLOQUE_LABEL_LAYER_ID = 'layer-bloques-venezuela-label';
+
+    if (map.getSource(BLOQUE_LABEL_SOURCE_ID)) {
+      map.getSource(BLOQUE_LABEL_SOURCE_ID).setData(puntosEtiquetasBloques);
+    } else {
+      map.addSource(BLOQUE_LABEL_SOURCE_ID, {
+        type: 'geojson',
+        data: puntosEtiquetasBloques,
+        generateId: true
+      });
+    }
 
     if (map.getSource(BLOQUE_SOURCE_ID)) {
       map.getSource(BLOQUE_SOURCE_ID).setData(data);
@@ -475,20 +505,24 @@ async function cargarCapaBloques() {
     if (map.getLayer(BLOQUE_LABEL_LAYER_ID)) {
       map.removeLayer(BLOQUE_LABEL_LAYER_ID);
     }
+    const styleBloques = stylesMap.get(BLOQUES_LAYER_NAME);
     map.addLayer({
       id: BLOQUE_LABEL_LAYER_ID,
       type: 'symbol',
-      source: BLOQUE_SOURCE_ID,
+      source: BLOQUE_LABEL_SOURCE_ID,
       layout: {
         'visibility': 'none',
-        'text-field': ['get', 'bloque'],
+        'text-field': ['get', styleBloques?.label_attribute || 'nombre_bloque'],
         'text-font': ['Open Sans Bold'],
         'text-size': 12,
         'text-allow-overlap': false,
-        'text-justify': 'center'
+        'text-ignore-placement': false,
+        'text-justify': 'center',
+        'text-max-width': 10,
+        'symbol-placement': 'point'
       },
       paint: {
-        'text-color': '#3b1650',
+        'text-color': styleBloques?.label_color || '#3b1650',
         'text-halo-color': '#ffffff',
         'text-halo-width': 1.4
       }
@@ -537,6 +571,81 @@ async function cargarCapaBloques() {
 }
 
 // =========================================================================
+// ETIQUETAS GENÉRICAS POR CAPA
+// Crea/actualiza/elimina la capa symbol "{tableName}-labels" según la
+// configuración del analista (show_labels, label_attribute, label_color).
+// Ocultas por defecto: sin config → no hay etiquetas.
+// =========================================================================
+function labelsIds(tableName) {
+  return {
+    layerId: `layer-${tableName}-labels`,
+    sourceId: `source-${tableName}-labels`,
+  };
+}
+
+function quitarEtiquetasCapa(tableName) {
+  const map = getMap();
+  const { layerId, sourceId } = labelsIds(tableName);
+  try {
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
+  } catch (e) { /* fuente en uso por filtros u otra capa */ }
+}
+
+function aplicarEtiquetasCapa(tableName, data, style) {
+  const map = getMap();
+  const { layerId, sourceId } = labelsIds(tableName);
+  quitarEtiquetasCapa(tableName);
+
+  if (!style?.show_labels || !style?.label_attribute) return;
+
+  const features = data?.features || [];
+  if (!features.length) return;
+
+  const puntos = { type: 'FeatureCollection', features: [] };
+  features.forEach((f) => {
+    try {
+      const gtype = f.geometry?.type;
+      let punto;
+      if (gtype === 'Point') {
+        punto = { type: 'Feature', properties: f.properties || {}, geometry: f.geometry };
+      } else {
+        punto = turf.centerOfMass(f);
+        punto.properties = f.properties || {};
+      }
+      puntos.features.push(punto);
+    } catch (e) { /* feature sin geometría válida */ }
+  });
+  if (!puntos.features.length) return;
+
+  map.addSource(sourceId, {
+    type: 'geojson',
+    data: puntos,
+    generateId: true,
+  });
+  map.addLayer({
+    id: layerId,
+    type: 'symbol',
+    source: sourceId,
+    layout: {
+      'text-field': ['get', style.label_attribute],
+      'text-font': ['Open Sans Bold'],
+      'text-size': 12,
+      'text-allow-overlap': false,
+      'text-ignore-placement': false,
+      'text-justify': 'center',
+      'text-max-width': 10,
+      'symbol-placement': 'point',
+    },
+    paint: {
+      'text-color': style.label_color || '#3b1650',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 1.4,
+    },
+  });
+}
+
+// =========================================================================
 // MANEJADOR DE TOGGLE DE CAPAS
 // =========================================================================
 let isLoading = false;
@@ -556,6 +665,11 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
       }
+      const styleEstados = stylesMap.get('División Político Territorial');
+      const visLabels = (isVisible && styleEstados?.show_labels) ? 'visible' : 'none';
+      if (map.getLayer('layer-estados-venezuela-label')) {
+        map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', visLabels);
+      }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
       isLoading = false;
@@ -564,6 +678,8 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
     if (shortName === BLOQUES_LAYER_NAME) {
       const vis = isVisible ? 'visible' : 'none';
+      const styleBloques = stylesMap.get(BLOQUES_LAYER_NAME);
+      const visLabels = (isVisible && styleBloques?.show_labels) ? 'visible' : 'none';
       const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
       const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
       const labelLayer = map.getLayer('layer-bloques-venezuela-label');
@@ -575,12 +691,12 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
       }
       if (labelLayer) {
-        map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+        map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', visLabels);
       } else {
         setTimeout(() => {
           const retryLabel = map.getLayer('layer-bloques-venezuela-label');
           if (retryLabel) {
-            map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', vis);
+            map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', visLabels);
           }
         }, 500);
       }
@@ -631,12 +747,14 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
             applyStyle(map, `layer-${tableName}`, layerConfig?.type || 'fill', style);
           }
         });
+        aplicarEtiquetasCapa(tableName, getLayerRawData(tableName), stylesMap.get(tableName));
         // Mantiene el loader hasta que la capa ya está pintada en el mapa
         await esperarMapaListo(map);
       } finally {
         mostrarCargando(false);
       }
     } else {
+      quitarEtiquetasCapa(tableName);
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 

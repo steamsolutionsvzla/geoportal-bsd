@@ -155,6 +155,46 @@ function bindUI() {
     renderPreview();
   });
 
+  $('#cfgShowLabels')?.addEventListener('change', (e) => {
+    if (!state.form) return;
+    state.form.show_labels = e.target.checked;
+    mostrarControlesEtiqueta(e.target.checked);
+    marcarDirty(true);
+  });
+  $('#cfgLabelSelectBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dd = $('#cfgLabelSelect');
+    if (!dd) return;
+    const btn = e.currentTarget;
+    const menu = $('#cfgLabelSelectMenu');
+    const abrir = !dd.classList.contains('open');
+    cerrarDropdowns();
+    if (abrir && menu) {
+      // position: fixed — escapa al overflow del contenedor scrollable.
+      const rect = btn.getBoundingClientRect();
+      const MENU_GAP = 6;
+      const espacioAbajo = window.innerHeight - rect.bottom;
+      const dropup = espacioAbajo < 240 && rect.top > 240;
+      dd.classList.toggle('dropup', dropup);
+      menu.style.left = `${rect.left}px`;
+      menu.style.width = `${rect.width}px`;
+      if (dropup) {
+        const h = Math.min(224, rect.top - MENU_GAP - 8);
+        menu.style.maxHeight = `${h}px`;
+        menu.style.top = 'auto';
+        menu.style.bottom = `${window.innerHeight - rect.top + MENU_GAP}px`;
+      } else {
+        menu.style.maxHeight = '224px';
+        menu.style.bottom = 'auto';
+        menu.style.top = `${rect.bottom + MENU_GAP}px`;
+      }
+    }
+    dd.classList.toggle('open', abrir);
+    btn.setAttribute('aria-expanded', String(abrir));
+  });
+  sincronizarColor($('#cfgLabelColor'), $('#cfgLabelColorHex'), 'label_color');
+  document.addEventListener('click', cerrarDropdowns);
+
   $('#cfgFieldSearch')?.addEventListener('input', renderCampos);
   $('#cfgAllFields')?.addEventListener('click', () => {
     state.fieldOrder.forEach((k) => state.visible.add(k));
@@ -332,6 +372,9 @@ async function seleccionar(layerId) {
     line_width: style?.line_width ?? DEFAULTS[layer.type]?.line_width ?? 1,
     min_zoom: style?.min_zoom ?? 0,
     max_zoom: style?.max_zoom ?? 24,
+    show_labels: style?.show_labels ?? false,
+    label_attribute: style?.label_attribute ?? null,
+    label_color: style?.label_color ?? '#3b1650',
   };
   state.labels = { ...(style?.attribute_labels || {}) };
   rellenarFormulario();
@@ -356,6 +399,7 @@ async function seleccionar(layerId) {
   renderMetadata(meta);
   renderPreview();
   actualizarStats();
+  rellenarSelectEtiqueta();
   setTab(state.tab);
 }
 
@@ -409,14 +453,11 @@ function renderHeader() {
   const esRaster = layer.type === 'raster';
   $('#cfgRasterNotice').hidden = !esRaster;
   $('#cfgFormFields').classList.toggle('disabled', esRaster);
-  $('#cfgFormFields').querySelectorAll('input, button').forEach((el) => {
+  $('#cfgFormFields').querySelectorAll('input, button, select').forEach((el) => {
     el.disabled = esRaster;
   });
   $('#cfgSaveBtn').disabled = esRaster;
   $('#cfgResetBtn').disabled = esRaster || !configurada;
-  if (esRaster) {
-    $('#cfgSaveBtn').disabled = true;
-  }
   marcarDirty(state.dirty);
 }
 
@@ -489,6 +530,70 @@ function rellenarFormulario() {
   $('#cfgLineWidthOut').textContent = `${f.line_width} px`;
   $('#cfgMinZoom').value = f.min_zoom;
   $('#cfgMaxZoom').value = f.max_zoom;
+
+  const chk = $('#cfgShowLabels');
+  if (chk) chk.checked = !!f.show_labels;
+  mostrarControlesEtiqueta(!!f.show_labels);
+  $('#cfgLabelColor').value = f.label_color || '#3b1650';
+  $('#cfgLabelColorHex').value = f.label_color || '#3b1650';
+  rellenarSelectEtiqueta();
+}
+
+function rellenarSelectEtiqueta() {
+  const menu = $('#cfgLabelSelectMenu');
+  const label = $('#cfgLabelSelectLabel');
+  if (!menu || !label) return;
+  const actual = state.form?.label_attribute ?? '';
+
+  label.textContent = actual || 'Seleccionar atributo…';
+  label.classList.toggle('has-value', !!actual);
+  menu.innerHTML = '';
+
+  if (!state.fieldOrder.length) {
+    menu.innerHTML = '<p class="cfg-select-empty">Sin atributos disponibles.</p>';
+    return;
+  }
+
+  state.fieldOrder.forEach((k) => {
+    const opt = document.createElement('div');
+    opt.className = 'cfg-select-option' + (k === actual ? ' selected' : '');
+    opt.dataset.value = k;
+    opt.setAttribute('role', 'option');
+    opt.textContent = k;
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!state.form) return;
+      state.form.label_attribute = k;
+      label.textContent = k;
+      label.classList.add('has-value');
+      menu.querySelectorAll('.cfg-select-option').forEach((o) => {
+        o.classList.toggle('selected', o.dataset.value === k);
+      });
+      cerrarDropdowns();
+      marcarDirty(true);
+    });
+    menu.appendChild(opt);
+  });
+}
+
+function cerrarDropdowns() {
+  document.querySelectorAll('.cfg-select.open').forEach((dd) => {
+    dd.classList.remove('open', 'dropup');
+    const menu = dd.querySelector('.cfg-select-menu');
+    if (menu) {
+      menu.style.top = '';
+      menu.style.bottom = '';
+      menu.style.left = '';
+      menu.style.width = '';
+      menu.style.maxHeight = '';
+    }
+    dd.querySelector('.cfg-select-btn')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function mostrarControlesEtiqueta(mostrar) {
+  const cont = $('#cfgLabelControls');
+  if (cont) cont.hidden = !mostrar;
 }
 
 // ---------------------------------------------------------------------------
@@ -859,7 +964,11 @@ async function restablecer() {
     await resetStyle(layer.id);
     state.stylesMap.delete(layer.id);
     state.labels = {};
-    state.form = { ...DEFAULTS[layer.type] || DEFAULTS.fill, min_zoom: 0, max_zoom: 24 };
+    state.form = {
+      ...DEFAULTS[layer.type] || DEFAULTS.fill,
+      min_zoom: 0, max_zoom: 24,
+      show_labels: false, label_attribute: null, label_color: '#3b1650',
+    };
     state.visible = new Set(state.fieldOrder.filter((k) => !esCampoId(k)));
     state.dirty = false;
     rellenarFormulario();

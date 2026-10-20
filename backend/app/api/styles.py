@@ -44,6 +44,10 @@ class LayerStyleIn(BaseModel):
     # Nombre custom por atributo: {campo_original: "Etiqueta visible"}.
     # Campo ausente o vacío ⇒ se muestra el nombre original.
     attribute_labels: Dict[str, str] = Field(default_factory=dict)
+    # Etiquetas en el mapa (labels de la capa).
+    show_labels: bool = False
+    label_attribute: Optional[str] = Field(None, max_length=100)
+    label_color: Optional[str] = Field(None, pattern=_HEX)
 
     @model_validator(mode="after")
     def _check_zoom_range(self):
@@ -63,6 +67,14 @@ class LayerStyleIn(BaseModel):
         self.attribute_labels = limpio
         return self
 
+    @model_validator(mode="after")
+    def _norm_label_attr(self):
+        if self.label_attribute is not None:
+            self.label_attribute = self.label_attribute.strip() or None
+        if not self.show_labels:
+            self.label_attribute = None
+        return self
+
 
 class LayerStyleOut(BaseModel):
     layer_name:         str
@@ -74,6 +86,9 @@ class LayerStyleOut(BaseModel):
     max_zoom:           Optional[float] = None
     visible_attributes: List[str]       = []
     attribute_labels:   Dict[str, str]  = {}
+    show_labels:        bool            = False
+    label_attribute:    Optional[str]   = None
+    label_color:        Optional[str]   = None
     updated_by:         Optional[str]   = None
     updated_at:         Optional[str]   = None  # ISO string
 
@@ -108,6 +123,14 @@ def _norm(s: str) -> str:
     return (s or "").strip().casefold()
 
 
+_STYLE_COLS = """
+        layer_name, fill_color, stroke_color, opacity, line_width,
+        min_zoom, max_zoom, visible_attributes, attribute_labels,
+        show_labels, label_attribute, label_color,
+        updated_by, updated_at
+"""
+
+
 async def _ensure_workspace_access(table_name: str, user: CurrentUser) -> str:
     """
     Valida que la capa exista y que el usuario tenga acceso a su workspace.
@@ -137,10 +160,8 @@ async def list_styles(user: CurrentUser = Depends(auth_guard)):
     """
     pool = get_pool()
     rows = await pool.fetch(
-        """
-        SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, attribute_labels,
-               updated_by, updated_at
+        f"""
+        SELECT {_STYLE_COLS.strip()}
         FROM layer_style_configs
         ORDER BY layer_name;
         """
@@ -155,10 +176,8 @@ async def get_style(
 ):
     pool = get_pool()
     row = await pool.fetchrow(
-        """
-        SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, attribute_labels,
-               updated_by, updated_at
+        f"""
+        SELECT {_STYLE_COLS.strip()}
         FROM layer_style_configs
         WHERE layer_name = $1;
         """,
@@ -187,8 +206,10 @@ async def upsert_style(
         INSERT INTO layer_style_configs
             (layer_name, fill_color, stroke_color, opacity, line_width,
              min_zoom, max_zoom, visible_attributes, attribute_labels,
+             show_labels, label_attribute, label_color,
              updated_by, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb,
+                $10, $11, $12, $13, NOW())
         ON CONFLICT (layer_name) DO UPDATE SET
             fill_color         = EXCLUDED.fill_color,
             stroke_color       = EXCLUDED.stroke_color,
@@ -198,6 +219,9 @@ async def upsert_style(
             max_zoom           = EXCLUDED.max_zoom,
             visible_attributes = EXCLUDED.visible_attributes,
             attribute_labels   = EXCLUDED.attribute_labels,
+            show_labels        = EXCLUDED.show_labels,
+            label_attribute    = EXCLUDED.label_attribute,
+            label_color        = EXCLUDED.label_color,
             updated_by         = EXCLUDED.updated_by,
             updated_at         = NOW();
         """,
@@ -210,14 +234,15 @@ async def upsert_style(
         payload.max_zoom,
         json.dumps(payload.visible_attributes),
         json.dumps(payload.attribute_labels),
+        payload.show_labels,
+        payload.label_attribute,
+        payload.label_color,
         f"{user.nombre} {user.apellido}".strip(),
     )
 
     row = await pool.fetchrow(
-        """
-        SELECT layer_name, fill_color, stroke_color, opacity, line_width,
-               min_zoom, max_zoom, visible_attributes, attribute_labels,
-               updated_by, updated_at
+        f"""
+        SELECT {_STYLE_COLS.strip()}
         FROM layer_style_configs
         WHERE layer_name = $1;
         """,

@@ -22,6 +22,9 @@ export async function saveStyle(layerName, style) {
       max_zoom: style.max_zoom ?? null,
       visible_attributes: style.visible_attributes ?? [],
       attribute_labels: style.attribute_labels ?? {},
+      show_labels: style.show_labels ?? false,
+      label_attribute: style.label_attribute ?? null,
+      label_color: style.label_color ?? null,
     }),
   });
   if (!r.ok) {

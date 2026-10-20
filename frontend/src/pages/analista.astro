@@ -246,6 +246,46 @@ import '../styles/config.css';
                     <p class="cfg-empty-mini">Cargando atributos…</p>
                   </div>
                 </div>
+
+                <div class="cfg-section">
+                  <h2 class="cfg-section-title">Etiquetas en el mapa</h2>
+                  <p class="cfg-section-desc">Muestra un atributo de cada elemento como etiqueta sobre el mapa.</p>
+
+                  <div class="cfg-labels-card">
+                    <label class="cfg-labels-toggle">
+                      <span class="cfg-labels-toggle-text">
+                        <span class="cfg-labels-toggle-title">Mostrar etiquetas</span>
+                        <span class="cfg-labels-toggle-hint">Etiqueta cada elemento con el valor de un atributo</span>
+                      </span>
+                      <span class="switch">
+                        <input type="checkbox" id="cfgShowLabels" />
+                        <span class="switch-track"></span>
+                      </span>
+                    </label>
+
+                    <div id="cfgLabelControls" class="cfg-labels-controls" hidden>
+                      <div class="cfg-grid-2">
+                        <div class="cfg-field">
+                          <span>Atributo de la etiqueta</span>
+                          <div class="cfg-select" id="cfgLabelSelect">
+                            <button type="button" class="cfg-select-btn" id="cfgLabelSelectBtn" aria-haspopup="listbox" aria-expanded="false">
+                              <span class="cfg-select-label" id="cfgLabelSelectLabel">Seleccionar atributo…</span>
+                              <svg class="cfg-select-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            </button>
+                            <div class="cfg-select-menu" id="cfgLabelSelectMenu" role="listbox"></div>
+                          </div>
+                        </div>
+                        <label class="cfg-field">
+                          <span>Color del texto</span>
+                          <div class="cfg-color">
+                            <input type="color" id="cfgLabelColor" value="#3b1650" aria-label="Color de texto de la etiqueta" />
+                            <input type="text" id="cfgLabelColorHex" value="#3b1650" maxlength="7" spellcheck="false" aria-label="Hex de texto de la etiqueta" />
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </section>
 
               <section class="cfg-panel" data-panel="metadatos" role="tabpanel" hidden>
