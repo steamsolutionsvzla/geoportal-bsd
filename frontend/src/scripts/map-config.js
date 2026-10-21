@@ -214,6 +214,33 @@ export function addBaseLayers(map) {
     maxzoom: 19
   });
 
+  // --- Etiquetas del satélite (nombres de ciudades/estados, PNG transparente) ---
+  // Online: referencia Esri World_Boundaries_and_Places.
+  // Offline: PMTiles local (generar con: py scripts/generate-offline-tiles.py --layers satelite-labels)
+  if (USE_OFFLINE_TILES) {
+    map.addSource('satelite-labels-source', {
+      type: 'raster',
+      url: 'pmtiles:///tiles/satelite-labels.pmtiles',
+      tileSize: 256,
+      attribution: 'Labels &copy; Esri'
+    });
+  } else {
+    map.addSource('satelite-labels-source', {
+      type: 'raster',
+      tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: 'Labels &copy; Esri'
+    });
+  }
+  map.addLayer({
+    id: 'satelite-labels-layer',
+    type: 'raster',
+    source: 'satelite-labels-source',
+    layout: { visibility: 'none' },
+    minzoom: 0,
+    maxzoom: 19
+  });
+
   // --- Relieve color ---
   map.addSource('relieve-color-source', {
     type: 'raster',
@@ -373,7 +400,7 @@ function switchBasemap(targetKey, map, activeBasemap) {
     return false;
   }
 
-  const overlayLayers = ['clara-layer', 'satelite-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
+  const overlayLayers = ['clara-layer', 'satelite-layer', 'satelite-labels-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
@@ -388,6 +415,7 @@ function switchBasemap(targetKey, map, activeBasemap) {
     if (map.getLayer('clara-layer')) map.setLayoutProperty('clara-layer', 'visibility', 'visible');
   } else if (targetKey === 'satelite') {
     if (map.getLayer('satelite-layer')) map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
+    if (map.getLayer('satelite-labels-layer')) map.setLayoutProperty('satelite-labels-layer', 'visibility', 'visible');
   } else if (targetKey === 'relieve3d') {
     if (map.getLayer('relieve-color-layer')) map.setLayoutProperty('relieve-color-layer', 'visibility', 'visible');
     if (map.getLayer('relieve-hillshade-layer')) map.setLayoutProperty('relieve-hillshade-layer', 'visibility', 'visible');
