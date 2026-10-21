@@ -37,8 +37,8 @@ export const USE_OFFLINE_TILES = false;
 export const INITIAL_CENTER = [-65.75816, 7.17672];
 export const INITIAL_ZOOM = 5;
 
-// Límites de desplazamiento del mapa (mismo bbox de los tiles offline).
-const MAP_BOUNDS = [[-75.5, 0.5], [-56.0, 13.6]];
+// Límites de desplazamiento del mapa (norte ampliado hacia el Mar Caribe).
+const MAP_BOUNDS = [[-75.5, 0.5], [-56.0, 15.2]];
 
 let mapInstance = null;
 
