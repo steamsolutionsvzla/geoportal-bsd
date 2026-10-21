@@ -360,7 +360,7 @@ export function attachLayerOpacityEvents(sidebarElement) {
 // ================================================================
 export async function loadLayerToMap(tableName, map, availableLayers, onSuccess, onError) {
   try {
-    const response = await apiFetch(`/api/v1/layers/${tableName}`);
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}`);
     const data = await response.json();
     if (!data.features || data.features.length === 0) {
       throw new Error('No features');
@@ -384,7 +384,7 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
       map.addSource(sourceId, sourceOptions);
     }
 
-    addMapLayerDirectly(tableName, sourceId, layerId, availableLayers);
+    addMapLayerDirectly(tableName, sourceId, layerId, availableLayers, map);
     if (onSuccess) onSuccess(tableName, sourceId, layerId, data.features.length);
   } catch (error) {
     if (onError) onError(tableName, error);
@@ -402,8 +402,9 @@ const BLOQUE_LAYER_ID = 'layer-bloques-venezuela-fill';
 const BLOQUE_FILTER_LINE_LAYER_ID = 'layer-bloques-venezuela-filter-line';
 const BLOQUE_THEMATIC_LINE_LAYER_ID = 'layer-bloques-venezuela-thematic-line';
 
-export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers) {
-  const map = getMap();
+export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers, targetMap) {
+  const map = targetMap || getMap();
+  if (!map) return;
   const layerConfig = availableLayers.find(l => l.id === tableName);
   const geomType = layerConfig ? layerConfig.type : 'circle';
   const geomColor = layerConfig ? layerConfig.color : '#6fa3e0';

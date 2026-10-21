@@ -749,8 +749,15 @@ function asegurarPreviewMap() {
     const map = initMap('cfgPreviewMap');
     state.previewMap = map;
 
+    let listo = false;
     const alCargar = () => {
-      addBaseLayers(map);
+      if (listo) return;
+      listo = true;
+      try {
+        addBaseLayers(map);
+      } catch (e) {
+        console.error('Vista previa: no se pudieron cargar las capas base:', e);
+      }
       state.previewReady = true;
       map.resize();
       actualizarMapaPreview();
@@ -758,6 +765,15 @@ function asegurarPreviewMap() {
 
     if (map.isStyleLoaded()) alCargar();
     else map.on('load', alCargar);
+
+    // Respaldo: si el evento 'load' nunca llega (estilo bloqueado en el
+    // servidor), forzar la inicialización para no quedarse en "Cargando…".
+    setTimeout(() => {
+      if (!listo) {
+        console.warn('Vista previa: "load" no se disparó; forzando inicialización.');
+        alCargar();
+      }
+    }, 5000);
 
     if (typeof ResizeObserver !== 'undefined') {
       new ResizeObserver(() => map.resize()).observe(cont);
@@ -803,7 +819,11 @@ async function actualizarMapaPreview() {
   } catch (e) {
     if (token !== state.previewToken) return;
     console.warn('Vista previa:', e);
-    estadoPreview('Esta capa no tiene datos para mostrar en la vista previa.');
+    estadoPreview(
+      e?.message === 'No features'
+        ? 'Esta capa no tiene datos para mostrar en la vista previa.'
+        : `No se pudo cargar la vista previa: ${e?.message || e}`,
+    );
   }
 }
 
