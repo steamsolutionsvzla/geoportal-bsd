@@ -6,7 +6,6 @@ import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.
 import { fetchStyles, saveStyle, resetStyle, fetchLayerAttributes } from '../services/styles.js';
 import { initMap, addBaseLayers } from './map-config.js';
 import { loadLayerToMap, getLayerRawData, addRasterLayerToMap } from './layer-manager.js';
-import { cargarSoloEtiquetasEstados, subirEtiquetasEstados } from './estado-labels.js';
 import { applyStyle } from '../lib/mapStyles.js';
 
 const TIPOS = {
@@ -737,15 +736,6 @@ function renderPreviewPopup(layer) {
 // ---------------------------------------------------------------------------
 const PREVIEW_CENTER = [-65.9, 7.5];
 
-/** Busca el estilo guardado de una capa tolerando el prefijo "workspace:". */
-function estiloDeCapa(name) {
-  if (state.stylesMap.has(name)) return state.stylesMap.get(name);
-  for (const [key, value] of state.stylesMap) {
-    if (key.split(':').pop() === name) return value;
-  }
-  return undefined;
-}
-
 function asegurarPreviewMap() {
   const cont = $('#cfgPreviewMap');
   if (!cont) return;
@@ -760,7 +750,7 @@ function asegurarPreviewMap() {
     state.previewMap = map;
 
     let listo = false;
-    const alCargar = async () => {
+    const alCargar = () => {
       if (listo) return;
       listo = true;
       try {
@@ -768,10 +758,6 @@ function asegurarPreviewMap() {
       } catch (e) {
         console.error('Vista previa: no se pudieron cargar las capas base:', e);
       }
-      // Etiquetas de estados siempre visibles en la vista previa
-      try {
-        await cargarSoloEtiquetasEstados(map, estiloDeCapa('División Político Territorial'));
-      } catch (e) {}
       state.previewReady = true;
       map.resize();
       actualizarMapaPreview();
@@ -806,14 +792,13 @@ async function actualizarMapaPreview() {
   const token = ++state.previewToken;
   limpiarCapaPreview();
 
-    if (layer.type === 'raster') {
-      try {
-        addRasterLayerToMap(layer, map);
-        state.previewLayerId = layer.id;
-        map.easeTo({ center: PREVIEW_CENTER, zoom: 6, duration: 0 });
-        subirEtiquetasEstados(map);
-        estadoPreview('');
-      } catch (e) {
+  if (layer.type === 'raster') {
+    try {
+      addRasterLayerToMap(layer, map);
+      state.previewLayerId = layer.id;
+      map.easeTo({ center: PREVIEW_CENTER, zoom: 6, duration: 0 });
+      estadoPreview('');
+    } catch (e) {
       console.error(e);
       estadoPreview('No se pudo mostrar el raster en la vista previa.');
     }
@@ -830,7 +815,6 @@ async function actualizarMapaPreview() {
     state.previewLayerId = layer.id;
     ajustarVistaPreview(getLayerRawData(layer.id));
     aplicarEstiloPreview();
-    subirEtiquetasEstados(map);
     estadoPreview('');
   } catch (e) {
     if (token !== state.previewToken) return;
@@ -874,18 +858,6 @@ function aplicarEstiloPreview() {
     min_zoom: 0,
     max_zoom: 24,
   });
-
-  // Si se edita la capa de estados, reflejar el color de etiqueta en vivo
-  if (
-    layer.id.split(':').pop() === 'División Político Territorial' &&
-    map.getLayer('layer-estados-venezuela-label')
-  ) {
-    map.setPaintProperty(
-      'layer-estados-venezuela-label',
-      'text-color',
-      state.form.label_color || '#1a2a3a'
-    );
-  }
 }
 
 function ajustarVistaPreview(datos) {

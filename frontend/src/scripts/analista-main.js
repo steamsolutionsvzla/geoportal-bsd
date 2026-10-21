@@ -14,7 +14,6 @@ import { applyStyle } from '../lib/mapStyles.js';
 import {
   fetchStyles, saveStyle, resetStyle, fetchLayerAttributes,
 } from '../services/styles.js';
-import { cargarSoloEtiquetasEstados, subirEtiquetasEstados } from './estado-labels.js';
 
 setWorkerUrl(maplibreWorkerUrl);
 
@@ -43,7 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupBasemapSwitcher(map);
 
     await cargarCapasYEstilos();
-    await cargarSoloEtiquetasEstados(map);
     renderPanel();
   });
 });
@@ -380,7 +378,6 @@ async function handleToggle(layer, isVisible, card) {
         mostrarCargando(true);
         addRasterLayerToMap(layer, map);
         await esperarMapaListo(map);
-        subirEtiquetasEstados(map);
       } else {
         removeLayerFromMap(layer);
       }
@@ -409,7 +406,6 @@ async function handleToggle(layer, isVisible, card) {
         });
       }
       await esperarMapaListo(map);
-      subirEtiquetasEstados(map);
     } else {
       removeLayerFromMap(layer);
       if (editorLayerId === layer.id) cerrarEditorPopup();

@@ -22,7 +22,7 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
+import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
 import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
@@ -32,10 +32,6 @@ import {
   isRasterLayer, addRasterLayerToMap, removeRasterLayer
 } from './layer-manager.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
-import {
-  construirCentroidesEstados, agregarEtiquetasEstadosMapa,
-  cargarSoloEtiquetasEstados, subirEtiquetasEstados,
-} from './estado-labels.js';
 
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
@@ -171,9 +167,6 @@ try {
         } else {
           mostrarError('No se pudieron cargar los datos de estados o bloques.');
         }
-      } else {
-        // Showroom: sin filtros/estados, pero las etiquetas siempre visibles
-        await cargarSoloEtiquetasEstados(map, getStyleCapa('División Político Territorial'));
       }
 
       const sidebar = document.getElementById('sidebar');
@@ -324,14 +317,56 @@ async function cargarCapaEstadosVenezuela() {
     }
     const data = await response.json();
 
-    const { featuresAgrupados, puntosEtiquetas } = construirCentroidesEstados(data);
-    data.features = featuresAgrupados;
+    const featuresByName = {};
+    data.features.forEach(f => {
+      const nombre = obtenerNombreEstado(f.properties);
+      if (!nombre) return;
+      if (!featuresByName[nombre]) {
+        featuresByName[nombre] = {
+          type: 'Feature',
+          properties: { ...f.properties },
+          geometry: { type: 'MultiPolygon', coordinates: [] }
+        };
+      }
+      if (f.geometry.type === 'Polygon') {
+        featuresByName[nombre].geometry.coordinates.push(f.geometry.coordinates);
+      } else if (f.geometry.type === 'MultiPolygon') {
+        f.geometry.coordinates.forEach(coords => {
+          featuresByName[nombre].geometry.coordinates.push(coords);
+        });
+      }
+    });
+    data.features = Object.values(featuresByName);
     estadosGeoJsonCache = data;
     setEstadosCache(data);
 
+    const puntosEtiquetas = {
+      type: 'FeatureCollection',
+      features: []
+    };
+    data.features.forEach(f => {
+      try {
+        const centroide = turf.centerOfMass(f);
+        centroide.properties = { ...f.properties };
+        puntosEtiquetas.features.push(centroide);
+      } catch (e) {}
+    });
+
     const map = getMap();
     const ESTADO_SOURCE_ID = 'source-estados-venezuela';
+    const ESTADO_LABEL_SOURCE_ID = 'source-estados-venezuela-labels';
     const ESTADO_LINE_LAYER_ID = 'layer-estados-venezuela-line';
+    const ESTADO_LABEL_LAYER_ID = 'layer-estados-venezuela-label';
+
+    if (map.getSource(ESTADO_LABEL_SOURCE_ID)) {
+      map.getSource(ESTADO_LABEL_SOURCE_ID).setData(puntosEtiquetas);
+    } else {
+      map.addSource(ESTADO_LABEL_SOURCE_ID, {
+        type: 'geojson',
+        data: puntosEtiquetas,
+        generateId: true
+      });
+    }
 
     if (map.getSource(ESTADO_SOURCE_ID)) {
       map.getSource(ESTADO_SOURCE_ID).setData(data);
@@ -361,11 +396,49 @@ async function cargarCapaEstadosVenezuela() {
       });
     }
 
-    agregarEtiquetasEstadosMapa(
-      map, puntosEtiquetas,
-      getStyleCapa('División Político Territorial')
-    );
-    subirEtiquetasEstados(map);
+    if (!map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      const styleEstados = getStyleCapa('División Político Territorial');
+      const attrEstados = styleEstados?.label_attribute || 'entidad';
+      const claveEstados =
+        resolverClaveProp(puntosEtiquetas.features[0]?.properties, attrEstados) || attrEstados;
+      map.addLayer({
+        id: ESTADO_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: ESTADO_LABEL_SOURCE_ID,
+        layout: {
+          'visibility': 'none',
+          'text-field': ['get', claveEstados],
+          'text-font': ['Open Sans Regular'],
+          'text-size': [
+            'interpolate', ['exponential', 1.5], ['zoom'],
+            3, 8,
+            6, 10,
+            10, 12,
+            14, 14,
+          ],
+          'text-max-width': [
+            'interpolate', ['linear'], ['zoom'],
+            3, 4,
+            6, 6,
+            10, 10,
+          ],
+          'text-line-height': 1.15,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'text-justify': 'center',
+          'symbol-placement': 'point'
+        },
+        paint: {
+          'text-color': styleEstados?.label_color || '#1a2a3a',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': [
+            'interpolate', ['linear'], ['zoom'],
+            3, 1,
+            10, 1.8,
+          ],
+        }
+      });
+    }
 
     updateLayerFeatureCount('División Político Territorial', data.features.length);
   } catch (error) {
@@ -689,9 +762,10 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
       }
-      // Las etiquetas de estados siempre visibles (sin dependencia de show_labels)
+      const styleEstados = getStyleCapa('División Político Territorial');
+      const visLabels = (isVisible && styleEstados?.show_labels) ? 'visible' : 'none';
       if (map.getLayer('layer-estados-venezuela-label')) {
-        map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', 'visible');
+        map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', visLabels);
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
@@ -744,7 +818,6 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         try {
           addRasterLayerToMap(layerInfo, map);
           await esperarMapaListo(map);
-          subirEtiquetasEstados(map);
         } finally {
           mostrarCargando(false);
         }
@@ -774,7 +847,6 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         aplicarEtiquetasCapa(tableName, getLayerRawData(tableName), getStyleCapa(tableName));
         // Mantiene el loader hasta que la capa ya está pintada en el mapa
         await esperarMapaListo(map);
-        subirEtiquetasEstados(map);
       } finally {
         mostrarCargando(false);
       }
