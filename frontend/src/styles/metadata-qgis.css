@@ -1,0 +1,357 @@
+/* metadata-qgis.css
+   Réplica visual (solo lectura) del editor de metadatos de QGIS
+   (Propiedades de capa > Metadatos) sobre el estilo Qt claro. */
+
+.qgis-meta {
+  --q-bg: #f0f0f0;
+  --q-page: #f5f8fd;
+  --q-border: #9db7dc;
+  --q-border-soft: #b7c8dd;
+  --q-group: #9db7dc;
+  --q-text: #1f1f1f;
+  --q-muted: #5f5f5f;
+  --q-field-bg: #ffffff;
+  --q-hover: #e8f1fb;
+  --q-sel: #cfe4f7;
+  --q-navy: #2d5296;
+  --q-navy-dark: #1f3a63;
+  --q-accent: #2f7ed8;
+
+  background: var(--q-page);
+  border: 1px solid var(--q-border);
+  border-radius: 4px;
+  color: var(--q-text);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(30, 64, 110, 0.12);
+}
+
+.qgis-meta *,
+.qgis-meta *::before,
+.qgis-meta *::after { box-sizing: border-box; }
+
+/* ---------- Barra de pestañas ---------- */
+.qgis-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 5px 6px 0;
+  background: linear-gradient(180deg, #e8f1fb 0%, #dcebfb 100%);
+  border-bottom: 1px solid var(--q-border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.qgis-tab {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  color: #2c4a6e;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 11px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.qgis-tab:hover { background: rgba(255, 255, 255, 0.75); color: #0f4c8a; }
+
+.qgis-tab.active {
+  background: var(--q-page);
+  border-color: var(--q-border);
+  color: #0d4f9e;
+  font-weight: 600;
+  box-shadow: inset 0 3px 0 var(--q-accent);
+  margin-bottom: -1px;
+  padding-bottom: 7px;
+}
+
+/* ---------- Páginas ---------- */
+.qgis-pages { background: var(--q-page); }
+
+.qgis-page { padding: 11px 13px 14px; }
+.qgis-page[hidden] { display: none; }
+
+.qgis-hint {
+  margin: 0 0 11px;
+  font-size: 11.8px;
+  color: #33587f;
+  max-width: 66ch;
+}
+
+.qgis-note {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: #4a6d94;
+}
+
+/* ---------- Campos ---------- */
+.qgis-field { margin-bottom: 10px; min-width: 0; }
+.qgis-field--wide { width: 100%; }
+
+.qgis-field > label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #163a63;
+}
+
+.qgis-input,
+.qgis-textarea {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--q-border);
+  border-radius: 3px;
+  background: var(--q-field-bg);
+  color: var(--q-text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.qgis-input { height: 26px; }
+.qgis-input:focus, .qgis-textarea:focus { border-color: var(--q-accent); box-shadow: 0 0 0 2px rgba(47, 126, 216, 0.18); }
+
+.qgis-textarea {
+  min-height: 68px;
+  resize: vertical;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.qgis-input--static {
+  height: auto;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+}
+
+.qgis-link { color: #0b5fa5; word-break: break-all; }
+.qgis-link:hover { text-decoration: underline; }
+
+.qgis-grid { display: grid; gap: 0 14px; }
+.qgis-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.qgis-grid--1 { grid-template-columns: minmax(0, 1fr); }
+
+/* ---------- Group boxes ---------- */
+.qgis-group {
+  margin: 0 0 12px;
+  padding: 13px 12px 3px;
+  border: 1px solid var(--q-border);
+  border-radius: 4px;
+  background: #fbfdff;
+  min-width: 0;
+}
+
+.qgis-group > legend {
+  padding: 3px 11px;
+  font-size: 12.3px;
+  font-weight: 700;
+  color: #ffffff;
+  background: linear-gradient(180deg, #3560a8 0%, var(--q-navy) 100%);
+  border: 1px solid var(--q-navy-dark);
+  border-radius: 3px;
+  letter-spacing: 0.01em;
+}
+
+.qgis-group .qgis-field:last-child { margin-bottom: 8px; }
+
+.qgis-details {
+  margin: 4px 0 10px;
+  font-size: 11.5px;
+  color: #4a6d94;
+}
+
+.qgis-details > summary { cursor: pointer; color: #0d4f9e; font-weight: 600; }
+.qgis-details .qgis-textarea { margin-top: 6px; }
+
+/* ---------- Listas tipo QListWidget ---------- */
+.qgis-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border: 1px solid #9db7dc;
+  border-radius: 2px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.qgis-list li {
+  padding: 4px 7px;
+  font-size: 12.3px;
+  border-bottom: 1px solid #e4edf8;
+  overflow-wrap: anywhere;
+}
+
+.qgis-list li:nth-child(even) { background: #f4f8fd; }
+.qgis-list li:last-child { border-bottom: none; }
+.qgis-list li:hover { background: #d9e9fb; }
+
+.qgis-list-empty { color: var(--q-muted); font-style: italic; background: #fff !important; }
+
+/* ---------- Tablas tipo QTableWidget ---------- */
+.qgis-table-wrap {
+  border: 1px solid #9db7dc;
+  border-radius: 3px;
+  overflow-x: auto;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(30, 64, 110, 0.08);
+}
+
+.qgis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.3px;
+}
+
+.qgis-table th {
+  background: #2d5296;
+  border-right: 1px solid #4468ab;
+  border-bottom: 2px solid #24406f;
+  color: #ffffff;
+  font-weight: 600;
+  text-align: left;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.qgis-table td {
+  border-right: 1px solid #d7e3f4;
+  border-bottom: 1px solid #d7e3f4;
+  padding: 4px 8px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.qgis-table th:last-child,
+.qgis-table td:last-child { border-right: none; }
+
+.qgis-table tbody tr:nth-child(even) td { background: #f4f8fd; }
+.qgis-table tbody tr:last-child td { border-bottom: none; }
+.qgis-table tbody tr:hover td { background: #d9e9fb; }
+
+.qgis-th-n,
+.qgis-td-n {
+  width: 30px;
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.qgis-th-n { background: #1f3a63; border-right-color: #1f3a63; }
+.qgis-td-n {
+  background: #e7f0fb;
+  color: #24406f;
+  font-weight: 600;
+}
+
+.qgis-table tbody tr:nth-child(even) .qgis-td-n { background: #dceafa; }
+.qgis-table tbody tr:hover .qgis-td-n { background: #bcd8f7; }
+
+.qgis-table code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: #1f4d8f;
+  font-weight: 600;
+}
+
+/* ---------- Extensión en cruz ---------- */
+.qgis-extent {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.qgis-extent-cell { min-width: 0; }
+.qgis-extent-cell .qgis-field { margin-bottom: 0; }
+
+/* ---------- Estados vacíos ---------- */
+.qgis-empty {
+  border: 1px dashed var(--q-border);
+  border-radius: 3px;
+  background: #eef5fd;
+  color: #2c5a8a;
+  font-size: 12px;
+  padding: 11px 12px;
+}
+
+/* ---------- Variante panel (Geoportal, 400px) ----------
+   Pestañas verticales a la izquierda (estilo QGIS: lista lateral). */
+.qgis-meta--panel {
+  display: flex;
+  align-items: stretch;
+  font-size: 11.5px;
+  max-height: calc(100vh - 240px);
+  min-height: 320px;
+}
+
+.qgis-meta--panel .qgis-tabs {
+  flex: 0 0 118px;
+  width: 118px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 1px;
+  padding: 6px 0 6px 5px;
+  background: linear-gradient(90deg, #e8f1fb 0%, #dcebfb 100%);
+  border-bottom: none;
+  border-right: 1px solid var(--q-border);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.qgis-meta--panel .qgis-tab {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  padding: 6px 8px 6px 9px;
+  border-radius: 3px 0 0 3px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.qgis-meta--panel .qgis-tab.active {
+  margin-bottom: 0;
+  padding-bottom: 6px;
+  box-shadow: inset 3px 0 0 var(--q-accent);
+  background: var(--q-page);
+  border-color: var(--q-border);
+  border-right-color: transparent;
+}
+
+.qgis-meta--panel .qgis-pages {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.qgis-meta--panel .qgis-page { padding: 9px 11px 12px; }
+.qgis-meta--panel .qgis-hint { font-size: 11px; margin-bottom: 9px; }
+.qgis-meta--panel .qgis-input,
+.qgis-meta--panel .qgis-textarea { font-size: 11.5px; }
+.qgis-meta--panel .qgis-grid--2 { grid-template-columns: minmax(0, 1fr); }
+.qgis-meta--panel .qgis-group { padding: 9px 9px 2px; }
+.qgis-meta--panel .qgis-extent {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
+}
+.qgis-meta--panel .qgis-table { font-size: 11.2px; }
+.qgis-meta--panel .qgis-list li { font-size: 11.2px; }
+
+/* ---------- Variante configuración (Personalizar Geoportal) ---------- */
+.qgis-meta--config .qgis-pages { max-width: 780px; }
+.qgis-meta--config .qgis-textarea { min-height: 84px; }

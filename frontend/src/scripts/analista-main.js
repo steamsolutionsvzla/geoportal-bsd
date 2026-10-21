@@ -463,9 +463,14 @@ async function abrirEditorPopup(layerId, props, lngLat) {
   const campos = [...new Set([...(attrsCache.get(layerId) ?? []), ...Object.keys(props)])];
 
   // Selección inicial: lo guardado, o el modo por defecto (todo menos ids)
+  // Tolerante a mayúsculas/minúsculas (PostGIS devuelve minúsculas).
   const guardados = stylesMap.get(layerId)?.visible_attributes ?? [];
+  const camposLower = new Map(campos.map((k) => [k.toLowerCase(), k]));
+  const guardadosNorm = guardados
+    .map((k) => camposLower.get(String(k).toLowerCase()) || k)
+    .filter((k) => campos.includes(k));
   const seleccion = new Set(
-    guardados.length ? guardados.filter(k => campos.includes(k)) : campos.filter(k => !esCampoId(k))
+    guardadosNorm.length ? guardadosNorm : campos.filter(k => !esCampoId(k))
   );
   const etiquetas = { ...(stylesMap.get(layerId)?.attribute_labels ?? {}) };
 

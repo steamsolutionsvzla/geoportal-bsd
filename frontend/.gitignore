@@ -22,3 +22,7 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# tiles offline (generados con scripts/generate-offline-tiles.py)
+public/tiles/*.pmtiles
+public/tiles/*.mbtiles

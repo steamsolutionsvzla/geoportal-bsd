@@ -9,7 +9,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "tiles:generate": "py scripts/generate-offline-tiles.py"
   },
   "dependencies": {
     "@fontsource/fraunces": "5.3.0",
@@ -23,6 +24,7 @@
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
     "maplibre-gl": "6.10.0",
+    "pmtiles": "^4.5.0",
     "tailwindcss": "4.3.3",
     "three": "0.186.0",
     "xlsx": "0.18.5"

@@ -2,6 +2,7 @@
 // Editor de configuración del Geoportal: capas, simbología, popup y metadatos.
 import { apiFetch, getPaletteForType, hashCode } from './utils.js';
 import { ROL } from './session.js';
+import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
 import { fetchStyles, saveStyle, resetStyle, fetchLayerAttributes } from '../services/styles.js';
 import { initMap, addBaseLayers } from './map-config.js';
 import { loadLayerToMap, getLayerRawData, addRasterLayerToMap } from './layer-manager.js';
@@ -389,7 +390,12 @@ async function seleccionar(layerId) {
   state.metadataCampos = meta?.metadata?.campos || [];
   state.fieldOrder = unicos([...attrs, ...state.metadataCampos.map((c) => c.nombre).filter(Boolean)]);
 
-  const guardados = (style?.visible_attributes || []).filter((k) => state.fieldOrder.includes(k));
+  // Emparejar campos guardados tolerando diferencias de mayúsculas
+  // (PostGIS/GeoServer devuelve minúsculas aunque se guardó MAYÚSCULAS).
+  const fieldOrderLower = new Map(state.fieldOrder.map((k) => [k.toLowerCase(), k]));
+  const guardados = (style?.visible_attributes || [])
+    .map((k) => fieldOrderLower.get(String(k).toLowerCase()) || k)
+    .filter((k) => state.fieldOrder.includes(k));
   state.visible = new Set(
     guardados.length ? guardados : state.fieldOrder.filter((k) => !esCampoId(k)),
   );
@@ -543,7 +549,11 @@ function rellenarSelectEtiqueta() {
   const menu = $('#cfgLabelSelectMenu');
   const label = $('#cfgLabelSelectLabel');
   if (!menu || !label) return;
-  const actual = state.form?.label_attribute ?? '';
+  const actualGuardado = state.form?.label_attribute ?? '';
+  // Normalizar al nombre real del fieldOrder (tolerante a mayúsculas)
+  const actual =
+    state.fieldOrder.find((k) => k.toLowerCase() === String(actualGuardado).toLowerCase()) ||
+    actualGuardado;
 
   label.textContent = actual || 'Seleccionar atributo…';
   label.classList.toggle('has-value', !!actual);
@@ -674,36 +684,8 @@ function renderMetadata(meta) {
     return;
   }
 
-  const m = meta.metadata;
-  const campos = m.campos || [];
-  const esc = (v) => escapeHtml(v == null || v === '' ? '—' : String(v));
-
-  const filas = campos.map((c) => `
-    <tr>
-      <td><code>${esc(c.nombre)}</code></td>
-      <td>${esc(c.tipo)}</td>
-      <td class="cfg-center">${c.nulos ? 'Sí' : 'No'}</td>
-      <td class="cfg-center">${c.unicos ? 'Sí' : 'No'}</td>
-      <td class="cfg-muted">${esc(c.ejemplo)}</td>
-    </tr>`).join('');
-
-  const resumen = [
-    ['Campos', campos.length],
-    ['Contactos', (m.contactos || []).length],
-    ['Enlaces', (m.enlaces || []).length],
-    ['Palabras clave', (m.palabras_clave || []).length],
-  ].map(([k, v]) => `<div class="cfg-meta-kpi"><span>${k}</span><b>${v}</b></div>`).join('');
-
-  cont.innerHTML = `
-    <div class="cfg-meta-kpis">${resumen}</div>
-    ${campos.length ? `
-      <div class="cfg-table-wrap">
-        <table class="cfg-table">
-          <thead><tr><th>Campo</th><th>Tipo</th><th class="cfg-center">Nulos</th><th class="cfg-center">Únicos</th><th>Ejemplo</th></tr></thead>
-          <tbody>${filas}</tbody>
-        </table>
-      </div>` : '<p class="cfg-empty-mini">La ficha no declara campos.</p>'}
-  `;
+  cont.innerHTML = buildQgisMetadataHtml(meta.metadata, { variant: 'config' });
+  initQgisMetadataWidgets(cont);
 }
 
 // ---------------------------------------------------------------------------

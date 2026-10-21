@@ -47,26 +47,27 @@ async def get_layer(table_name: str, geom_col: str = "geom"):
 async def get_layer_attributes(table_name: str):
     """
     Devuelve los nombres de los atributos de una capa.
-    Primero intenta con metadatos (esquema 'metadatos'), si no hay,
-    cae al primer feature del GeoJSON.
+    Prioriza las propiedades REALES que expone el WFS (GeoServer/PostGIS),
+    porque son las que el popup y las etiquetas encuentran en los features.
+    Los metadatos se usan solo como fallback.
     """
-    pool = get_pool()
-
-    # 1. Metadatos
-    try:
-        metadata = await get_layer_metadata(pool, table_name)
-        if metadata and metadata.get("campos"):
-            return {"attributes": [c["nombre"] for c in metadata["campos"]]}
-    except Exception:
-        pass
-
-    # 2. Fallback: primer feature del GeoJSON
+    # 1. Propiedades reales del WFS (verdad para popup/etiquetas)
     try:
         data = await GeoServerService.get_layer_geojson(table_name)
         feats = (data or {}).get("features") or []
         if feats:
             props = feats[0].get("properties") or {}
-            return {"attributes": list(props.keys())}
+            if props:
+                return {"attributes": list(props.keys())}
+    except Exception:
+        pass
+
+    # 2. Fallback: metadatos (esquema 'metadatos')
+    try:
+        pool = get_pool()
+        metadata = await get_layer_metadata(pool, table_name)
+        if metadata and metadata.get("campos"):
+            return {"attributes": [c["nombre"] for c in metadata["campos"]]}
     except Exception:
         pass
 

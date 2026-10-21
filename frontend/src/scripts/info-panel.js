@@ -1,6 +1,7 @@
 // info-panel.js
 import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
+import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -192,6 +193,7 @@ export function renderInfoPanel() {
   }
 
   infoContent.innerHTML = html;
+  initQgisMetadataWidgets(infoContent);
 
   // Reaplicar estado de loading si hay recálculo en curso
   if (filterLoadingCount > 0) {
@@ -259,86 +261,8 @@ function buildBloqueFilterSummaryHtml() {
 }
 
 // =========================================================================
-// TABLA DE METADATOS DE LA CAPA SELECCIONADA
+// METADATOS DE LA CAPA SELECCIONADA (estilo QGIS)
 // =========================================================================
-const METADATA_FIELD_CONFIG = [
-  { key: 'title', label: 'Título' },
-  { key: 'abstract', label: 'Resumen' },
-  { key: 'categories', label: 'Categorías' },
-  { key: 'keywords', label: 'Palabras clave' },
-  { key: 'themes', label: 'Temas' },
-  { key: 'spatial_level', label: 'Nivel espacial' },
-  { key: 'layer_type', label: 'Tipo de capa' },
-  { key: 'geometry_type', label: 'Tipo de geometría' },
-  { key: 'feature_count', label: 'Cantidad de elementos' },
-  { key: 'crs', label: 'Sistema de referencia (CRS)' },
-  { key: 'projection_name', label: 'Proyección' },
-  { key: 'projection_authid', label: 'Código EPSG' },
-  { key: 'spatial_extent', label: 'Extensión espacial (minX, maxX, minY, maxY)' },
-  { key: 'minimum_optimal_scale', label: 'Escala óptima mínima' },
-  { key: 'maximum_optimal_scale', label: 'Escala óptima máxima' },
-  { key: 'owner', label: 'Propietario' },
-  { key: 'publication_date', label: 'Fecha de publicación' },
-  { key: 'publication_frequency', label: 'Frecuencia de publicación' },
-  { key: 'license', label: 'Licencia' },
-  { key: 'license_attribution', label: 'Atribución de licencia' },
-  { key: 'confidentiality', label: 'Confidencialidad' },
-  { key: 'creation_date', label: 'Fecha de creación (metadatos)' },
-  { key: 'update_date', label: 'Última actualización (metadatos)' },
-  { key: 'update_time', label: 'Última actualización (metadatos)' },
-  { key: 'data_last_update', label: 'Última actualización de los datos' },
-];
-
-const METADATA_HIDDEN_FIELDS = [
-  'id', 'uid', 'table_name', 'schema_name',
-  'f_table_catalog', 'f_table_schema', 'f_table_name', 'f_geometry_column',
-  'geom', 'extent', 'qmd', 'identifier'
-];
-
-function formatMetadataFieldLabel(key) {
-  return key
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatMetadataFieldValue(value) {
-  if (value === null || value === undefined || value === '') return '—';
-  if (Array.isArray(value) || typeof value === 'object') {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-}
-
-function buildMetadataTableHtml(metadata) {
-  let rowsHtml = '';
-  const renderedKeys = new Set();
-
-  METADATA_FIELD_CONFIG.forEach(({ key, label }) => {
-    if (!(key in metadata)) return;
-    const value = metadata[key];
-    renderedKeys.add(key);
-    if (value === null || value === undefined || value === '') return;
-    rowsHtml += `<tr><td>${label}</td><td>${formatMetadataFieldValue(value)}</td></tr>`;
-  });
-
-  Object.keys(metadata).forEach((key) => {
-    if (renderedKeys.has(key)) return;
-    if (METADATA_HIDDEN_FIELDS.includes(key.toLowerCase())) return;
-    const value = metadata[key];
-    if (value === null || value === undefined || value === '') return;
-    rowsHtml += `<tr><td>${formatMetadataFieldLabel(key)}</td><td>${formatMetadataFieldValue(value)}</td></tr>`;
-  });
-
-  if (!rowsHtml) return '';
-
-  return `
-    <div class="info-table-wrap">
-      <table class="info-table metadata-table">
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>
-  `;
-}
 
 function buildSelectedLayerMetadataHtml() {
   if (!selectedLayerTableName) return '';
@@ -353,7 +277,7 @@ function buildSelectedLayerMetadataHtml() {
   } else if (cacheEntry.status === 'empty') {
     bodyHtml = `<p class="info-card-empty">Sin metadatos disponibles.</p>`;
   } else {
-    bodyHtml = buildMetadataTableHtml(cacheEntry.metadata) || `<p class="info-card-empty">Sin metadatos disponibles.</p>`;
+    bodyHtml = buildQgisMetadataHtml(cacheEntry.metadata, { variant: 'panel' }) || `<p class="info-card-empty">Sin metadatos disponibles.</p>`;
   }
 
   return `

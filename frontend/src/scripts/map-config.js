@@ -1,7 +1,11 @@
 // map-config.js
 import { formatearCoordenada } from './utils.js';
 import * as maplibregl from 'maplibre-gl';
+import { Protocol } from 'pmtiles';
 
+// Protocolo pmtiles:// para leer archivos PMTiles locales (una sola vez).
+const pmtilesProtocol = new Protocol();
+maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 
 // ============================================================
 //  CONFIGURACIÓN: CLAVE DE CARTO (light_nolabels)
@@ -9,12 +13,26 @@ import * as maplibregl from 'maplibre-gl';
 // 👇 PON AQUÍ TU CLAVE REAL
 const CARTO_KEY = 'cb1_33kc_1_d2fff4a23840225df4cca1fa';
 
+// ============================================================
+//  MODO OFFLINE
+//  true  → fondos "Clara" y "Satelital" se sirven desde PMTiles
+//          locales (public/tiles/clara.pmtiles y satelite.pmtiles).
+//          Generarlos con:  py scripts/generate-offline-tiles.py
+//  false → fondos online (CARTO / Esri), como siempre.
+//  El Relieve 3D siempre es online: si no hay conexión y se
+//  selecciona, aparece un aviso.
+// ============================================================
+export const USE_OFFLINE_TILES = false;
+
 
 // ============================================================
 //  CONSTANTES DEL MAPA
 // ============================================================
 export const INITIAL_CENTER = [-65.75816, 7.17672];
-export const INITIAL_ZOOM = 4.8;
+export const INITIAL_ZOOM = 5;
+
+// Límites de desplazamiento del mapa (mismo bbox de los tiles offline).
+const MAP_BOUNDS = [[-75.5, 0.5], [-56.0, 13.6]];
 
 let mapInstance = null;
 
@@ -30,7 +48,7 @@ export function initMap(containerId) {
       version: 8,
       sources: {},
       layers: [],
-      glyphs: 'https://fonts.undpgeohub.org/fonts/{fontstack}/{range}.pbf',
+      glyphs: '/fonts/{fontstack}/{range}.pbf',
       // El "sky" ahora se define aquí, dentro del style (v5+)
       sky: {
         'sky-color': '#b4d0e8',
@@ -44,11 +62,16 @@ export function initMap(containerId) {
     },
     center: INITIAL_CENTER,
     zoom: INITIAL_ZOOM,
+    minZoom: 5,
+    maxBounds: MAP_BOUNDS,
     renderWorldCopies: false,
     maxTileCacheSize: 30,
     fadeDuration: 0,
     attributionControl: false
   });
+
+  // Acceso global para depuración y pruebas automatizadas
+  if (typeof window !== 'undefined') window.geoportalMap = mapInstance;
 
   return mapInstance;
 }
@@ -118,30 +141,37 @@ export function setupStatusBar(map) {
 //  CAPAS BASE (fondo del mapa)
 // ============================================================
 export function addBaseLayers(map) {
-  // ✅ Lógica simplificada: si hay clave, usa Carto; si no, OSM
-  const useCarto = CARTO_KEY && CARTO_KEY.length > 0;
-
-  if (!useCarto) {
-
+  // --- Capa clara: PMTiles local (offline) o CARTO/OSM (online) ---
+  if (USE_OFFLINE_TILES) {
+    // IMPORTANTE: con pmtiles se declara con `url:` (no `tiles:`), para que el
+    // protocolo resuelva el TileJSON y sirva cada tile como .../{z}/{x}/{y}.
     map.addSource('clara-source', {
       type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors'
-    });
-  } else {
-    // --- Capa clara: CARTO light_nolabels (sin etiquetas) con API Key ---
-
-    map.addSource('clara-source', {
-      type: 'raster',
-      tiles: [
-        `https://a.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
-        `https://b.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
-        `https://c.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`
-      ],
+      url: 'pmtiles:///tiles/clara.pmtiles',
       tileSize: 256,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
     });
+  } else {
+    const useCarto = CARTO_KEY && CARTO_KEY.length > 0;
+    if (!useCarto) {
+      map.addSource('clara-source', {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors'
+      });
+    } else {
+      map.addSource('clara-source', {
+        type: 'raster',
+        tiles: [
+          `https://a.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
+          `https://b.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
+          `https://c.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`
+        ],
+        tileSize: 256,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
+      });
+    }
   }
 
   map.addLayer({
@@ -153,13 +183,22 @@ export function addBaseLayers(map) {
     maxzoom: 19
   });
 
-  // --- Satélite (Esri) ---
-  map.addSource('satelite-source', {
-    type: 'raster',
-    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-    tileSize: 256,
-    attribution: 'Tiles &copy; Esri'
-  });
+  // --- Satélite: PMTiles local (offline) o Esri (online) ---
+  if (USE_OFFLINE_TILES) {
+    map.addSource('satelite-source', {
+      type: 'raster',
+      url: 'pmtiles:///tiles/satelite.pmtiles',
+      tileSize: 256,
+      attribution: 'Tiles &copy; Esri'
+    });
+  } else {
+    map.addSource('satelite-source', {
+      type: 'raster',
+      tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: 'Tiles &copy; Esri'
+    });
+  }
   map.addLayer({
     id: 'satelite-layer',
     type: 'raster',
@@ -255,6 +294,31 @@ export function setupZoomControls(map) {
 }
 
 // ============================================================
+//  AVISOS FLOTANTES (toast)
+// ============================================================
+function mostrarAviso(texto) {
+  let toast = document.getElementById('geoportal-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'geoportal-toast';
+    toast.setAttribute('role', 'status');
+    toast.style.cssText = [
+      'position:fixed', 'left:50%', 'bottom:28px', 'transform:translateX(-50%)',
+      'background:rgba(20,28,40,.94)', 'color:#fff', 'padding:12px 20px',
+      'border-radius:8px', 'font-size:14px', 'line-height:1.4', 'z-index:9999',
+      'box-shadow:0 6px 20px rgba(0,0,0,.35)', 'max-width:min(90vw,420px)',
+      'text-align:center', 'opacity:0', 'transition:opacity .25s ease',
+      'pointer-events:none'
+    ].join(';');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = texto;
+  requestAnimationFrame(() => { toast.style.opacity = '1'; });
+  clearTimeout(mostrarAviso._timer);
+  mostrarAviso._timer = setTimeout(() => { toast.style.opacity = '0'; }, 4000);
+}
+
+// ============================================================
 //  SWITCHER DE MAPAS BASE
 // ============================================================
 export function setupBasemapSwitcher(map) {
@@ -274,11 +338,13 @@ export function setupBasemapSwitcher(map) {
 
   document.querySelectorAll('[data-basemap]').forEach(option => {
     option.addEventListener('click', () => {
-      document.querySelectorAll('[data-basemap]').forEach(x => x.classList.remove('active'));
-      option.classList.add('active');
       const targetKey = option.getAttribute('data-basemap');
-      switchBasemap(targetKey, map, activeBasemap);
-      activeBasemap = targetKey;
+      const switched = switchBasemap(targetKey, map, activeBasemap);
+      if (switched) {
+        document.querySelectorAll('[data-basemap]').forEach(x => x.classList.remove('active'));
+        option.classList.add('active');
+        activeBasemap = targetKey;
+      }
       if (basemapSwitch) basemapSwitch.classList.remove('open');
     });
   });
@@ -287,7 +353,20 @@ export function setupBasemapSwitcher(map) {
 }
 
 function switchBasemap(targetKey, map, activeBasemap) {
-  if (targetKey === activeBasemap) return;
+  if (targetKey === activeBasemap) return true;
+
+  // El relieve 3D depende de tiles online (Esri + DEM de S3).
+  // Sin conexión (en modo offline) se avisa y se mantiene el fondo actual.
+  if (
+    targetKey === 'relieve3d' &&
+    USE_OFFLINE_TILES &&
+    typeof navigator !== 'undefined' &&
+    navigator.onLine === false
+  ) {
+    mostrarAviso('Se requiere conexión a internet para visualizar este mapa');
+    return false;
+  }
+
   const overlayLayers = ['clara-layer', 'satelite-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
@@ -315,4 +394,5 @@ function switchBasemap(targetKey, map, activeBasemap) {
       duration: 1800
     });
   }
+  return true;
 }

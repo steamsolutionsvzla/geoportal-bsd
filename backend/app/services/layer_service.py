@@ -83,16 +83,23 @@ async def get_layer_metadata(pool, table_name: str):
         if not table_exists:
             return None
 
-        # 2.2 Cabecera: buscamos por identificador o por nombre de tabla
+        # 2.2 Si el nombre incluye workspace ("ws:capa"), quedarse con la capa.
+        #     Se intenta buscar con y sin el prefijo para máxima compatibilidad.
+        short_name = table_name.split(":", 1)[1] if ":" in table_name else table_name
+
+        # 2.3 Cabecera: buscamos por identificador o por nombre de tabla
         capa = await connection.fetchrow(
             """
             SELECT *
             FROM metadatos.metadata_capa
             WHERE identificador     = $1
                OR nombre_tabla_capa = $1
+               OR identificador     = $2
+               OR nombre_tabla_capa = $2
             LIMIT 1;
             """,
             table_name,
+            short_name,
         )
         if capa is None:
             return None

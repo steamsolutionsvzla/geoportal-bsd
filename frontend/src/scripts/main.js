@@ -44,6 +44,38 @@ setWorkerUrl(maplibreWorkerUrl);
 const BLOQUES_LAYER_NAME = 'Bloques petroleros';
 
 // =========================================================================
+// HELPERS DE ESTILO / ATRIBUTOS
+// =========================================================================
+/**
+ * Busca la config de estilo de una capa en stylesMap.
+ * Las capas especiales (estados, bloques) se guardan como
+ * "workspace:nombre" pero el mapa las llama solo por el nombre corto.
+ */
+function getStyleCapa(name) {
+  if (!name) return undefined;
+  if (stylesMap.has(name)) return stylesMap.get(name);
+  for (const [key, value] of stylesMap) {
+    if (key.split(':').pop() === name) return value;
+  }
+  return undefined;
+}
+
+/**
+ * Resuelve la clave real de un atributo en las properties aunque el
+ * caso no coincida (PostGIS devuelve minúsculas, la config puede tener
+ * mayúsculas del shapefile original).
+ */
+function resolverClaveProp(properties, attr) {
+  if (!attr || !properties) return null;
+  if (Object.prototype.hasOwnProperty.call(properties, attr)) return attr;
+  const lower = String(attr).toLowerCase();
+  for (const k of Object.keys(properties)) {
+    if (k.toLowerCase() === lower) return k;
+  }
+  return null;
+}
+
+// =========================================================================
 // MANEJO DE ERRORES GLOBAL
 // =========================================================================
 function mostrarError(mensaje) {
@@ -163,7 +195,7 @@ try {
     window.handleFeatureClick = (tableName, props, lngLat) => {
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
-      const style = stylesMap.get(tableName);
+      const style = getStyleCapa(tableName);
       if (lngLat) openFeaturePopup(
         map, displayName, props, lngLat,
         style?.visible_attributes ?? null,
@@ -365,16 +397,32 @@ async function cargarCapaEstadosVenezuela() {
     }
 
     if (!map.getLayer(ESTADO_LABEL_LAYER_ID)) {
-      const styleEstados = stylesMap.get('División Político Territorial');
+      const styleEstados = getStyleCapa('División Político Territorial');
+      const attrEstados = styleEstados?.label_attribute || 'entidad';
+      const claveEstados =
+        resolverClaveProp(puntosEtiquetas.features[0]?.properties, attrEstados) || attrEstados;
       map.addLayer({
         id: ESTADO_LABEL_LAYER_ID,
         type: 'symbol',
         source: ESTADO_LABEL_SOURCE_ID,
         layout: {
           'visibility': 'none',
-          'text-field': ['get', styleEstados?.label_attribute || 'entidad'],
-          'text-font': ['Open Sans Bold'],
-          'text-size': 11,
+          'text-field': ['get', claveEstados],
+          'text-font': ['Open Sans Regular'],
+          'text-size': [
+            'interpolate', ['exponential', 1.5], ['zoom'],
+            3, 8,
+            6, 10,
+            10, 12,
+            14, 14,
+          ],
+          'text-max-width': [
+            'interpolate', ['linear'], ['zoom'],
+            3, 4,
+            6, 6,
+            10, 10,
+          ],
+          'text-line-height': 1.15,
           'text-allow-overlap': false,
           'text-ignore-placement': false,
           'text-justify': 'center',
@@ -383,7 +431,11 @@ async function cargarCapaEstadosVenezuela() {
         paint: {
           'text-color': styleEstados?.label_color || '#1a2a3a',
           'text-halo-color': '#ffffff',
-          'text-halo-width': 1.8
+          'text-halo-width': [
+            'interpolate', ['linear'], ['zoom'],
+            3, 1,
+            10, 1.8,
+          ],
         }
       });
     }
@@ -505,26 +557,45 @@ async function cargarCapaBloques() {
     if (map.getLayer(BLOQUE_LABEL_LAYER_ID)) {
       map.removeLayer(BLOQUE_LABEL_LAYER_ID);
     }
-    const styleBloques = stylesMap.get(BLOQUES_LAYER_NAME);
+    const styleBloques = getStyleCapa(BLOQUES_LAYER_NAME);
+    const attrBloques = styleBloques?.label_attribute || 'nombre_bloque';
+    const claveBloques =
+      resolverClaveProp(puntosEtiquetasBloques.features[0]?.properties, attrBloques) || attrBloques;
     map.addLayer({
       id: BLOQUE_LABEL_LAYER_ID,
       type: 'symbol',
       source: BLOQUE_LABEL_SOURCE_ID,
       layout: {
         'visibility': 'none',
-        'text-field': ['get', styleBloques?.label_attribute || 'nombre_bloque'],
-        'text-font': ['Open Sans Bold'],
-        'text-size': 12,
+        'text-field': ['get', claveBloques],
+        'text-font': ['Open Sans Regular'],
+        'text-size': [
+          'interpolate', ['exponential', 1.5], ['zoom'],
+          3, 8,
+          6, 10,
+          10, 12,
+          14, 14,
+        ],
+        'text-max-width': [
+          'interpolate', ['linear'], ['zoom'],
+          3, 4,
+          6, 6,
+          10, 10,
+        ],
+        'text-line-height': 1.15,
         'text-allow-overlap': false,
         'text-ignore-placement': false,
         'text-justify': 'center',
-        'text-max-width': 10,
         'symbol-placement': 'point'
       },
       paint: {
         'text-color': styleBloques?.label_color || '#3b1650',
         'text-halo-color': '#ffffff',
-        'text-halo-width': 1.4
+        'text-halo-width': [
+          'interpolate', ['linear'], ['zoom'],
+          3, 1,
+          10, 1.4,
+        ],
       }
     });
 
@@ -602,16 +673,24 @@ function aplicarEtiquetasCapa(tableName, data, style) {
   const features = data?.features || [];
   if (!features.length) return;
 
+  // Resolver el atributo contra las properties reales (tolerante a mayúsculas)
+  const primerasProps = features[0]?.properties || {};
+  const claveAttr =
+    resolverClaveProp(primerasProps, style.label_attribute) || style.label_attribute;
+
   const puntos = { type: 'FeatureCollection', features: [] };
   features.forEach((f) => {
     try {
       const gtype = f.geometry?.type;
       let punto;
+      const props = f.properties || {};
+      const valor = props[claveAttr] ?? props[style.label_attribute];
+      const propsLabel = { ...props, _label: valor == null ? '' : String(valor) };
       if (gtype === 'Point') {
-        punto = { type: 'Feature', properties: f.properties || {}, geometry: f.geometry };
+        punto = { type: 'Feature', properties: propsLabel, geometry: f.geometry };
       } else {
         punto = turf.centerOfMass(f);
-        punto.properties = f.properties || {};
+        punto.properties = propsLabel;
       }
       puntos.features.push(punto);
     } catch (e) { /* feature sin geometría válida */ }
@@ -628,19 +707,37 @@ function aplicarEtiquetasCapa(tableName, data, style) {
     type: 'symbol',
     source: sourceId,
     layout: {
-      'text-field': ['get', style.label_attribute],
-      'text-font': ['Open Sans Bold'],
-      'text-size': 12,
+      'text-field': ['get', '_label'],
+      'text-font': ['Open Sans Regular'],
+      // Zoom bajo: texto pequeño y con ajuste de línea para que quepa
+      // dentro del polígono; zoom alto: tamaño normal.
+      'text-size': [
+        'interpolate', ['exponential', 1.5], ['zoom'],
+        3, 8,
+        6, 10,
+        10, 12,
+        14, 14,
+      ],
+      'text-max-width': [
+        'interpolate', ['linear'], ['zoom'],
+        3, 4,
+        6, 6,
+        10, 10,
+      ],
+      'text-line-height': 1.15,
       'text-allow-overlap': false,
       'text-ignore-placement': false,
       'text-justify': 'center',
-      'text-max-width': 10,
       'symbol-placement': 'point',
     },
     paint: {
       'text-color': style.label_color || '#3b1650',
       'text-halo-color': '#ffffff',
-      'text-halo-width': 1.4,
+      'text-halo-width': [
+        'interpolate', ['linear'], ['zoom'],
+        3, 1,
+        10, 1.4,
+      ],
     },
   });
 }
@@ -665,7 +762,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
       }
-      const styleEstados = stylesMap.get('División Político Territorial');
+      const styleEstados = getStyleCapa('División Político Territorial');
       const visLabels = (isVisible && styleEstados?.show_labels) ? 'visible' : 'none';
       if (map.getLayer('layer-estados-venezuela-label')) {
         map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', visLabels);
@@ -678,7 +775,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
     if (shortName === BLOQUES_LAYER_NAME) {
       const vis = isVisible ? 'visible' : 'none';
-      const styleBloques = stylesMap.get(BLOQUES_LAYER_NAME);
+      const styleBloques = getStyleCapa(BLOQUES_LAYER_NAME);
       const visLabels = (isVisible && styleBloques?.show_labels) ? 'visible' : 'none';
       const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
       const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
@@ -741,13 +838,13 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         await loadLayerToMap(tableName, map, getAvailableLayers(), (tn, srcId, lyrId, featureCount) => {
           updateLayerFeatureCount(tn, featureCount);
 
-          const style = stylesMap.get(tableName);
+          const style = getStyleCapa(tableName);
           if (style) {
             const layerConfig = getAvailableLayers().find(l => l.id === tableName);
             applyStyle(map, `layer-${tableName}`, layerConfig?.type || 'fill', style);
           }
         });
-        aplicarEtiquetasCapa(tableName, getLayerRawData(tableName), stylesMap.get(tableName));
+        aplicarEtiquetasCapa(tableName, getLayerRawData(tableName), getStyleCapa(tableName));
         // Mantiene el loader hasta que la capa ya está pintada en el mapa
         await esperarMapaListo(map);
       } finally {
