@@ -1,7 +1,13 @@
 // map-config.js
 import { formatearCoordenada } from './utils.js';
 import * as maplibregl from 'maplibre-gl';
+import { setWorkerUrl } from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { Protocol } from 'pmtiles';
+
+// URL correcta del worker de maplibre (en producción la ruta interna
+// ./maplibre-gl-worker.mjs da 404 y el estilo nunca termina de cargar).
+setWorkerUrl(maplibreWorkerUrl);
 
 // Protocolo pmtiles:// para leer archivos PMTiles locales (una sola vez).
 const pmtilesProtocol = new Protocol();
