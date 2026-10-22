@@ -32,6 +32,7 @@ import {
   isRasterLayer, addRasterLayerToMap, removeRasterLayer
 } from './layer-manager.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
+import { beginBusy, endBusy } from './busy-overlay.js';
 
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
@@ -96,21 +97,12 @@ function ocultarError() {
 
 // =========================================================================
 // INDICADOR VISUAL DE CARGA
+// Mientras está visible, busy-overlay.js bloquea toda la interfaz (mapa,
+// capas, filtros, botones y teclado) hasta que la carga termina.
 // =========================================================================
 function mostrarCargando(mostrar) {
-  let loader = document.getElementById('map-loader');
-  const mapContainer = document.getElementById('map');
-  if (!loader && mapContainer) {
-    loader = document.createElement('div');
-    loader.id = 'map-loader';
-    loader.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.85); color: white; padding: 12px 18px; border-radius: 8px; font-size: 0.85rem; z-index: 1000; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); backdrop-filter: blur(4px); pointer-events: none;';
-    loader.innerHTML = '<div style="width: 16px; height: 16px; border: 2px solid #38bdf8; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div> <span>Cargando datos...</span>';
-    const style = document.createElement('style');
-    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
-    mapContainer.appendChild(loader);
-  }
-  if (loader) loader.style.display = mostrar ? 'flex' : 'none';
+  if (mostrar) beginBusy('Cargando datos…');
+  else endBusy();
 }
 
 // =========================================================================
@@ -147,32 +139,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupInfoPanelToggle();
 
       (async () => {
-      await loadWorkspaces();
+        // Un único bloqueo para toda la carga inicial: así el usuario no
+        // puede tocar nada entre una petición y la siguiente.
+        beginBusy('Cargando datos…');
+        try {
+          await loadWorkspaces();
 
-      // Cargar estilos guardados por el analista
+          // Cargar estilos guardados por el analista
+          try {
+            const styles = await fetchStyles();
+            styles.forEach(s => stylesMap.set(s.layer_name, s));
+            applySavedStyleColors(stylesMap);
+          } catch (e) {
+            console.warn('No se pudieron cargar estilos:', e);
+          }
 
-try {
-  const styles = await fetchStyles();
-  styles.forEach(s => stylesMap.set(s.layer_name, s));
-  applySavedStyleColors(stylesMap);
-} catch (e) {
-  console.warn('No se pudieron cargar estilos:', e);
-}
+          if (!IS_SHOWROOM) {
+            await cargarCapaEstadosVenezuela();
+            await cargarCapaBloques();
+            if (estadosGeoJsonCache && bloquesGeoJsonCache) {
+              setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
+            } else {
+              mostrarError('No se pudieron cargar los datos de estados o bloques.');
+            }
+          }
 
-      if (!IS_SHOWROOM) {
-        await cargarCapaEstadosVenezuela();
-        await cargarCapaBloques();
-        if (estadosGeoJsonCache && bloquesGeoJsonCache) {
-          setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
-        } else {
-          mostrarError('No se pudieron cargar los datos de estados o bloques.');
+          const sidebar = document.getElementById('sidebar');
+          attachLayerToggleEvents(sidebar, handleLayerToggle);
+          attachLayerOpacityEvents(sidebar);
+        } finally {
+          endBusy();
         }
-      }
-
-      const sidebar = document.getElementById('sidebar');
-      attachLayerToggleEvents(sidebar, handleLayerToggle);
-      attachLayerOpacityEvents(sidebar);
-    })();
+      })();
 
     function limpiarFiltroEstado() {
       filtroEstadoOriginal();

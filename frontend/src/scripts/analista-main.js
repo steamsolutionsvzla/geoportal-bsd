@@ -11,6 +11,7 @@ import {
 } from './layer-manager.js';
 import { apiFetch, getPaletteForType, hashCode, esperarMapaListo } from './utils.js';
 import { applyStyle } from '../lib/mapStyles.js';
+import { beginBusy, endBusy } from './busy-overlay.js';
 import {
   fetchStyles, saveStyle, resetStyle, fetchLayerAttributes,
 } from '../services/styles.js';
@@ -41,8 +42,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupZoomControls(map);
     setupBasemapSwitcher(map);
 
-    await cargarCapasYEstilos();
-    renderPanel();
+    beginBusy('Cargando capas…');
+    try {
+      await cargarCapasYEstilos();
+      renderPanel();
+    } catch (error) {
+      console.error('No se pudieron cargar las capas:', error);
+    } finally {
+      endBusy();
+    }
   });
 });
 
@@ -342,19 +350,11 @@ function previewEstilo(layer, patch) {
   applyStyle(map, `layer-${layer.id}`, layer.type, patch);
 }
 
-// Loader sobre el mapa mientras se activa una capa
+// Bloqueo de interfaz mientras se activa una capa. Mientras el indicador
+// está visible no se puede interactuar con el mapa ni con el panel.
 function mostrarCargando(mostrar) {
-  const wrap = document.querySelector('.map-wrap');
-  if (!wrap) return;
-  let loader = document.getElementById('map-loader');
-  if (!loader) {
-    loader = document.createElement('div');
-    loader.id = 'map-loader';
-    loader.className = 'map-loader';
-    loader.innerHTML = '<span class="map-loader-spin"></span><span>Cargando datos...</span>';
-    wrap.appendChild(loader);
-  }
-  loader.style.display = mostrar ? 'flex' : 'none';
+  if (mostrar) beginBusy('Cargando datos…');
+  else endBusy();
 }
 
 // ---------------------------------------------------------------------------
@@ -371,11 +371,13 @@ function setExpandido(card, layerId, open) {
 }
 
 async function handleToggle(layer, isVisible, card) {
+  let busy = false;
   try {
     // Capas raster (WMS): sin GeoJSON ni editor de estilo
     if (isRasterLayer(layer)) {
       if (isVisible) {
         mostrarCargando(true);
+        busy = true;
         addRasterLayerToMap(layer, map);
         await esperarMapaListo(map);
       } else {
@@ -387,6 +389,7 @@ async function handleToggle(layer, isVisible, card) {
     }
     if (isVisible) {
       mostrarCargando(true);
+      busy = true;
       await loadLayerToMap(layer.id, map, availableLayers, () => {});
       layerToggleState.set(layer.id, true);
       card.classList.add('active');
@@ -417,7 +420,7 @@ async function handleToggle(layer, isVisible, card) {
     alert(`No se pudo cargar "${layer.name}"`);
     card.querySelector('[data-rol="toggle"]').checked = false;
   } finally {
-    mostrarCargando(false);
+    if (busy) mostrarCargando(false);
   }
   actualizarContador();
 }

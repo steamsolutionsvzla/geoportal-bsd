@@ -1,0 +1,66 @@
+/* Bloqueo de interfaz mientras hay una carga en curso (ver busy-overlay.js) */
+
+.app-busy-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000; /* por encima de topbar, paneles y popups del mapa */
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+  -webkit-backdrop-filter: blur(2px) saturate(0.92);
+  backdrop-filter: blur(2px) saturate(0.92);
+  cursor: progress;
+  touch-action: none;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.app-busy-overlay[hidden] {
+  display: none;
+}
+
+.app-busy-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(90vw, 340px);
+  padding: 16px 22px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.45);
+}
+
+.app-busy-spinner {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid #38bdf8;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: app-busy-spin 0.75s linear infinite;
+}
+
+html.is-app-busy,
+html.is-app-busy body {
+  cursor: progress;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@keyframes app-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-busy-spinner {
+    animation-duration: 1.6s;
+  }
+}

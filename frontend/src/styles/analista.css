@@ -324,31 +324,3 @@
   }
 }
 
-/* ---------- Loader del mapa ---------- */
-.map-loader {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1000;
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.85);
-  color: #fff;
-  font-size: 0.85rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(4px);
-  pointer-events: none;
-}
-.map-loader-spin {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #38bdf8;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: an-spin .8s linear infinite;
-}
-@keyframes an-spin { to { transform: rotate(360deg); } }

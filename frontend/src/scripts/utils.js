@@ -56,6 +56,14 @@ export function refreshCount(elementId = 'layerCount') {
   el.textContent = active + (active === 1 ? ' activa' : ' activas');
 }
 
+const LEGEND_GEOM_LABELS = {
+  fill: 'Polígono',
+  line: 'Línea',
+  circle: 'Punto',
+  point: 'Punto',
+  raster: 'Ráster'
+};
+
 export function updateLegendUI(availableLayers, legendListId = 'legendList') {
   const legendList = document.getElementById(legendListId) || document.querySelector('.legend-content');
   if (!legendList) return;
@@ -64,12 +72,15 @@ export function updateLegendUI(availableLayers, legendListId = 'legendList') {
 
   const activeToggles = document.querySelectorAll('.toggle.on[data-table]');
   if (activeToggles.length === 0) {
-    legendList.innerHTML = '<div style="font-size: 0.8rem; color: var(--muted-500); padding: 8px; text-align: center;">No hay capas activas en el mapa.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'legend-empty';
+    empty.textContent = 'No hay capas activas en el mapa.';
+    legendList.appendChild(empty);
     return;
   }
 
   const categoryTitle = document.createElement('div');
-  categoryTitle.style.cssText = 'font-size: 0.75rem; font-weight: bold; color: var(--muted-500); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;';
+  categoryTitle.className = 'legend-category-title';
   categoryTitle.textContent = 'Capas Activas';
   legendList.appendChild(categoryTitle);
 
@@ -78,29 +89,35 @@ export function updateLegendUI(availableLayers, legendListId = 'legendList') {
     const matchingLayers = availableLayers.filter(l => l.id === tableName);
 
     matchingLayers.forEach(layerConfig => {
+      const geomType = String(layerConfig.type || 'fill').toLowerCase();
       const item = document.createElement('div');
       item.className = 'legend-item';
-      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05);';
 
-      let symbolHTML = '';
-      if (layerConfig.type === 'fill') {
-        symbolHTML = `<div style="width: 20px; height: 14px; background: ${layerConfig.color || '#3182ce'}; opacity: 0.8; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
-      } else if (layerConfig.type === 'raster') {
-        symbolHTML = `<div style="width: 20px; height: 14px; background: linear-gradient(135deg,#8fae7a,#d8c9a3 60%,#9fb7c9); opacity: 0.9; border: 1px solid #000; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
-      } else if (layerConfig.type === 'line') {
-        symbolHTML = `<div style="width: 24px; height: 4px; background: ${layerConfig.color || '#3182ce'}; border-radius: 2px; margin-right: 10px; flex-shrink: 0;"></div>`;
-      } else {
-        symbolHTML = `
-          <div style="width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-right: 10px; flex-shrink: 0;">
-            <div style="width: 10px; height: 10px; background: ${layerConfig.color || '#6fa3e0'}; border: 1.5px solid #ffffff; border-radius: 50%; box-shadow: 0 0 0 1px #000;"></div>
-          </div>`;
+      const swatch = document.createElement('div');
+      swatch.className = 'legend-swatch';
+      swatch.style.background = layerConfig.color || '#3182ce';
+
+      if (geomType === 'line') {
+        swatch.classList.add('line');
+      } else if (geomType === 'raster') {
+        swatch.style.background = 'linear-gradient(135deg,#8fae7a,#d8c9a3 60%,#9fb7c9)';
+      } else if (geomType === 'circle' || geomType === 'point') {
+        swatch.classList.add('point');
       }
 
-      item.innerHTML = `
-        <span style="font-size: 0.8rem; color: var(--paper-100); font-weight: 500;">${layerConfig.name}</span>
-        ${symbolHTML}
-      `;
+      const text = document.createElement('div');
+      text.className = 'legend-text';
 
+      const title = document.createElement('div');
+      title.className = 'lt-title';
+      title.textContent = layerConfig.name || tableName;
+
+      const sub = document.createElement('div');
+      sub.className = 'lt-sub';
+      sub.textContent = LEGEND_GEOM_LABELS[geomType] || 'Capa';
+
+      text.append(title, sub);
+      item.append(swatch, text);
       legendList.appendChild(item);
     });
   });

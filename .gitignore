@@ -79,6 +79,23 @@ Thumbs.db
 desktop.ini
 
 # ---------- Artefactos locales ----------
-.archify/
 frontend/tiles-generate.err
+
+# ---------- Mapa offline del geoportal ----------
+# Tiles generados con frontend/scripts/generate-offline-tiles.py
+frontend/public/tiles/
+frontend/tiles-generate.log
+
+# ---------- Agentes / skills (no versionar) ----------
+# Salidas y configuracion local de las skills de agentes
+.archify/
+video/
+.agents/
+.claude/
+.cursor/
+.windsurf/
+.codex/
+.gemini/
+.dsh/
+*.skill
 

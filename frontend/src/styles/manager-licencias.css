@@ -1,0 +1,447 @@
+/* =========================================================
+   Dashboard gerencial de licencias
+   ========================================================= */
+
+.manager-licencias {
+  scroll-margin-top: 86px;
+  margin-top: 4px;
+}
+
+.manager-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 6px 0 18px;
+}
+
+.manager-section-head h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.45rem;
+  color: var(--navy-900, #0f1e3d);
+  margin: 0 0 4px;
+}
+
+.manager-section-head p {
+  color: var(--ink-400, #6b7280);
+  font-size: .86rem;
+  margin: 0;
+}
+
+.manager-eyebrow {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .64rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--navy-600, #2d5296);
+  margin-bottom: 7px;
+}
+
+.manager-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  color: var(--ink-400, #6b7280);
+  white-space: nowrap;
+}
+
+.manager-status.is-error {
+  color: #b91c1c;
+}
+
+/* ---------- Filtros ---------- */
+.licencias-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fff;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.licencias-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 150px;
+}
+
+.licencias-filter label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-400, #6b7280);
+}
+
+.licencias-filter select,
+.licencias-search input {
+  height: 34px;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--navy-900, #0f1e3d);
+  font-family: 'Inter', sans-serif;
+  font-size: .82rem;
+  padding: 0 10px;
+  outline: none;
+}
+
+.licencias-filter select:focus,
+.licencias-search input:focus {
+  border-color: var(--navy-600, #2d5296);
+  box-shadow: 0 0 0 3px rgba(45, 82, 150, .08);
+}
+
+.licencias-filter select {
+  min-width: 165px;
+  cursor: pointer;
+}
+
+.licencias-clear {
+  height: 34px;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink-500, #4b5563);
+  font-size: .8rem;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.licencias-clear:hover {
+  border-color: var(--navy-600, #2d5296);
+  color: var(--navy-700, #1e3a6e);
+}
+
+.licencias-search {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: auto;
+  min-width: 260px;
+}
+
+.licencias-search input {
+  width: 100%;
+  min-width: 260px;
+}
+
+/* ---------- KPIs ---------- */
+.manager-kpis.kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.manager-kpis .kpi-card {
+  padding: 18px 18px 16px;
+}
+
+.manager-kpis .kpi-value {
+  font-size: 2rem;
+}
+
+.kpi-hint {
+  margin-top: 7px;
+  font-size: .72rem;
+  color: var(--ink-400, #6b7280);
+}
+
+/* ---------- Mapa + gráficos ---------- */
+.manager-viz {
+  display: grid;
+  grid-template-columns: minmax(190px, .78fr) minmax(0, 1.75fr) minmax(190px, .78fr);
+  grid-template-rows: 260px 260px;
+  grid-template-areas:
+    "tipo mapa empresa"
+    "estatus mapa anio";
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.manager-chart-card {
+  background: #fff;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 14px;
+  padding: 14px 16px 8px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.manager-chart-card h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--navy-900, #0f1e3d);
+  margin: 0 0 2px;
+}
+
+.manager-chart-card .chart-sub {
+  font-size: .7rem;
+  color: var(--ink-400, #6b7280);
+  margin: 0 0 4px;
+}
+
+.manager-chart-box {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.manager-viz-area-tipo { grid-area: tipo; }
+.manager-viz-area-estatus { grid-area: estatus; }
+.manager-viz-area-empresa { grid-area: empresa; }
+.manager-viz-area-anio { grid-area: anio; }
+
+.manager-map-card {
+  grid-area: mapa;
+  position: relative;
+  min-height: 536px;
+  background: #e8eef5;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Mayor especificidad que `.maplibregl-map` (maplibre-gl.css se carga
+   después y si no, fuerza position:relative y el contenedor queda en 0px). */
+.manager-map-card .manager-map {
+  position: absolute;
+  inset: 0;
+}
+
+.manager-map-reset {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgba(203, 213, 225, .95);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .96);
+  color: var(--navy-700, #1e3a6e);
+  font-family: 'Inter', sans-serif;
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(15, 30, 61, .12);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.manager-map-reset:hover {
+  border-color: var(--navy-600, #2d5296);
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(15, 30, 61, .16);
+}
+
+.manager-map-reset:focus-visible {
+  outline: 2px solid var(--navy-600, #2d5296);
+  outline-offset: 2px;
+}
+
+.manager-map-reset svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.manager-map-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, .94);
+  border: 1px solid rgba(229, 231, 235, .95);
+  border-radius: 9px;
+  box-shadow: 0 4px 14px rgba(15, 30, 61, .08);
+}
+
+.manager-map-legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .7rem;
+  color: var(--ink-500, #4b5563);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.legend-dot.vigente { background: rgba(21, 128, 61, .58); border: 1px solid #166534; }
+.legend-dot.culminada { background: rgba(220, 38, 38, .58); border: 1px solid #991b1b; }
+.legend-dot.borde { background: transparent; border: 1.5px solid #1a365d; }
+
+.manager-map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(246, 248, 252, .88);
+  color: var(--ink-500, #4b5563);
+  font-size: .82rem;
+  backdrop-filter: blur(2px);
+}
+
+.manager-map-loading[hidden],
+.manager-map-error[hidden] {
+  display: none !important;
+}
+
+.manager-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #93b4df;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: manager-spin .8s linear infinite;
+}
+
+@keyframes manager-spin {
+  to { transform: rotate(360deg); }
+}
+
+.manager-map-error {
+  position: absolute;
+  inset: auto 14px 14px 14px;
+  z-index: 4;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: .76rem;
+}
+
+/* ---------- Tabla ---------- */
+.manager-table-card {
+  margin-top: 4px;
+}
+
+.manager-table-head p {
+  margin: 3px 0 0;
+  font-size: .75rem;
+  color: var(--ink-400, #6b7280);
+}
+
+.manager-table-scroll {
+  overflow-x: auto;
+}
+
+.manager-table {
+  min-width: 1020px;
+}
+
+.manager-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.manager-table th[data-sort]:hover {
+  color: var(--navy-700, #1e3a6e);
+}
+
+.manager-table th[data-sort]::after {
+  content: ' ↕';
+  color: #a8b2c1;
+  font-size: .78em;
+}
+
+.manager-table th[data-dir="asc"]::after { content: ' ↑'; color: var(--navy-600, #2d5296); }
+.manager-table th[data-dir="desc"]::after { content: ' ↓'; color: var(--navy-600, #2d5296); }
+
+.manager-table tbody tr {
+  cursor: pointer;
+}
+
+.manager-table tbody tr.is-selected {
+  background: #eef4ff;
+}
+
+.manager-table .area-cell,
+.manager-table .year-cell {
+  white-space: nowrap;
+}
+
+.manager-table .btn-map {
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--navy-700, #1e3a6e);
+  font-size: .7rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.manager-table .btn-map:hover {
+  border-color: var(--navy-600, #2d5296);
+  background: var(--navy-50, #f6f8fc);
+}
+
+.manager-table .badge.red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.manager-empty {
+  padding: 26px 20px;
+  text-align: center;
+  color: var(--ink-400, #6b7280);
+  font-size: .84rem;
+}
+
+@media (max-width: 1080px) {
+  .manager-kpis.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-viz {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: 420px 250px 250px;
+    grid-template-areas:
+      "mapa mapa"
+      "tipo empresa"
+      "estatus anio";
+  }
+  .manager-map-card { min-height: 420px; }
+}
+
+@media (max-width: 720px) {
+  .licencias-filters { align-items: stretch; }
+  .licencias-filter,
+  .licencias-search { min-width: 100%; width: 100%; margin-left: 0; }
+  .licencias-search input { min-width: 0; }
+  .manager-kpis.kpi-grid { grid-template-columns: 1fr; }
+  .manager-viz {
+    grid-template-columns: 1fr;
+    grid-template-rows: 360px 235px 235px 235px 235px;
+    grid-template-areas:
+      "mapa"
+      "tipo"
+      "estatus"
+      "empresa"
+      "anio";
+  }
+  .manager-map-card { min-height: 360px; }
+}

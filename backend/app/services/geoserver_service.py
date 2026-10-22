@@ -23,6 +23,10 @@ _GEOM_BINDING_TO_TYPE = {
 _LAYER_MAPPING_CACHE = {}
 _LAYER_MAPPING_CACHE_TIME = 0
 
+# Workspaces que solo se consumen desde endpoints dedicados y no deben
+# aparecer en el catálogo general del geoportal.
+HIDDEN_CATALOG_WORKSPACES = {"gerencia"}
+
 # Logger (opcional, puedes descomentar para depuración)
 # logger = logging.getLogger(__name__)
 
@@ -328,6 +332,8 @@ class GeoServerService:
         """Lista plana de capas del workspace configurado en settings (legacy)."""
         base_url = settings.GEOSERVER_URL.rstrip('/')
         workspace = settings.GEOSERVER_WORKSPACE
+        if workspace.strip().casefold() in HIDDEN_CATALOG_WORKSPACES:
+            return []
         auth = GeoServerService._auth()
         async with httpx.AsyncClient(timeout=30.0) as client:
             return await GeoServerService._collect_layers_for_workspace(client, base_url, workspace, auth)
@@ -353,6 +359,12 @@ class GeoServerService:
 
                 workspaces = _json_items(resp.json(), "workspaces", "workspace")
                 names = [w["name"] for w in workspaces if w.get("name")]
+                # El workspace gerencial se consume solo desde
+                # /api/v1/manager/licenses; nunca desde el catálogo general.
+                names = [
+                    n for n in names
+                    if n.strip().casefold() not in HIDDEN_CATALOG_WORKSPACES
+                ]
                 if only is not None:  # set en casefold; None = todos
                     names = [n for n in names if n.strip().casefold() in only]
                 result = []
