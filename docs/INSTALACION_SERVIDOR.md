@@ -485,6 +485,10 @@ docker compose exec \
 Recorre los workspaces `Petróleo_y_gas` y `Showroom`, calcula bbox/campos y hace UPSERT en
 `metadatos.metadata_capa`.
 
+> El script **no crea** el esquema `metadatos` ni sus tablas: debe existir previamente
+> (normalmente viene en el respaldo de la base). Si la base es nueva, restaure el dump
+> antes de ejecutar este paso.
+
 ### 10.3 Roles de Odoo
 
 El backend acepta los roles `Administrador`, `Rol_gerente` y `Rol_analista`
