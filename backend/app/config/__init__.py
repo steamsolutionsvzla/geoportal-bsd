@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------
     ODOO_URL: str = "https://bsd.steamsolutions.tech"
     ODOO_DB: str = "bsd"          # 👈 ESTA LÍNEA ES LA QUE FALTABA
+    MAPTILER_KEY: str = ""        # clave pública opcional para /api/config
     AUTH_MOCK: bool = False       # SOLO desarrollo local. Nunca true en producción.
 
     @computed_field

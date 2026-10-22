@@ -1,0 +1,52 @@
+# =============================================================
+# Geoportal BSD - Backend (plantilla)
+# -------------------------------------------------------------
+# Copiar como docker-compose.yml en la raíz del proyecto:
+#     cp docker-compose.example.yml docker-compose.yml
+# Requiere:
+#   1) .env creado a partir de .env.example
+#   2) red externa: docker network create geoportal-net
+#   3) PostgreSQL/PostGIS accesible desde el contenedor
+# =============================================================
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: geoportal-bsd-backend:latest
+    container_name: backend-geoportal
+    restart: always
+    ports:
+      # BIND_ADDR:host:contenedor. 127.0.0.1 deja el puerto solo para Nginx.
+      - "${BIND_ADDR:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+      - GEOSERVER_URL=${GEOSERVER_URL}
+      - GEOSERVER_USER=${GEOSERVER_USER}
+      - GEOSERVER_PASSWORD=${GEOSERVER_PASSWORD}
+      - GEOSERVER_WORKSPACE=${GEOSERVER_WORKSPACE}
+      - MAPTILER_KEY=${MAPTILER_KEY}
+      - ODOO_URL=${ODOO_URL}
+      - ODOO_DB=${ODOO_DB}
+      - AUTH_MOCK=${AUTH_MOCK:-False}
+      - DEBUG=${DEBUG:-False}
+    extra_hosts:
+      # Permite llegar al PostgreSQL del host como host.docker.internal.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend/storage:/app/storage
+    networks:
+      - geoportal-net
+
+networks:
+  geoportal-net:
+    external: true
+    name: geoportal-net

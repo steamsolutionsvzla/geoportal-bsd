@@ -27,7 +27,9 @@ backend/.dockerignore
 
 # ---------- GeoServer (datos, logs y credenciales) ----------
 geoserver_data/
-geoserver/
+# Solo se versiona la plantilla de Docker Compose de GeoServer
+geoserver/*
+!geoserver/docker-compose.example.yml
 
 # ---------- Backend (Python / FastAPI) ----------
 backend/app/config.py

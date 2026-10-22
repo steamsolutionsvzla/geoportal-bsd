@@ -1,0 +1,42 @@
+# =============================================================
+# Geoportal BSD - GeoServer (plantilla)
+# -------------------------------------------------------------
+# Copiar como geoserver/docker-compose.yml:
+#     cp geoserver/docker-compose.example.yml geoserver/docker-compose.yml
+# Requiere:
+#   1) red externa: docker network create geoportal-net
+#   2) carpeta geoserver/geoserver_data (datos de GeoServer)
+#   3) editar las credenciales de este archivo (deben coincidir con .env)
+# =============================================================
+
+services:
+  geoserver:
+    image: docker.osgeo.org/geoserver:3.0.1
+    container_name: geoserver-bsd
+    restart: unless-stopped
+    ports:
+      # BIND_ADDR:host:contenedor. Deja la consola solo en el servidor.
+      - "${BIND_ADDR:-127.0.0.1}:${GEOSERVER_PORT:-8081}:8080"
+    environment:
+      - GEOSERVER_ADMIN_USER=admin
+      - GEOSERVER_ADMIN_PASSWORD=CAMBIA_ESTA_CLAVE
+      # Conexión JNDI a PostgreSQL/PostGIS del host.
+      - POSTGRES_JNDI_ENABLED=true
+      - POSTGRES_HOST=host.docker.internal
+      - POSTGRES_PORT=5433
+      - POSTGRES_DB=petroleo_db
+      - POSTGRES_USERNAME=geoportal
+      - POSTGRES_PASSWORD=CAMBIA_ESTA_CLAVE
+      - POSTGRES_JNDI_RESOURCE_NAME=jdbc/PostGISDB
+    volumes:
+      # Datos, estilos, stores y capas publicadas de GeoServer.
+      - ./geoserver_data:/opt/geoserver_data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - geoportal-net
+
+networks:
+  geoportal-net:
+    external: true
+    name: geoportal-net
