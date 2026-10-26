@@ -28,7 +28,7 @@ const CARTO_KEY = 'cb1_33kc_1_d2fff4a23840225df4cca1fa';
 //  El Relieve 3D siempre es online: si no hay conexión y se
 //  selecciona, aparece un aviso.
 // ============================================================
-export const USE_OFFLINE_TILES = false;
+export const USE_OFFLINE_TILES = true;
 
 
 // ============================================================
