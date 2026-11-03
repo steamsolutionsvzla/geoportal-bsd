@@ -318,6 +318,100 @@ input { font-family: inherit; }
 }
 .loc-option.selected::after { opacity: 1; transform: scale(1); }
 
+/* ---------- FILTRO POR ÁREA TEMPORAL ---------- */
+[hidden] { display: none !important; }
+
+.area-filter .loc-filter-dropdown,
+.area-dropdown {
+  max-height: 380px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.area-upload-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px dashed var(--line-600);
+  border-radius: var(--radius-s);
+  background: var(--paper-2);
+  color: var(--accent-navy);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.area-upload-btn:hover { border-color: var(--accent-navy); background: var(--white); }
+.area-upload-btn:disabled { opacity: .55; cursor: wait; }
+
+.area-file-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 8px;
+  border-radius: var(--radius-s);
+  background: var(--accent-navy-soft);
+  border: 1px solid rgba(18, 43, 90, 0.12);
+}
+.area-file-name {
+  flex: 1; min-width: 0;
+  font-size: 0.72rem;
+  color: var(--accent-navy-dim);
+  font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.area-clear-btn {
+  width: 22px; height: 22px;
+  border: 1px solid rgba(193, 88, 74, 0.35);
+  border-radius: 50%;
+  background: var(--white);
+  color: #c1584a;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.area-clear-btn:hover { background: #fef2f2; border-color: #c1584a; }
+
+.area-label-field {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.area-label-field > span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-500);
+}
+.area-label-field select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--line-700);
+  border-radius: var(--radius-s);
+  background: var(--white);
+  color: var(--accent-navy-dim);
+  font-size: 0.74rem;
+}
+
+.area-entity-list {
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 176px;
+  overflow-y: auto;
+}
+.area-entity-list .loc-option { padding: 7px 8px; }
+.area-entity-list:empty { display: none; }
+
+.area-hint, .area-error {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--muted-500);
+}
+.area-error { color: #b91c1c; }
+
+
 /* ---------- LISTA DE CAPAS ---------- */
 .layers-scroll-area { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 .layer-group { margin-bottom: 2px; }
@@ -584,7 +678,7 @@ input { font-family: inherit; }
 .basemap-option:hover { background: var(--paper-2); }
 .basemap-option.active { background: var(--accent-navy-soft); border-color: var(--accent-navy); }
 .basemap-preview { width: 36px; height: 36px; border-radius: var(--radius-s); border: 1px solid var(--line-700); flex-shrink: 0; }
-.bm-light { background: linear-gradient(135deg, #eef2f6, #a9b7c9); }
+.bm-light { background: linear-gradient(135deg, #f7f5f0 0%, #ddd6c8 38%, #c8c0b0 62%, #eeebe4 100%); }
 .bm-sat { background: linear-gradient(135deg, #2a3444, #0e1420); }
 .basemap-info { display: flex; flex-direction: column; overflow: hidden; }
 .bm-name { font-size: 0.78rem; font-weight: 600; color: var(--accent-navy-dim); }
@@ -612,6 +706,100 @@ input { font-family: inherit; }
 }
 .zoom-btn:first-child { border-bottom: 1px solid var(--line-700); }
 .zoom-btn:hover { background: var(--paper-2); color: var(--accent-navy); }
+
+/* ---------- HERRAMIENTAS DE MAPA (dibujo / medición) ---------- */
+.map-tools {
+  position: absolute;
+  top: 64px; left: 10px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.map-tool-btn {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid var(--line-700);
+  color: var(--accent-navy-dim);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+}
+.map-tool-btn:hover {
+  background: var(--paper-2);
+  border-color: var(--accent-navy);
+  color: var(--accent-navy);
+  transform: scale(1.04);
+}
+.map-tool-btn.active {
+  background: var(--accent-navy);
+  border-color: var(--accent-navy);
+  color: #ffffff;
+  box-shadow: 0 0 0 3px var(--accent-navy-soft);
+}
+.map-tool-subtle {
+  width: 30px; height: 30px;
+  margin-left: 4px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--muted-500);
+}
+
+.map-tool-hint {
+  position: absolute;
+  top: 64px; left: 56px;
+  z-index: 11;
+  max-width: min(360px, 52vw);
+  padding: 8px 11px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  box-shadow: var(--shadow-2);
+  pointer-events: none;
+}
+.map-tool-hint.error { background: rgba(153, 27, 27, 0.95); }
+
+.measure-chip {
+  position: absolute;
+  bottom: 18px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px 8px 12px;
+  background: var(--white);
+  border: 1px solid var(--line-700);
+  border-radius: 999px;
+  box-shadow: var(--shadow-2);
+  white-space: nowrap;
+}
+.measure-chip-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-500);
+}
+.measure-chip b {
+  font-size: 0.82rem;
+  color: #c1584a;
+}
+.measure-chip button {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-700);
+  background: var(--white);
+  color: var(--muted-500);
+  font-size: 0.68rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.measure-chip button:hover { background: var(--paper-2); color: #c1584a; border-color: #c1584a; }
+
 
 /* ---------- LEYENDA ---------- */
 .legend-switch { position: absolute; bottom: 18px; right: 62px; z-index: 10; }

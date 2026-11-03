@@ -11,10 +11,15 @@ import * as XLSX from 'xlsx';
 // ========================================================================
 let currentFilterData = null;
 let currentBloqueFilterData = null;
+let currentAreaFilterData = null;
+let currentIntersectionFilterData = null;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
+let isAreaFilterActive = false;
+let isIntersectionFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
+let areaSeleccionada = '';
 
 let selectedLayerTableName = null;
 let selectedLayerDisplayName = null;
@@ -121,10 +126,15 @@ async function getLogoBase64() {
 export function setInfoPanelData(data) {
   if (data.currentFilterData !== undefined) currentFilterData = data.currentFilterData;
   if (data.currentBloqueFilterData !== undefined) currentBloqueFilterData = data.currentBloqueFilterData;
+  if (data.currentAreaFilterData !== undefined) currentAreaFilterData = data.currentAreaFilterData;
+  if (data.currentIntersectionFilterData !== undefined) currentIntersectionFilterData = data.currentIntersectionFilterData;
   if (data.isFilterActive !== undefined) isFilterActive = data.isFilterActive;
   if (data.isBloqueFilterActive !== undefined) isBloqueFilterActive = data.isBloqueFilterActive;
+  if (data.isAreaFilterActive !== undefined) isAreaFilterActive = data.isAreaFilterActive;
+  if (data.isIntersectionFilterActive !== undefined) isIntersectionFilterActive = data.isIntersectionFilterActive;
   if (data.estadoSeleccionado !== undefined) estadoSeleccionado = data.estadoSeleccionado;
   if (data.bloqueSeleccionado !== undefined) bloqueSeleccionado = data.bloqueSeleccionado;
+  if (data.areaSeleccionada !== undefined) areaSeleccionada = data.areaSeleccionada;
 }
 
 export function showLayerMetadataInPanel(tableName, displayName) {
@@ -179,17 +189,21 @@ export function renderInfoPanel() {
   const selectedLayerMetadataHtml = buildSelectedLayerMetadataHtml();
   const filterHtml = (isFilterActive && currentFilterData) ? buildFilterSummaryHtml() : '';
   const bloqueFilterHtml = (isBloqueFilterActive && currentBloqueFilterData) ? buildBloqueFilterSummaryHtml() : '';
+  const areaFilterHtml = (isAreaFilterActive && currentAreaFilterData) ? buildAreaFilterSummaryHtml() : '';
+  const intersectionFilterHtml = (isIntersectionFilterActive && currentIntersectionFilterData) ? buildIntersectionFilterSummaryHtml() : '';
 
   let html = '';
   let bloques = [];
   if (selectedLayerMetadataHtml) bloques.push(selectedLayerMetadataHtml);
   if (filterHtml) bloques.push(filterHtml);
   if (bloqueFilterHtml) bloques.push(bloqueFilterHtml);
+  if (areaFilterHtml) bloques.push(areaFilterHtml);
+  if (intersectionFilterHtml) bloques.push(intersectionFilterHtml);
 
   if (bloques.length > 0) {
     html = bloques.join('');
   } else {
-    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado o un bloque y aplique el filtro, o haga clic en un punto/línea/polígono del mapa, para ver los metadatos de su capa.</p></div>`;
+    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado, un bloque o un área y aplique el filtro, o haga clic en un punto/línea/polígono del mapa, para ver los metadatos de su capa.</p></div>`;
   }
 
   infoContent.innerHTML = html;
@@ -204,6 +218,8 @@ export function renderInfoPanel() {
 
   if (filterHtml) attachFilterDownloadListeners();
   if (bloqueFilterHtml) attachBloqueFilterDownloadListeners();
+  if (areaFilterHtml) attachAreaFilterDownloadListeners();
+  if (intersectionFilterHtml) attachIntersectionFilterDownloadListeners();
 
   const infoPanel = document.getElementById('infoPanel');
   if (infoPanel && infoPanel.classList.contains('collapsed')) {
@@ -255,6 +271,55 @@ function buildBloqueFilterSummaryHtml() {
     html += `<button type="button" id="downloadExcelBtnBloque" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterBloqueBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de bloque</button>`;
+  html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
+  html += `</div>`;
+  return html;
+}
+
+function buildAreaFilterSummaryHtml() {
+  if (!currentAreaFilterData) return '';
+  const { areaSeleccionada: areaNombre, totalElementos, capasContadas, rowsHtml } = currentAreaFilterData;
+  let html = `<div class="info-card filter-card" data-filter="area"><div class="ic-label">Área: ${areaNombre}</div><hr class="info-divider">`;
+  html += `<div class="info-table-wrap"><table id="tablaElementosArea" class="info-table">`;
+  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
+  html += rowsHtml;
+  if (capasContadas === 0) {
+    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos o líneas activas dentro del área.</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+  if (capasContadas > 0) {
+    html += `<div class="info-total"><span>Total de puntos y líneas en el área</span><b>${totalElementos}</b></div>`;
+    html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadExcelBtnArea" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
+  }
+  html += `<button type="button" id="clearFilterAreaBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de área</button>`;
+  html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
+  html += `</div>`;
+  return html;
+}
+
+function buildIntersectionFilterSummaryHtml() {
+  if (!currentIntersectionFilterData) return '';
+  const {
+    interseccionSeleccionada,
+    totalElementos,
+    capasContadas,
+    rowsHtml
+  } = currentIntersectionFilterData;
+  let html = `<div class="info-card filter-card" data-filter="interseccion"><div class="ic-label">Intersección: ${interseccionSeleccionada}</div><hr class="info-divider">`;
+  html += `<div class="info-table-wrap"><table id="tablaElementosInterseccion" class="info-table">`;
+  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
+  html += rowsHtml;
+  if (capasContadas === 0) {
+    html += `<tr><td colspan="2" class="info-table-empty">No hay puntos ni líneas dentro del estado y del área seleccionados.</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+  if (capasContadas > 0) {
+    html += `<div class="info-total"><span>Total en la intersección</span><b>${totalElementos}</b></div>`;
+    html += `<button type="button" id="downloadPdfBtnInterseccion" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadExcelBtnInterseccion" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
+  }
+  html += `<button type="button" id="clearFilterInterseccionBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar ambos filtros</button>`;
   html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
   html += `</div>`;
   return html;
@@ -334,6 +399,53 @@ function attachBloqueFilterDownloadListeners() {
   if (clearBloqueBtn) {
     clearBloqueBtn.addEventListener('click', () => {
       if (typeof window.limpiarFiltroBloque === 'function') window.limpiarFiltroBloque();
+    });
+  }
+}
+
+function attachAreaFilterDownloadListeners() {
+  if (!currentAreaFilterData) return;
+  const { areaSeleccionada: areaNombre, totalElementos, capasDetalleMap } = currentAreaFilterData;
+  const downloadPdfBtnArea = document.getElementById('downloadPdfBtnArea');
+  if (downloadPdfBtnArea) {
+    downloadPdfBtnArea.addEventListener('click', async () => {
+      await generarReportePDF('Área', areaNombre, totalElementos, capasDetalleMap, document.getElementById('tablaElementosArea'));
+    });
+  }
+  const downloadExcelBtnArea = document.getElementById('downloadExcelBtnArea');
+  if (downloadExcelBtnArea) {
+    downloadExcelBtnArea.addEventListener('click', () => {
+      generarReporteExcel(areaNombre, capasDetalleMap, document.getElementById('tablaElementosArea'));
+    });
+  }
+  const clearAreaBtn = document.getElementById('clearFilterAreaBtn');
+  if (clearAreaBtn) {
+    clearAreaBtn.addEventListener('click', () => {
+      if (typeof window.limpiarFiltroArea === 'function') window.limpiarFiltroArea();
+    });
+  }
+}
+
+function attachIntersectionFilterDownloadListeners() {
+  if (!currentIntersectionFilterData) return;
+  const { interseccionSeleccionada, totalElementos, capasDetalleMap } = currentIntersectionFilterData;
+  const downloadPdfBtnInterseccion = document.getElementById('downloadPdfBtnInterseccion');
+  if (downloadPdfBtnInterseccion) {
+    downloadPdfBtnInterseccion.addEventListener('click', async () => {
+      await generarReportePDF('Intersección', interseccionSeleccionada, totalElementos, capasDetalleMap, document.getElementById('tablaElementosInterseccion'));
+    });
+  }
+  const downloadExcelBtnInterseccion = document.getElementById('downloadExcelBtnInterseccion');
+  if (downloadExcelBtnInterseccion) {
+    downloadExcelBtnInterseccion.addEventListener('click', () => {
+      generarReporteExcel(interseccionSeleccionada, capasDetalleMap, document.getElementById('tablaElementosInterseccion'));
+    });
+  }
+  const clearInterseccionBtn = document.getElementById('clearFilterInterseccionBtn');
+  if (clearInterseccionBtn) {
+    clearInterseccionBtn.addEventListener('click', () => {
+      if (typeof window.limpiarFiltroEstado === 'function') window.limpiarFiltroEstado();
+      if (typeof window.limpiarFiltroArea === 'function') window.limpiarFiltroArea();
     });
   }
 }

@@ -191,7 +191,7 @@ async def get_table_geojson(pool, table_name: str):
             FROM (
                 SELECT jsonb_build_object(
                     'type', 'Feature',
-                    'geometry', ST_AsGeoJSON({geom_column})::jsonb,
+                    'geometry', ST_AsGeoJSON(ST_Transform({geom_column}, 4326))::jsonb,
                     'properties', to_jsonb(t) - '{geom_column}'
                 ) AS feature
                 FROM "{table_name}" AS t

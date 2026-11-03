@@ -122,6 +122,33 @@ import Footer from '../../components/Footer.astro';
               <div class="loc-option selected" data-value="">Todos los bloques</div>
             </div>
           </div>
+          <div class="loc-filter area-filter" id="filterArea" hidden>
+            <button type="button" class="loc-filter-btn" data-placeholder="Área de análisis" id="filterAreaBtn">
+              <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15l4-9 8 2 4 7-6 5z"/><circle cx="8" cy="6" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="20" cy="15" r="1"/><circle cx="14" cy="20" r="1"/><circle cx="4" cy="15" r="1"/></svg>
+              <span class="lf-label">Área de análisis</span>
+              <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="loc-filter-dropdown area-dropdown" id="dropdownArea">
+              <input type="file" id="areaFileInput" accept=".geojson,.json,.zip" hidden>
+              <button type="button" class="area-upload-btn" id="areaUploadBtn">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4"></path><polyline points="7 9 12 4 17 9"></polyline><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path>
+                </svg>
+                Cargar polígono…
+              </button>
+              <div class="area-file-row" id="areaFileRow" hidden>
+                <span class="area-file-name" id="areaFileName"></span>
+                <button type="button" class="area-clear-btn" id="areaClearLayerBtn" title="Quitar capa del área" aria-label="Quitar capa del área">✕</button>
+              </div>
+              <label class="area-label-field" id="areaLabelField" hidden>
+                <span>Etiqueta de entidad</span>
+                <select id="areaLabelSelect"></select>
+              </label>
+              <div class="area-entity-list" id="areaEntityList"></div>
+              <p class="area-hint" id="areaHint">Carga un GeoJSON o Shapefile (.zip) o usa «Dibujar polígono» en el mapa.</p>
+              <p class="area-error" id="areaError" hidden></p>
+            </div>
+          </div>
         </div>
       </div>
       <div class="panel-heading">
@@ -190,7 +217,7 @@ import Footer from '../../components/Footer.astro';
             <div class="basemap-preview bm-light"></div>
             <div class="basemap-info">
               <span class="bm-name">Estándar</span>
-              <span class="bm-desc">Vectorial Claro</span>
+              <span class="bm-desc">Base física clara</span>
             </div>
           </div>
           <div class="basemap-option" data-basemap="satelite">
@@ -198,13 +225,6 @@ import Footer from '../../components/Footer.astro';
             <div class="basemap-info">
               <span class="bm-name">Satélite</span>
               <span class="bm-desc">Imágenes Esri + Híbrido</span>
-            </div>
-          </div>
-          <div class="basemap-option" data-basemap="relieve3d">
-            <div class="basemap-preview bm-relief3d" style="background: linear-gradient(160deg, #dfe8f2 0%, #b7c9a8 25%, #8fa876 45%, #6a8a56 60%, #7d6b4a 78%, #ffffff 100%); box-shadow: inset 0 -6px 8px rgba(0,0,0,0.25);"></div>
-            <div class="basemap-info">
-              <span class="bm-name">Relieve 3D</span>
-              <span class="bm-desc">Terreno real · Andes de Venezuela</span>
             </div>
           </div>
         </div>
@@ -228,6 +248,33 @@ import Footer from '../../components/Footer.astro';
             <line x1="12" y1="19.5" x2="21" y2="19.5" />
           </svg>
         </button>
+      </div>
+
+      <div class="map-tools" id="mapTools">
+        <button type="button" class="map-tool-btn" id="drawPolygonBtn" title="Dibujar polígono para filtrar" aria-label="Dibujar polígono para filtrar" hidden>
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 15l4-9 8 2 4 7-6 5z"/><circle cx="8" cy="6" r="1.2"/><circle cx="16" cy="8" r="1.2"/><circle cx="20" cy="15" r="1.2"/><circle cx="14" cy="20" r="1.2"/><circle cx="4" cy="15" r="1.2"/>
+          </svg>
+        </button>
+        <button type="button" class="map-tool-btn" id="measureDistanceBtn" title="Medir distancia" aria-label="Medir distancia">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17l14-14 4 4L7 21H3z"/><path d="M7 13l2 2"/><path d="M10 10l2 2"/><path d="M13 7l2 2"/>
+          </svg>
+        </button>
+        <button type="button" class="map-tool-btn map-tool-subtle" id="mapToolUndoBtn" title="Deshacer último punto" aria-label="Deshacer último punto" hidden>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 14 4 9 9 4"></polyline><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path>
+          </svg>
+        </button>
+        <button type="button" class="map-tool-btn map-tool-subtle" id="mapToolCancelBtn" title="Cancelar herramienta" aria-label="Cancelar herramienta" hidden>✕</button>
+      </div>
+
+      <div class="map-tool-hint" id="mapToolHint" hidden></div>
+
+      <div class="measure-chip" id="measureChip" hidden>
+        <span class="measure-chip-label">Distancia total</span>
+        <b id="measureTotal">0 m</b>
+        <button type="button" id="measureClearBtn" title="Limpiar medición" aria-label="Limpiar medición">✕</button>
       </div>
 
       <div class="zoom-controls">
@@ -255,7 +302,7 @@ import Footer from '../../components/Footer.astro';
       <div class="divider"></div>
       <div class="stat">ZOOM <b id="statZoom">6.8</b></div>
       <div class="divider"></div>
-      <div class="stat">DATUM <b>WGS84 (EPSG:4326)</b></div>
+      <div class="stat">DATUM <b>REGVEN (EPSG:4189)</b></div>
       <div class="grow"></div>
       <div class="stat">GEOPORTAL v0.1</div>
     </footer>

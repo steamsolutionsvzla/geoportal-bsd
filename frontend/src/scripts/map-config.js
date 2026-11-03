@@ -4,6 +4,8 @@ import * as maplibregl from 'maplibre-gl';
 import { setWorkerUrl } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { Protocol } from 'pmtiles';
+import { addVenezuelaBoundaryLayers, actualizarFronteraOficial, bringVenezuelaBoundaryToFront } from './venezuela-boundary.js';
+import { addCountryLabels, bringCountryLabelsToFront } from './map-labels.js';
 
 // URL correcta del worker de maplibre (en producción la ruta interna
 // ./maplibre-gl-worker.mjs da 404 y el estilo nunca termina de cargar).
@@ -14,12 +16,6 @@ const pmtilesProtocol = new Protocol();
 maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 
 // ============================================================
-//  CONFIGURACIÓN: CLAVE DE CARTO (light_nolabels)
-// ============================================================
-// 👇 PON AQUÍ TU CLAVE REAL
-const CARTO_KEY = 'cb1_33kc_1_d2fff4a23840225df4cca1fa';
-
-// ============================================================
 //  MODO OFFLINE
 //  true  → fondos "Clara" y "Satelital" se sirven desde PMTiles
 //          locales (public/tiles/clara.pmtiles y satelite.pmtiles).
@@ -28,7 +24,7 @@ const CARTO_KEY = 'cb1_33kc_1_d2fff4a23840225df4cca1fa';
 //  El Relieve 3D siempre es online: si no hay conexión y se
 //  selecciona, aparece un aviso.
 // ============================================================
-export const USE_OFFLINE_TILES = true;
+export const USE_OFFLINE_TILES = false;
 
 
 // ============================================================
@@ -37,8 +33,9 @@ export const USE_OFFLINE_TILES = true;
 export const INITIAL_CENTER = [-65.75816, 7.17672];
 export const INITIAL_ZOOM = 5;
 
-// Límites de desplazamiento del mapa (mismo bbox de los tiles offline).
-const MAP_BOUNDS = [[-75.5, 0.5], [-56.0, 13.6]];
+// Límites de desplazamiento del mapa. Se amplía el norte para incluir
+// las islas del territorio oficial y el encuadre del mapa oficial 2023.
+const MAP_BOUNDS = [[-75.5, 0.5], [-56.0, 17.2]];
 
 let mapInstance = null;
 
@@ -158,26 +155,15 @@ export function addBaseLayers(map) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
     });
   } else {
-    const useCarto = CARTO_KEY && CARTO_KEY.length > 0;
-    if (!useCarto) {
-      map.addSource('clara-source', {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '&copy; OpenStreetMap contributors'
-      });
-    } else {
-      map.addSource('clara-source', {
-        type: 'raster',
-        tiles: [
-          `https://a.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
-          `https://b.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`,
-          `https://c.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`
-        ],
-        tileSize: 256,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
-      });
-    }
+    // Base física clara de Esri: sin fronteras políticas ni etiquetas, para
+    // que la única delimitación visible sea la oficial del geoportal.
+    map.addSource('clara-source', {
+      type: 'raster',
+      tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 13,
+      attribution: 'Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS'
+    });
   }
 
   map.addLayer({
@@ -214,41 +200,6 @@ export function addBaseLayers(map) {
     maxzoom: 19
   });
 
-  // --- Relieve color ---
-  map.addSource('relieve-color-source', {
-    type: 'raster',
-    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}'],
-    tileSize: 256,
-    maxzoom: 13,
-    attribution: 'Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS'
-  });
-  map.addLayer({
-    id: 'relieve-color-layer',
-    type: 'raster',
-    source: 'relieve-color-source',
-    layout: { visibility: 'none' },
-    minzoom: 0,
-    maxzoom: 19
-  });
-
-  // --- Hillshade ---
-  map.addSource('relieve-hillshade-source', {
-    type: 'raster',
-    tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'],
-    tileSize: 256,
-    maxzoom: 16,
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri'
-  });
-  map.addLayer({
-    id: 'relieve-hillshade-layer',
-    type: 'raster',
-    source: 'relieve-hillshade-source',
-    layout: { visibility: 'none' },
-    paint: { 'raster-opacity': 0.55 },
-    minzoom: 0,
-    maxzoom: 19
-  });
-
   // --- Capa de etiquetas personalizadas (placeholder) ---
   map.addSource('custom-labels-source', {
     type: 'geojson',
@@ -276,14 +227,11 @@ export function addBaseLayers(map) {
     maxzoom: 19
   });
 
-  // --- Terreno DEM ---
-  map.addSource('terrain-dem', {
-    type: 'raster-dem',
-    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    encoding: 'terrarium',
-    maxzoom: 14
-  });
+  // --- Contorno nacional oficial y ocultamiento de la frontera de facto ---
+  addVenezuelaBoundaryLayers(map);
+
+  // --- Etiquetas de países y océanos ---
+  addCountryLabels(map);
 
   // ⚠️ ELIMINADO el bloque try { map.setSky({...}) } catch
   // Ahora el sky se define en initMap() dentro del style.
@@ -361,44 +309,25 @@ export function setupBasemapSwitcher(map) {
 function switchBasemap(targetKey, map, activeBasemap) {
   if (targetKey === activeBasemap) return true;
 
-  // El relieve 3D depende de tiles online (Esri + DEM de S3).
-  // Sin conexión (en modo offline) se avisa y se mantiene el fondo actual.
-  if (
-    targetKey === 'relieve3d' &&
-    USE_OFFLINE_TILES &&
-    typeof navigator !== 'undefined' &&
-    navigator.onLine === false
-  ) {
-    mostrarAviso('Se requiere conexión a internet para visualizar este mapa');
-    return false;
-  }
-
-  const overlayLayers = ['clara-layer', 'satelite-layer', 'relieve-color-layer', 'relieve-hillshade-layer'];
+  const overlayLayers = ['clara-layer', 'satelite-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
   if (map.getLayer('custom-labels-layer')) map.setLayoutProperty('custom-labels-layer', 'visibility', 'none');
 
-  if (targetKey !== 'relieve3d' && activeBasemap === 'relieve3d') {
-    map.setTerrain(null);
-    map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
-  }
-
   if (targetKey === 'clara') {
     if (map.getLayer('clara-layer')) map.setLayoutProperty('clara-layer', 'visibility', 'visible');
   } else if (targetKey === 'satelite') {
     if (map.getLayer('satelite-layer')) map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
-  } else if (targetKey === 'relieve3d') {
-    if (map.getLayer('relieve-color-layer')) map.setLayoutProperty('relieve-color-layer', 'visibility', 'visible');
-    if (map.getLayer('relieve-hillshade-layer')) map.setLayoutProperty('relieve-hillshade-layer', 'visibility', 'visible');
-    if (map.getSource('terrain-dem')) map.setTerrain({ source: 'terrain-dem', exaggeration: 1.6 });
-    map.easeTo({
-      center: [-71.55, 8.35],
-      zoom: 8.3,
-      pitch: 65,
-      bearing: -20,
-      duration: 1800
-    });
   }
+
+  // El contorno vectorial y la línea de borrado se actualizan según el fondo.
+  bringVenezuelaBoundaryToFront(map);
+  actualizarFronteraOficial(map, targetKey);
+  bringCountryLabelsToFront(map);
+  if (map.getLayer('layer-estados-venezuela-label')) {
+    try { map.moveLayer('layer-estados-venezuela-label'); } catch (_) { /* ignorar */ }
+  }
+
   return true;
 }

@@ -81,4 +81,5 @@ desktop.ini
 # ---------- Artefactos locales ----------
 .archify/
 frontend/tiles-generate.err
+video/
 

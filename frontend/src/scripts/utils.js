@@ -25,13 +25,43 @@ export function formatearCoordenada(lng, lat) {
   return `${Math.abs(lat).toFixed(5)}° ${latDir} ${Math.abs(lng).toFixed(5)}° ${lonDir}`;
 }
 
+export function normalizarNombreEstado(nombre) {
+  if (nombre === null || nombre === undefined) return nombre;
+  const original = String(nombre).trim();
+  if (!original) return original;
+
+  const normalizado = original
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const alias = new Set([
+    'zona en reclamacion',
+    'guayana esequiba',
+    'guyana esequiba',
+    'guyana esequiva'
+  ]);
+
+  return alias.has(normalizado) ? 'Guayana Esequiba' : original;
+}
+
 export function obtenerNombreEstado(properties) {
+  if (!properties) return null;
+
+  // Nombre normalizado que se agrega al cargar la capa de estados.
+  const nombreNormalizado = properties._estado_nombre;
+  if (nombreNormalizado !== undefined && nombreNormalizado !== null && String(nombreNormalizado).trim() !== '') {
+    return normalizarNombreEstado(nombreNormalizado);
+  }
+
   const posiblesClaves = ['entidad', 'estado', 'nombre', 'name'];
   const keysReales = Object.keys(properties || {});
   for (const clave of posiblesClaves) {
     const encontrada = keysReales.find(k => k.toLowerCase() === clave);
     if (encontrada && properties[encontrada] !== undefined && properties[encontrada] !== null) {
-      return String(properties[encontrada]).trim();
+      return normalizarNombreEstado(properties[encontrada]);
     }
   }
   return null;

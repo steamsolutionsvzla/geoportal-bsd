@@ -8,12 +8,19 @@ import { applyStyle } from '../lib/mapStyles.js';
 import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls, setupBasemapSwitcher, getMap } from './map-config.js';
 import {
   setupFilterDropdowns,
+  setupAreaFilter,
+  usarAreaDibujada,
+  limpiarFiltroArea,
   limpiarFiltroEstado as filtroEstadoOriginal,
   limpiarFiltroBloque as filtroBloqueOriginal,
   setEstadosCache,
   setBloquesCache,
   recalcularFiltrosActivos
 } from './filters.js';
+import { setDrawnArea } from './area-temporal.js';
+import { initDrawTools } from './draw-tools.js';
+import { bringVenezuelaBoundaryToFront } from './venezuela-boundary.js';
+import { bringCountryLabelsToFront } from './map-labels.js';
 import {
   renderInfoPanel,
   setInfoPanelData,
@@ -22,7 +29,7 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
+import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
 import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
@@ -42,6 +49,27 @@ setWorkerUrl(maplibreWorkerUrl);
 // CONSTANTES DE CAPAS ESPECIALES
 // =========================================================================
 const BLOQUES_LAYER_NAME = 'Bloques petroleros';
+const ROL_ANALISTA = 'Rol_analista';
+
+// La sesión se valida de forma asíncrona en session.js. Esperamos a que
+// exista window.currentUser (o al evento session:ready) antes de decidir
+// qué filtros montar.
+function esperarSesion(timeoutMs = 4000) {
+  if (window.currentUser) return Promise.resolve(window.currentUser);
+  return new Promise((resolve) => {
+    let listo = false;
+    const fin = (user) => {
+      if (listo) return;
+      listo = true;
+      clearTimeout(timer);
+      document.removeEventListener('session:ready', onReady);
+      resolve(user || window.currentUser || null);
+    };
+    const onReady = (event) => fin(event?.detail);
+    const timer = setTimeout(() => fin(window.currentUser), timeoutMs);
+    document.addEventListener('session:ready', onReady, { once: true });
+  });
+}
 
 // =========================================================================
 // HELPERS DE ESTILO / ATRIBUTOS
@@ -122,6 +150,8 @@ let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;
 let currentFilterData = null;
 let currentBloqueFilterData = null;
+let currentAreaFilterData = null;
+let currentIntersectionFilterData = null;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
@@ -149,6 +179,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       (async () => {
       await loadWorkspaces();
 
+      const usuario = await esperarSesion();
+      const esAnalista = usuario?.rol === ROL_ANALISTA;
+
+      // Herramientas de mapa disponibles desde el inicio (dibujo solo analista).
+      initDrawTools({
+        map,
+        canDrawPolygon: esAnalista,
+        onPolygonComplete: (feature) => {
+          const meta = setDrawnArea(feature);
+          usarAreaDibujada(meta);
+        },
+      });
+
       // Cargar estilos guardados por el analista
 
 try {
@@ -162,12 +205,23 @@ try {
       if (!IS_SHOWROOM) {
         await cargarCapaEstadosVenezuela();
         await cargarCapaBloques();
-        if (estadosGeoJsonCache && bloquesGeoJsonCache) {
+
+        if (esAnalista) {
+          // El analista reemplaza el filtro de bloques por el área temporal.
+          const filtroBloque = document.getElementById('filterBloque');
+          if (filtroBloque) filtroBloque.hidden = true;
+          setupFilterDropdowns(estadosGeoJsonCache, null, { includeBloque: false });
+          setupAreaFilter();
+        } else if (estadosGeoJsonCache && bloquesGeoJsonCache) {
           setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
         } else {
           mostrarError('No se pudieron cargar los datos de estados o bloques.');
         }
       }
+
+      // Mantener el contorno nacional y las etiquetas por encima de las capas.
+      bringVenezuelaBoundaryToFront(map);
+      bringMapLabelsToFront(map);
 
       const sidebar = document.getElementById('sidebar');
       attachLayerToggleEvents(sidebar, handleLayerToggle);
@@ -193,6 +247,8 @@ try {
     }
 
     window.handleFeatureClick = (tableName, props, lngLat) => {
+      // Mientras se dibuja o se mide, los clics pertenecen a la herramienta.
+      if (window.__mapToolActive) return;
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
       const style = getStyleCapa(tableName);
@@ -206,9 +262,13 @@ try {
 
     window.calcularPuntosEnEstado = (feature, nombre) => calcularPuntosEnEstado(feature, nombre);
     window.calcularPuntosEnBloque = (feature, nombre) => calcularPuntosEnBloque(feature, nombre);
+    window.calcularElementosEnArea = (feature, nombre) => calcularElementosEnArea(feature, nombre);
+    window.calcularElementosEnInterseccion = (estadoFeature, areaFeature, nombreEstado, nombreArea) =>
+      calcularElementosEnInterseccion(estadoFeature, areaFeature, nombreEstado, nombreArea);
     window.updateInfoPanel = renderInfoPanel;
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
+    window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: true });
     window.cerrarSesion = cerrarSesion;
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
@@ -307,6 +367,95 @@ async function loadWorkspaces() {
 // =========================================================================
 // CARGA DE CAPAS ESPECIALES (estados y bloques)
 // =========================================================================
+function calcularEtiquetaEstado(feature, nombre) {
+  let punto = null;
+  try {
+    punto = turf.pointOnFeature(feature);
+  } catch (_) { /* geometría inválida */ }
+
+  if (!punto) {
+    try {
+      punto = turf.centerOfMass(feature);
+    } catch (_) { /* geometría inválida */ }
+  }
+  if (!punto) return null;
+
+  // Posiciones manuales para estados cuya etiqueta debe ir en un punto
+  // concreto del territorio (no en el centro geométrico).
+  const posicionesEspeciales = {
+    'Guayana Esequiba': [-59.5, 6.05],
+    'Zulia': [-72.5, 9.9],
+    'Delta Amacuro': [-61.5, 8.9]
+  };
+  const claveEspecial = Object.keys(posicionesEspeciales).find(
+    (k) => k.toLowerCase() === String(nombre || '').toLowerCase()
+  );
+  const posicionEspecial = claveEspecial ? posicionesEspeciales[claveEspecial] : null;
+  if (posicionEspecial) {
+    try {
+      const candidato = turf.point(posicionEspecial);
+      if (turf.booleanPointInPolygon(candidato, feature)) {
+        punto = candidato;
+      }
+    } catch (_) { /* geometría inválida */ }
+  }
+
+  let bbox = null;
+  try { bbox = turf.bbox(feature); } catch (_) { /* ignorar */ }
+
+  let widthKm = 0;
+  let heightKm = 0;
+  let areaKm2 = 0;
+
+  if (bbox) {
+    const midLat = (bbox[1] + bbox[3]) / 2;
+    try {
+      widthKm = turf.distance(
+        turf.point([bbox[0], midLat]),
+        turf.point([bbox[2], midLat]),
+        { units: 'kilometers' }
+      );
+    } catch (_) { /* ignorar */ }
+    try {
+      heightKm = turf.distance(
+        turf.point([bbox[0], bbox[1]]),
+        turf.point([bbox[0], bbox[3]]),
+        { units: 'kilometers' }
+      );
+    } catch (_) { /* ignorar */ }
+  }
+
+  try { areaKm2 = turf.area(feature) / 1e6; } catch (_) { /* ignorar */ }
+
+  let size = 9;
+  if (areaKm2 >= 100000) size = 13;
+  else if (areaKm2 >= 50000) size = 12;
+  else if (areaKm2 >= 20000) size = 11;
+  else if (areaKm2 >= 8000) size = 10;
+
+  let maxWidth = Math.max(4, Math.min(10, Math.round(widthKm / 55) || 4));
+
+  // Estados muy pequeños: se permite que la etiqueta se solape o desborde.
+  const pequeno = areaKm2 < 8000 || widthKm < 120 || heightKm < 120;
+  if (pequeno) size = Math.max(8, size - 1);
+
+  punto.properties = {
+    ...(feature.properties || {}),
+    _label_size: size,
+    _label_maxwidth: maxWidth,
+    _allow_overlap: pequeno
+  };
+
+  return punto;
+}
+
+function bringMapLabelsToFront(map) {
+  bringCountryLabelsToFront(map);
+  if (map.getLayer('layer-estados-venezuela-label')) {
+    try { map.moveLayer('layer-estados-venezuela-label'); } catch (_) { /* ignorar */ }
+  }
+}
+
 async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
@@ -337,6 +486,23 @@ async function cargarCapaEstadosVenezuela() {
       }
     });
     data.features = Object.values(featuresByName);
+
+    // Normaliza el nombre visible del estado. En particular, el polígono
+    // de la reclamación viene como "Zona en Reclamación" y debe mostrarse
+    // como "Guayana Esequiba" en el filtro y en la etiqueta del mapa.
+    data.features.forEach(f => {
+      const nombre = obtenerNombreEstado(f.properties);
+      if (!nombre) return;
+
+      const nombreNormalizado = normalizarNombreEstado(nombre);
+      f.properties._estado_nombre = nombreNormalizado;
+
+      const claveNombre = Object.keys(f.properties).find(k =>
+        ['entidad', 'estado', 'nombre', 'name'].includes(k.toLowerCase())
+      );
+      if (claveNombre) f.properties[claveNombre] = nombreNormalizado;
+    });
+
     estadosGeoJsonCache = data;
     setEstadosCache(data);
 
@@ -346,9 +512,10 @@ async function cargarCapaEstadosVenezuela() {
     };
     data.features.forEach(f => {
       try {
-        const centroide = turf.centerOfMass(f);
-        centroide.properties = { ...f.properties };
-        puntosEtiquetas.features.push(centroide);
+        const nombre = obtenerNombreEstado(f.properties);
+        if (!nombre) return;
+        const etiqueta = calcularEtiquetaEstado(f, nombre);
+        if (etiqueta) puntosEtiquetas.features.push(etiqueta);
       } catch (e) {}
     });
 
@@ -385,60 +552,62 @@ async function cargarCapaEstadosVenezuela() {
         source: ESTADO_SOURCE_ID,
         layout: { visibility: 'none' },
         paint: {
-          'line-color': '#1a365d',
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#c1584a',
+            '#2d5296'
+          ],
           'line-width': [
             'case',
-            ['boolean', ['feature-state', 'selected'], false], 3,
-            ['==', ['literal', isFilterActive], true], 0,
-            1
+            ['boolean', ['feature-state', 'selected'], false], 3.2,
+            1.2
+          ],
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            0.78
           ]
         }
       });
     }
 
-    if (!map.getLayer(ESTADO_LABEL_LAYER_ID)) {
-      const styleEstados = getStyleCapa('División Político Territorial');
-      const attrEstados = styleEstados?.label_attribute || 'entidad';
-      const claveEstados =
-        resolverClaveProp(puntosEtiquetas.features[0]?.properties, attrEstados) || attrEstados;
-      map.addLayer({
-        id: ESTADO_LABEL_LAYER_ID,
-        type: 'symbol',
-        source: ESTADO_LABEL_SOURCE_ID,
-        layout: {
-          'visibility': 'none',
-          'text-field': ['get', claveEstados],
-          'text-font': ['Open Sans Regular'],
-          'text-size': [
-            'interpolate', ['exponential', 1.5], ['zoom'],
-            3, 8,
-            6, 10,
-            10, 12,
-            14, 14,
-          ],
-          'text-max-width': [
-            'interpolate', ['linear'], ['zoom'],
-            3, 4,
-            6, 6,
-            10, 10,
-          ],
-          'text-line-height': 1.15,
-          'text-allow-overlap': false,
-          'text-ignore-placement': false,
-          'text-justify': 'center',
-          'symbol-placement': 'point'
-        },
-        paint: {
-          'text-color': styleEstados?.label_color || '#1a2a3a',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': [
-            'interpolate', ['linear'], ['zoom'],
-            3, 1,
-            10, 1.8,
-          ],
-        }
-      });
+    const styleEstados = getStyleCapa('División Político Territorial');
+    const attrEstados = styleEstados?.label_attribute || 'entidad';
+    const claveEstados =
+      resolverClaveProp(puntosEtiquetas.features[0]?.properties, attrEstados) || attrEstados;
+
+    // Se recrea la capa para que tome el nuevo estilo de etiqueta ajustada.
+    if (map.getLayer(ESTADO_LABEL_LAYER_ID)) {
+      map.removeLayer(ESTADO_LABEL_LAYER_ID);
     }
+    map.addLayer({
+      id: ESTADO_LABEL_LAYER_ID,
+      type: 'symbol',
+      source: ESTADO_LABEL_SOURCE_ID,
+      layout: {
+        'visibility': 'visible',
+        'text-field': ['coalesce', ['get', '_estado_nombre'], ['get', claveEstados || 'entidad']],
+        'text-font': ['Open Sans Regular'],
+        'text-size': ['get', '_label_size'],
+        'text-max-width': ['get', '_label_maxwidth'],
+        'text-line-height': 1.05,
+        'text-letter-spacing': 0.02,
+        'text-transform': 'uppercase',
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+        'text-justify': 'center',
+        'text-anchor': 'center',
+        'text-padding': 2
+      },
+      paint: {
+        'text-color': styleEstados?.label_color || '#1a2a3a',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 1.6,
+        'text-opacity': 0.95
+      }
+    });
+
+    bringMapLabelsToFront(map);
 
     updateLayerFeatureCount('División Político Territorial', data.features.length);
   } catch (error) {
@@ -762,10 +931,9 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
       }
-      const styleEstados = getStyleCapa('División Político Territorial');
-      const visLabels = (isVisible && styleEstados?.show_labels) ? 'visible' : 'none';
+      // Las etiquetas de los estados quedan siempre visibles.
       if (map.getLayer('layer-estados-venezuela-label')) {
-        map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', visLabels);
+        map.setLayoutProperty('layer-estados-venezuela-label', 'visibility', 'visible');
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
@@ -867,6 +1035,8 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     refreshCount();
     updateLegendUI(getAvailableLayers());
     renderInfoPanel();
+    bringVenezuelaBoundaryToFront(map);
+    bringMapLabelsToFront(map);
 
        if (!IS_SHOWROOM && typeof recalcularFiltrosActivos === 'function') {
       // Mostrar loader sobre la(s) tarjeta(s) de filtro
@@ -1029,6 +1199,128 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
   };
 
   setInfoPanelData({ currentBloqueFilterData, isBloqueFilterActive: true });
+  renderInfoPanel();
+}
+
+// =========================================================================
+// CÁLCULO DE ELEMENTOS EN EL ÁREA TEMPORAL / INTERSECCIÓN
+// =========================================================================
+function geometriaDentroDePoligono(feature, polygonFeature) {
+  const tipo = feature?.geometry?.type;
+  if (!tipo) return false;
+
+  try {
+    if (tipo === 'Point') {
+      return turf.booleanPointInPolygon(feature, polygonFeature);
+    }
+    if (tipo === 'MultiPoint') {
+      // booleanIntersects cubre correctamente los multipuntos.
+      return turf.booleanIntersects(feature, polygonFeature);
+    }
+    if (tipo === 'LineString' || tipo === 'MultiLineString') {
+      return turf.booleanIntersects(feature, polygonFeature);
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+}
+
+function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } = {}) {
+  let totalElementos = 0;
+  let capasContadas = 0;
+  const capasDetalleMap = {};
+  let rowsHtml = '';
+
+  const layers = getAvailableLayers();
+  const map = getMap();
+
+  layers.forEach(layerConfig => {
+    const sourceId = `source-${layerConfig.id}`;
+    const source = map.getSource(sourceId);
+    if (!source) return; // capa no activa en el mapa
+
+    const sourceData = getLayerRawData(layerConfig.id);
+    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
+
+    const firstGeomType = sourceData.features[0]?.geometry?.type;
+    const tipo = (layerConfig.type || '').toLowerCase();
+    const esPunto =
+      tipo === 'circle' || tipo === 'point' || tipo === 'punto' ||
+      firstGeomType === 'Point' || firstGeomType === 'MultiPoint';
+    const esLinea =
+      tipo === 'line' ||
+      firstGeomType === 'LineString' || firstGeomType === 'MultiLineString';
+
+    if (!esPunto && !esLinea) return;
+
+    let countInPoligonos = 0;
+    const featuresInLayer = [];
+
+    sourceData.features.forEach(feature => {
+      if (!feature || !feature.geometry) return;
+
+      if (estadoFeature && !geometriaDentroDePoligono(feature, estadoFeature)) return;
+      if (areaFeature && !geometriaDentroDePoligono(feature, areaFeature)) return;
+
+      countInPoligonos++;
+      featuresInLayer.push(feature.properties);
+    });
+
+    if (countInPoligonos > 0) {
+      capasContadas++;
+      totalElementos += countInPoligonos;
+      capasDetalleMap[layerConfig.name] = featuresInLayer;
+      rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPoligonos}</td></tr>`;
+    }
+  });
+
+  return { totalElementos, capasContadas, capasDetalleMap, rowsHtml };
+}
+
+function calcularElementosEnArea(areaPolygonFeature, nombreArea) {
+  const infoContent = document.getElementById('infoPanelContent');
+  if (!infoContent) return;
+
+  const { totalElementos, capasContadas, capasDetalleMap, rowsHtml } =
+    analizarCapasEnPoligonos({ areaFeature: areaPolygonFeature });
+
+  currentAreaFilterData = {
+    areaSeleccionada: nombreArea,
+    totalElementos,
+    capasContadas,
+    capasDetalleMap,
+    rowsHtml
+  };
+
+  setInfoPanelData({ currentAreaFilterData, isAreaFilterActive: true });
+  renderInfoPanel();
+}
+
+function calcularElementosEnInterseccion(estadoPolygonFeature, areaPolygonFeature, nombreEstado, nombreArea) {
+  const infoContent = document.getElementById('infoPanelContent');
+  if (!infoContent) return;
+
+  const { totalElementos, capasContadas, capasDetalleMap, rowsHtml } =
+    analizarCapasEnPoligonos({
+      estadoFeature: estadoPolygonFeature,
+      areaFeature: areaPolygonFeature
+    });
+
+  currentIntersectionFilterData = {
+    interseccionSeleccionada: `${nombreEstado} + ${nombreArea}`,
+    estadoSeleccionado: nombreEstado,
+    areaSeleccionada: nombreArea,
+    totalElementos,
+    capasContadas,
+    capasDetalleMap,
+    rowsHtml
+  };
+
+  setInfoPanelData({
+    currentIntersectionFilterData,
+    isIntersectionFilterActive: true
+  });
   renderInfoPanel();
 }
 
