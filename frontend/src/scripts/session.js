@@ -61,6 +61,44 @@ function applyUser(user) {
   });
 }
 
+// Muestra/oculta bloques declarativos según el rol.
+// Ejemplo: <section data-visible-for="Rol_gerente" hidden>
+function applyRoleVisibility(rol) {
+  document.documentElement.dataset.role = rol;
+  document.querySelectorAll('[data-visible-for]').forEach((el) => {
+    const allowed = (el.getAttribute('data-visible-for') || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const visible = allowed.includes(rol);
+    el.hidden = !visible;
+    if (visible) el.style.removeProperty('display');
+    else el.style.display = 'none';
+  });
+}
+
+// Cambia textos que dependen del rol (p. ej. "Bloques" vs. "Licencias").
+function applyRoleLabels(rol) {
+  const isGerente = rol === ROL.GERENTE;
+  document.querySelectorAll('[data-label-gerente]').forEach((el) => {
+    const text = isGerente ? el.dataset.labelGerente : el.dataset.labelAdmin;
+    if (text) el.textContent = text;
+  });
+  document.querySelectorAll('[data-desc-gerente]').forEach((el) => {
+    const text = isGerente ? el.dataset.descGerente : el.dataset.descAdmin;
+    if (text) el.textContent = text;
+  });
+}
+
+// Destino de las tarjetas de acceso según el rol (p. ej. "Bloques" → "Licencias").
+function applyRoleHrefs(rol) {
+  const isGerente = rol === ROL.GERENTE;
+  document.querySelectorAll('[data-href-gerente]').forEach((el) => {
+    const href = isGerente ? el.dataset.hrefGerente : el.dataset.hrefAdmin;
+    if (href) el.setAttribute('href', href);
+  });
+}
+
 // Oculta enlaces a rutas que el rol no puede usar; "/hub" pasa a apuntar a su inicio.
 function applyLinks(rol) {
   document.querySelectorAll('a[href^="/"]').forEach((a) => {
@@ -113,6 +151,9 @@ export async function initSession() {
 
   window.currentUser = user;
   applyUser(user);
+  applyRoleVisibility(user.rol);
+  applyRoleLabels(user.rol);
+  applyRoleHrefs(user.rol);
   applyLinks(user.rol);
   document.dispatchEvent(new CustomEvent('session:ready', { detail: user }));
 }

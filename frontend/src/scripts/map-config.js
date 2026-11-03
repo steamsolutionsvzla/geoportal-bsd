@@ -200,6 +200,32 @@ export function addBaseLayers(map) {
     maxzoom: 19
   });
 
+  // --- Etiquetas del satélite (nombres de ciudades/estados, PNG transparente) ---
+  // Online: referencia Esri World_Boundaries_and_Places.
+  // Offline: PMTiles local (generar con: py scripts/generate-offline-tiles.py --layers satelite-labels)
+  if (USE_OFFLINE_TILES) {
+    map.addSource('satelite-labels-source', {
+      type: 'raster',
+      url: 'pmtiles:///tiles/satelite-labels.pmtiles',
+      tileSize: 256,
+      attribution: 'Labels &copy; Esri'
+    });
+  } else {
+    map.addSource('satelite-labels-source', {
+      type: 'raster',
+      tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      attribution: 'Labels &copy; Esri'
+    });
+  }
+  map.addLayer({
+    id: 'satelite-labels-layer',
+    type: 'raster',
+    source: 'satelite-labels-source',
+    layout: { visibility: 'none' },
+    minzoom: 0,
+    maxzoom: 19
+  });
   // --- Capa de etiquetas personalizadas (placeholder) ---
   map.addSource('custom-labels-source', {
     type: 'geojson',
@@ -309,7 +335,7 @@ export function setupBasemapSwitcher(map) {
 function switchBasemap(targetKey, map, activeBasemap) {
   if (targetKey === activeBasemap) return true;
 
-  const overlayLayers = ['clara-layer', 'satelite-layer'];
+  const overlayLayers = ['clara-layer', 'satelite-layer', 'satelite-labels-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
@@ -319,6 +345,7 @@ function switchBasemap(targetKey, map, activeBasemap) {
     if (map.getLayer('clara-layer')) map.setLayoutProperty('clara-layer', 'visibility', 'visible');
   } else if (targetKey === 'satelite') {
     if (map.getLayer('satelite-layer')) map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
+    if (map.getLayer('satelite-labels-layer')) map.setLayoutProperty('satelite-labels-layer', 'visibility', 'visible');
   }
 
   // El contorno vectorial y la línea de borrado se actualizan según el fondo.

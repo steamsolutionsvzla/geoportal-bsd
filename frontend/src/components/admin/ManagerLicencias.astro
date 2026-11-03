@@ -1,0 +1,165 @@
+---
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '../../styles/manager-licencias.css';
+---
+
+<section
+  id="licencias"
+  class="manager-licencias"
+  data-visible-for="Rol_gerente"
+  hidden
+  aria-labelledby="licencias-title"
+>
+  <header class="manager-section-head">
+    <div>
+      <span class="manager-eyebrow">Panel gerencial</span>
+      <h2 id="licencias-title">Licencias</h2>
+      <p>Licencias, empresas, vigencia y superficie concesionada.</p>
+    </div>
+    <span class="manager-status" id="licencias-status" aria-live="polite">Cargando datos…</span>
+  </header>
+
+  <div class="licencias-filters" aria-label="Filtros de licencias">
+    <div class="licencias-filter">
+      <label for="lic-filter-empresa">Empresa</label>
+      <select id="lic-filter-empresa">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="licencias-filter">
+      <label for="lic-filter-tipo">Tipo</label>
+      <select id="lic-filter-tipo">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="licencias-filter">
+      <label for="lic-filter-estatus">Estatus</label>
+      <select id="lic-filter-estatus">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="licencias-filter">
+      <label for="lic-filter-anio">Año</label>
+      <select id="lic-filter-anio">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <button type="button" class="licencias-clear" id="lic-clear">Limpiar</button>
+    <div class="licencias-search">
+      <label for="lic-search">Buscar en la tabla</label>
+      <input id="lic-search" type="search" placeholder="Código, empresa o licencia" autocomplete="off" />
+    </div>
+  </div>
+
+  <section class="kpi-grid manager-kpis" aria-label="Indicadores de licencias">
+    <article class="kpi-card" style="--accent:#2d5296">
+      <div class="kpi-label">Total de licencias</div>
+      <div class="kpi-value" id="lic-kpi-total">—</div>
+      <div class="kpi-hint">licencias registradas</div>
+    </article>
+    <article class="kpi-card" style="--accent:#15803d">
+      <div class="kpi-label">Licencias vigentes</div>
+      <div class="kpi-value" id="lic-kpi-vigentes">—</div>
+      <div class="kpi-hint">estatus VIGENTE</div>
+    </article>
+    <article class="kpi-card" style="--accent:#dc2626">
+      <div class="kpi-label">Licencias culminadas</div>
+      <div class="kpi-value" id="lic-kpi-culminadas">—</div>
+      <div class="kpi-hint">estatus CULMINADA</div>
+    </article>
+    <article class="kpi-card" style="--accent:#7c3aed">
+      <div class="kpi-label">Área total</div>
+      <div class="kpi-value" id="lic-kpi-area">—</div>
+      <div class="kpi-hint">km² concesionados</div>
+    </article>
+  </section>
+
+  <div class="manager-viz">
+    <article class="manager-chart-card manager-viz-area-tipo">
+      <h3>Tipo de licencia</h3>
+      <p class="chart-sub">GAS y CRUDO por estatus</p>
+      <div class="manager-chart-box" id="lic-chart-tipo" role="img" aria-label="Distribución por tipo de licencia y estatus"></div>
+    </article>
+
+    <article class="manager-map-card">
+      <div id="manager-map" class="manager-map"></div>
+      <button
+        type="button"
+        class="manager-map-reset"
+        id="manager-map-reset"
+        title="Volver a la vista completa de Venezuela"
+        aria-label="Volver a la vista completa de Venezuela"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.5 12 3l9 7.5"></path>
+          <path d="M5 9.5V21h14V9.5"></path>
+          <path d="M9 21v-6h6v6"></path>
+        </svg>
+        <span>Vista Venezuela</span>
+      </button>
+      <div class="manager-map-legend" aria-label="Leyenda del mapa">
+        <span><i class="legend-dot vigente"></i> Licencia vigente</span>
+        <span><i class="legend-dot culminada"></i> Licencia culminada</span>
+        <span><i class="legend-dot borde"></i> Límite estadal</span>
+      </div>
+      <div class="manager-map-loading" id="manager-map-loading">
+        <span class="manager-spinner"></span>
+        <span>Cargando mapa…</span>
+      </div>
+      <div class="manager-map-error" id="manager-map-error" hidden></div>
+    </article>
+
+    <article class="manager-chart-card manager-viz-area-empresa">
+      <h3>Licencias por empresa</h3>
+      <p class="chart-sub">Vigentes y culminadas</p>
+      <div class="manager-chart-box" id="lic-chart-empresa" role="img" aria-label="Licencias por empresa y estatus"></div>
+    </article>
+
+    <article class="manager-chart-card manager-viz-area-estatus">
+      <h3>Estatus de licencias</h3>
+      <p class="chart-sub">Vigencia de las licencias</p>
+      <div class="manager-chart-box" id="lic-chart-estatus" role="img" aria-label="Distribución por estatus"></div>
+    </article>
+
+    <article class="manager-chart-card manager-viz-area-anio">
+      <h3>Licencias por año</h3>
+      <p class="chart-sub">Vigentes y culminadas por año</p>
+      <div class="manager-chart-box" id="lic-chart-anio" role="img" aria-label="Licencias por año y estatus"></div>
+    </article>
+  </div>
+
+  <div class="admin-table-wrap manager-table-card">
+    <div class="admin-table-head">
+      <div>
+        <h2>Tabla de licencias</h2>
+        <p id="lic-table-count">—</p>
+      </div>
+    </div>
+    <div class="manager-table-scroll">
+      <table class="admin-table manager-table">
+        <thead>
+          <tr>
+            <th data-sort="codigo" data-dir="asc">Código</th>
+            <th data-sort="bloque">Licencia</th>
+            <th data-sort="empresa">Empresa</th>
+            <th data-sort="tipo">Tipo</th>
+            <th data-sort="estatus">Estatus</th>
+            <th data-sort="anio" class="year-cell">Año</th>
+            <th data-sort="duracion_anios">Duración</th>
+            <th data-sort="area_km2" class="area-cell">Área (km²)</th>
+            <th>Mapa</th>
+          </tr>
+        </thead>
+        <tbody id="lic-table-body">
+          <tr>
+            <td colspan="9" class="manager-empty">Cargando licencias…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+  import '../../scripts/manager-licencias.js';
+</script>

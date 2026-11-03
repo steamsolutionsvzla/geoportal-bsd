@@ -2,8 +2,11 @@
 const items = [
   {
     href: '/admin/bloques',
+    hrefGerente: '#licencias',
     title: 'Bloques',
+    titleGerente: 'Licencias',
     desc: 'Inventario, ventas y estado de bloques petroleros.',
+    descGerente: 'Licencias, empresas y vigencia en el dashboard gerencial.',
     accent: '#2d5296',
     external: false,
     icon: `<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>`,
@@ -22,6 +25,7 @@ const items = [
     desc: 'Usuarios, roles y organismos del sistema.',
     accent: '#b45309',
     external: false,
+    visibleFor: 'Administrador',
     icon: `<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>`,
   },
   {
@@ -43,6 +47,10 @@ const items = [
       style={`--accent:${it.accent}`}
       target={it.external ? '_blank' : undefined}
       rel={it.external ? 'noopener noreferrer' : undefined}
+      data-href-admin={it.href}
+      data-href-gerente={it.hrefGerente}
+      data-visible-for={it.visibleFor}
+      hidden={it.hidden}
     >
       <div class="access-icon">
         <svg
@@ -56,15 +64,23 @@ const items = [
           set:html={it.icon}
         />
       </div>
-      <h3 class="access-title">{it.title}</h3>
-      <p class="access-desc">{it.desc}</p>
+      <h3
+        class="access-title"
+        data-label-admin={it.title}
+        data-label-gerente={it.titleGerente}
+      >{it.title}</h3>
+      <p
+        class="access-desc"
+        data-desc-admin={it.desc}
+        data-desc-gerente={it.descGerente}
+      >{it.desc}</p>
     </a>
   ))}
 </div>
 <style>
   .access-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin: 24px 0 32px;
   }

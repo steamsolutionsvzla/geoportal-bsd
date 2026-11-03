@@ -14,6 +14,11 @@ const TABS = [
   { id: 'historial', label: 'Historial' },
 ];
 
+// Pestañas que no se muestran en el proyecto. Sus datos siguen en la BD y en
+// este módulo: para volver a mostrarlas basta con quitar su id de esta lista.
+const HIDDEN_TAB_IDS = new Set(['categorias', 'palabras_clave', 'extension', 'enlaces']);
+const VISIBLE_TABS = TABS.filter((t) => !HIDDEN_TAB_IDS.has(t.id));
+
 const HINT_IDENTIFICACION =
   'Esta página describe la atribución básica del conjunto de datos. Por favor, use la ayuda emergente de las herramientas para más información.';
 const HINT_PALABRAS_CLAVE =
@@ -174,30 +179,9 @@ function emptyBlock(text) {
 }
 
 function pageIdentificacion(m) {
-  const basics = [
-    field('Identificador', m.identificador),
-    field('Título', m.titulo),
-    field('Tipo', m.tipo),
-    field('Idioma', m.idioma),
-  ].join('');
-  const datasetDefs = [
-    ['Esquema', m.esquema_capa, undefined],
-    ['Tabla', m.nombre_tabla_capa, undefined],
-    ['Archivo de origen', m.archivo_origen, undefined],
-    ['Tipo de geometría', m.tipo_geometria, undefined],
-    ['Número de entidades', m.num_entidades, { display: entero }],
-    ['Número de campos', m.num_campos, { display: entero }],
-    ['Fecha de carga', m.fecha_carga, { display: (v) => fecha(v, true) }],
-  ].filter(([, value]) => has(value));
-  const dataset = datasetDefs.length
-    ? group('Información del conjunto de datos',
-        grid(datasetDefs.map(([label, value, opts]) => field(label, value, opts))))
-    : '';
   return `
     ${hint(HINT_IDENTIFICACION)}
-    ${basics}
-    ${field('Resumen', m.resumen, { area: true, rows: 9 })}
-    ${dataset}`;
+    ${field('Resumen', m.resumen, { area: true, rows: 9 })}`;
 }
 
 function pageCategorias(m) {
@@ -361,11 +345,11 @@ function buildPage(id, m) {
 export function buildQgisMetadataHtml(metadata, options = {}) {
   const variant = options.variant === 'panel' ? 'panel' : 'config';
   const m = metadata || {};
-  const tabs = TABS.map((t, i) => {
+  const tabs = VISIBLE_TABS.map((t, i) => {
     const on = i === 0;
     return `<button type="button" class="qgis-tab${on ? ' active' : ''}" role="tab" aria-selected="${on}" data-qtab="${t.id}">${t.label}</button>`;
   }).join('');
-  const pages = TABS.map((t, i) => `
+  const pages = VISIBLE_TABS.map((t, i) => `
     <section class="qgis-page" role="tabpanel" data-qpage="${t.id}"${i === 0 ? '' : ' hidden'}>
       ${buildPage(t.id, m)}
     </section>`).join('');

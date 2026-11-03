@@ -55,6 +55,11 @@ LAYERS = {
         "attribution": "Tiles &copy; Esri",
         "name": "Imagen satelital (Esri World Imagery)",
     },
+    "satelite-labels": {
+        "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Labels &copy; Esri",
+        "name": "Etiquetas satelitales (Esri World_Boundaries_and_Places)",
+    },
 }
 
 USER_AGENT = "geoportal-bsd-offline-tiles/1.0 (uso interno; seed unico de tiles)"

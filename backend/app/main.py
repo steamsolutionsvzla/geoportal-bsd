@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.db.database import connect_db, disconnect_db
 from app.api.layers import router as layers_router
+from app.api.manager import router as manager_router
 from app.api.auth import router as auth_router
 from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 app.include_router(layers_router)
+app.include_router(manager_router)
 app.include_router(showroom_router)
 app.include_router(auth_router)
 app.include_router(styles_router)
