@@ -202,6 +202,45 @@ class GeoServerService:
         return data
 
     # --------------------------------------------------------------
+    # Exportación de una capa a Shapefile (.zip) vía WFS de GeoServer
+    # --------------------------------------------------------------
+    @staticmethod
+    async def get_layer_shapefile_zip(table_name: str, workspace: Optional[str] = None) -> bytes:
+        """Devuelve el contenido binario de un Shapefile comprimido (.zip)."""
+        if ':' in table_name and workspace is None:
+            parts = table_name.split(':', 1)
+            workspace = parts[0]
+            table_name = parts[1]
+
+        if workspace is None:
+            workspace = await GeoServerService._find_workspace_for_layer(table_name)
+            if workspace is None:
+                raise HTTPException(404, f"No se encontró la capa '{table_name}' en ningún workspace.")
+
+        type_name = f"{workspace}:{table_name}"
+        url = f"{settings.GEOSERVER_URL.rstrip('/')}/wfs"
+        params = {
+            "service": "WFS",
+            "version": "1.0.0",
+            "request": "GetFeature",
+            "typeName": type_name,
+            "outputFormat": "shape-zip",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.get(url, params=params, auth=GeoServerService._auth())
+        except httpx.RequestError as e:
+            raise HTTPException(502, f"No se pudo conectar con GeoServer ({url}): {e}")
+
+        if response.status_code == 401:
+            raise HTTPException(502, "GeoServer rechazó las credenciales configuradas.")
+        if response.status_code != 200:
+            raise HTTPException(502, f"GeoServer respondió {response.status_code} al exportar '{type_name}'.")
+
+        return response.content
+
+    # --------------------------------------------------------------
     # Detección del tipo de geometría (usado por los endpoints de workspaces)
     # --------------------------------------------------------------
     @staticmethod

@@ -1,10 +1,12 @@
 # app/api/layers.py
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from app.api.deps import auth_guard, workspace_guard, allowed_workspaces, filter_layers_by_workspace
 from app.models.user import CurrentUser
 from app.db.database import get_pool
 from app.services.geoserver_service import GeoServerService
 from app.services.layer_service import get_layer_metadata
+import io
 
 router = APIRouter(
     prefix="/api/v1/layers",
@@ -42,6 +44,24 @@ async def get_layer(table_name: str, geom_col: str = "geom"):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{table_name}/download", dependencies=[Depends(workspace_guard)])
+async def download_layer_shapefile(table_name: str):
+    """Descarga la capa como Shapefile comprimido (.zip) vía WFS de GeoServer."""
+    try:
+        data = await GeoServerService.get_layer_shapefile_zip(table_name)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    short_name = table_name.split(':')[-1] if ':' in table_name else table_name
+    filename = f"{short_name}.zip"
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
     
 @router.get("/{table_name:path}/attributes", dependencies=[Depends(workspace_guard)])
 async def get_layer_attributes(table_name: str):

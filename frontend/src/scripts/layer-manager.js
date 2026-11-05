@@ -1,6 +1,7 @@
 // layer-manager.js
 import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch } from './utils.js';
 import { getMap } from './map-config.js';
+import { downloadLayerShp } from './download.js';
 
 let availableLayers = [];
 let selectedFeatureId = null;
@@ -241,6 +242,10 @@ function createLayerRow(layerInfo) {
           <div class="layer-count" data-count-for="${layerInfo.id}"></div>
         </div>
       </div>
+      ${layerInfo.type !== 'raster' ? `
+      <button type="button" class="layer-download" data-table="${layerInfo.id}" title="Descargar Shapefile" aria-label="Descargar Shapefile">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><polyline points="7 13 12 18 17 13"/><path d="M4 20h16"/></svg>
+      </button>` : ''}
       <div class="toggle" data-table="${layerInfo.id}"></div>
     </div>
     ${isFill ? `
@@ -307,6 +312,8 @@ export function clearLayerFeatureCount(tableName) {
 export function attachLayerToggleEvents(sidebarElement, onLayerToggle) {
   if (!sidebarElement) return;
   sidebarElement.addEventListener('click', async (e) => {
+    // La descarga de Shapefile se maneja en su propio listener.
+    if (e.target.closest('.layer-download')) return;
     const rowTarget = e.target.closest('.layer-row');
     if (!rowTarget) return;
     const toggleBtn = rowTarget.querySelector('.toggle[data-table]');
@@ -361,6 +368,21 @@ export function attachLayerOpacityEvents(sidebarElement) {
     const valueLabel = slider.parentElement.querySelector('.layer-opacity-value');
     if (valueLabel) valueLabel.textContent = `${slider.value}%`;
     setLayerFillOpacity(tableName, slider.value);
+  });
+}
+
+// ================================================================
+// Descarga de una capa a Shapefile (.zip)
+// ================================================================
+export function attachLayerDownloadEvents(sidebarElement) {
+  if (!sidebarElement) return;
+  sidebarElement.addEventListener('click', (e) => {
+    const btn = e.target.closest('.layer-download');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const tableName = btn.getAttribute('data-table');
+    if (tableName) downloadLayerShp(tableName);
   });
 }
 

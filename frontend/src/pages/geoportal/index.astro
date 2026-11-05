@@ -274,43 +274,6 @@ import Footer from '../../components/Footer.astro';
         </button>
       </div>
 
-      <div class="geoservices-switch" id="geoservicesSwitch">
-        <div class="geoservices-popover" id="geoservicesPopover">
-          <div class="geoservices-header">
-            <span>Geoservicios</span>
-            <button type="button" class="close-popover-btn" id="closeGeoservicesBtn">&times;</button>
-          </div>
-          <p class="geoservices-desc">Conecta el geoportal en tu SIG de escritorio (QGIS/ArcGIS) o descarga datos por OGC.</p>
-          <div class="geoservices-list">
-            <div class="geoservice-row">
-              <span class="gs-label">WMS</span>
-              <code class="gs-url" id="gsWmsUrl"></code>
-              <button type="button" class="gs-copy" data-copy="wms">Copiar</button>
-            </div>
-            <div class="geoservice-row">
-              <span class="gs-label">WFS</span>
-              <code class="gs-url" id="gsWfsUrl"></code>
-              <button type="button" class="gs-copy" data-copy="wfs">Copiar</button>
-            </div>
-            <div class="geoservice-row">
-              <span class="gs-label">WMTS</span>
-              <code class="gs-url" id="gsWmtsUrl"></code>
-              <button type="button" class="gs-copy" data-copy="wmts">Copiar</button>
-            </div>
-          </div>
-          <a class="geoservices-open" id="gsOpenCaps" target="_blank" rel="noopener">Ver GetCapabilities (WMS)</a>
-        </div>
-        <button type="button" class="geoservices-toggle-btn" id="geoservicesToggleBtn" title="Geoservicios" aria-label="Geoservicios">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"></circle>
-            <path d="M3 12h18"></path>
-            <path d="M12 3a15 15 0 0 1 0 18"></path>
-            <path d="M12 3a15 15 0 0 0 0 18"></path>
-          </svg>
-          <span class="geoservices-toggle-label">Geoservicios</span>
-        </button>
-      </div>
-
       <div class="map-tools" id="mapTools">
         <button type="button" class="map-tool-btn" id="measureDistanceBtn" title="Medir distancia" aria-label="Medir distancia">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

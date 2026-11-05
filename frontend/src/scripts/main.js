@@ -35,6 +35,7 @@ import {
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
   setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount,
   attachLayerOpacityEvents,
+  attachLayerDownloadEvents,
   getLayerRawData, clearLayerRawData,   // 👈 NUEVOS
   isRasterLayer, addRasterLayerToMap, removeRasterLayer
 } from './layer-manager.js';
@@ -230,6 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const sidebar = document.getElementById('sidebar');
           attachLayerToggleEvents(sidebar, handleLayerToggle);
           attachLayerOpacityEvents(sidebar);
+          attachLayerDownloadEvents(sidebar);
         } finally {
           endBusy();
         }
@@ -305,76 +307,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
     }
-
-    setupGeoservices();
   });
 });
-
-// =========================================================================
-// GEOSERVICIOS (WMS / WFS / WMTS)
-// =========================================================================
-function geoserverBaseUrl() {
-  return (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_GEOSERVER_URL) || '/geoserver';
-}
-
-function setupGeoservices() {
-  const toggle = document.getElementById('geoservicesToggleBtn');
-  const wrap = document.getElementById('geoservicesSwitch');
-  if (!toggle || !wrap) return;
-
-  const base = geoserverBaseUrl();
-  const urls = {
-    wms: `${base}/wms`,
-    wfs: `${base}/wfs`,
-    wmts: `${base}/gwc/service/wmts`
-  };
-
-  const wmsEl = document.getElementById('gsWmsUrl');
-  const wfsEl = document.getElementById('gsWfsUrl');
-  const wmtsEl = document.getElementById('gsWmtsUrl');
-  if (wmsEl) wmsEl.textContent = urls.wms;
-  if (wfsEl) wfsEl.textContent = urls.wfs;
-  if (wmtsEl) wmtsEl.textContent = urls.wmts;
-
-  const openCaps = document.getElementById('gsOpenCaps');
-  if (openCaps) {
-    openCaps.href = `${urls.wms}?service=WMS&version=1.3.0&request=GetCapabilities`;
-  }
-
-  toggle.addEventListener('click', (e) => {
-    e.stopPropagation();
-    wrap.classList.toggle('open');
-  });
-
-  const closeBtn = document.getElementById('closeGeoservicesBtn');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      wrap.classList.remove('open');
-    });
-  }
-
-  wrap.querySelectorAll('.gs-copy[data-copy]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const key = btn.getAttribute('data-copy');
-      const url = urls[key];
-      if (!url) return;
-      try {
-        await navigator.clipboard.writeText(url);
-        const original = btn.textContent;
-        btn.textContent = 'Copiado';
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      } catch (_) {
-        // Fallback si no hay permisos de portapapeles.
-        window.prompt('Copia la URL:', url);
-      }
-    });
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target)) wrap.classList.remove('open');
-  });
-}
 
 // =========================================================================
 // CARGA DE WORKSPACES

@@ -623,6 +623,17 @@ input { font-family: inherit; }
 .toggle.on { background: var(--accent-navy); }
 .toggle.on::after { transform: translateX(13px); background: #ffffff; }
 
+.layer-download {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--muted-500);
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.layer-download:hover { color: var(--accent-navy); background: var(--accent-navy-soft); }
+
 .layer-opacity-row { display: none; align-items: center; gap: 8px; padding: 2px 10px 9px 37px; }
 .layer-item.active .layer-opacity-row { display: flex; }
 .layer-opacity-icon { flex-shrink: 0; color: var(--muted-500); }
@@ -900,27 +911,18 @@ input { font-family: inherit; }
 
 
 /* ---------- LEYENDA ---------- */
-.legend-switch { position: absolute; top: 84px; right: 20px; z-index: 12; }
+.legend-switch { position: absolute; top: 88px; right: 20px; z-index: 10; }
 .legend-toggle-btn {
-  min-width: 56px;
-  height: 48px;
-  padding: 0 16px;
-  gap: 9px;
+  width: auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px;
+  gap: 8px;
   border-radius: 999px;
-  background: var(--accent-navy);
-  border-color: var(--accent-navy);
-  color: var(--white);
-}
-.legend-toggle-btn svg { width: 22px; height: 22px; }
-.legend-toggle-btn:hover, .legend-switch.open .legend-toggle-btn {
-  background: var(--accent-navy-dim);
-  border-color: var(--accent-navy-dim);
-  color: var(--white);
-  transform: scale(1.05);
 }
 .legend-toggle-label {
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -968,62 +970,6 @@ input { font-family: inherit; }
   .legend-switch { top: 82px; right: 12px; }
   .legend-toggle-label { display: none; }
   .legend-toggle-btn { width: 44px; min-width: 44px; padding: 0; }
-}
-
-/* ---------- GEOSERVICIOS (DESCARGA) ---------- */
-.geoservices-switch { position: absolute; top: 142px; right: 20px; z-index: 12; }
-.geoservices-toggle-btn {
-  min-width: 56px; height: 48px; padding: 0 16px; gap: 9px;
-  border-radius: 999px;
-  background: #0f766e; border: 1px solid #0f766e; color: var(--white);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow-2); cursor: pointer;
-  transition: all .18s ease;
-}
-.geoservices-toggle-btn svg { width: 20px; height: 20px; }
-.geoservices-toggle-btn:hover, .geoservices-switch.open .geoservices-toggle-btn {
-  background: #115e59; border-color: #115e59; transform: scale(1.05);
-}
-.geoservices-toggle-label {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.02em;
-}
-.geoservices-popover {
-  position: absolute; top: 54px; right: 0; width: 280px; max-height: 340px;
-  background: var(--white); border: 1px solid var(--line-700); border-radius: var(--radius-m);
-  padding: 12px; box-shadow: var(--shadow-2);
-  display: flex; flex-direction: column; gap: 8px;
-  opacity: 0; visibility: hidden; transform: translateY(8px);
-  transition: all .2s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: none;
-}
-.geoservices-switch.open .geoservices-popover { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: all; }
-.geoservices-header {
-  display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--line-700); padding-bottom: 6px;
-  font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; letter-spacing: 0.1em;
-  color: var(--accent-navy); text-transform: uppercase;
-}
-.geoservices-desc { margin: 0; font-size: 0.72rem; line-height: 1.4; color: var(--muted-500); }
-.geoservices-list { display: flex; flex-direction: column; gap: 6px; }
-.geoservice-row { display: flex; align-items: center; gap: 8px; }
-.gs-label { width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 0.64rem; font-weight: 700; color: var(--accent-navy); }
-.gs-url {
-  flex: 1; min-width: 0;
-  font-family: 'JetBrains Mono', monospace; font-size: 0.66rem; color: var(--accent-navy-dim);
-  background: var(--paper-2); border: 1px solid var(--line-700); border-radius: 6px; padding: 5px 7px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gs-copy {
-  border: 1px solid var(--line-700); background: var(--white); color: var(--accent-navy-dim);
-  font-size: 0.68rem; font-weight: 600; border-radius: 6px; padding: 5px 8px; cursor: pointer;
-}
-.gs-copy:hover { background: var(--paper-2); border-color: var(--accent-navy); }
-.geoservices-open { align-self: flex-start; font-size: 0.72rem; font-weight: 600; color: var(--accent-navy); text-decoration: none; }
-.geoservices-open:hover { text-decoration: underline; }
-@media (max-width: 640px) {
-  .geoservices-switch { top: 136px; right: 12px; }
-  .geoservices-toggle-label { display: none; }
-  .geoservices-toggle-btn { width: 44px; min-width: 44px; padding: 0; }
 }
 
 /* ---------- INFO CARDS ---------- */
