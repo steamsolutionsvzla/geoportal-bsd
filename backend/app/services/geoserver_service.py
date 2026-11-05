@@ -224,7 +224,7 @@ class GeoServerService:
             "version": "1.0.0",
             "request": "GetFeature",
             "typeName": type_name,
-            "outputFormat": "shape-zip",
+            "outputFormat": "SHAPE-ZIP",
         }
 
         try:
@@ -236,7 +236,12 @@ class GeoServerService:
         if response.status_code == 401:
             raise HTTPException(502, "GeoServer rechazó las credenciales configuradas.")
         if response.status_code != 200:
-            raise HTTPException(502, f"GeoServer respondió {response.status_code} al exportar '{type_name}'.")
+            detalle = (response.text or "")[:400]
+            raise HTTPException(
+                502,
+                f"GeoServer respondió {response.status_code} al exportar '{type_name}'"
+                + (f": {detalle}" if detalle else "")
+            )
 
         return response.content
 

@@ -12,7 +12,18 @@ export async function downloadLayerShp(tableName) {
       let msg = `Error ${response.status}`;
       try {
         const text = await response.text();
-        if (text) msg = text;
+        if (text) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed && parsed.detail) {
+              msg = typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+            } else {
+              msg = text;
+            }
+          } catch (_) {
+            msg = text;
+          }
+        }
       } catch (_) { /* ignorar */ }
       throw new Error(msg);
     }

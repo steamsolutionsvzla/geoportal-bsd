@@ -3,6 +3,7 @@ import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 // ========================================================================
@@ -490,6 +491,23 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
+
+  // Tabla resumen: nombre de la capa y cantidad de elementos.
+  const filas = Object.entries(capasDetalleMap || {}).map(([capa, lista]) => [capa, String((lista || []).length)]);
+  if (filas.length > 0) {
+    autoTable(doc, {
+      head: [['Capa / Elemento', 'Cantidad']],
+      body: filas,
+      startY: y,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [180, 180, 180], lineWidth: 0.2, halign: 'left' },
+      headStyles: { fillColor: secondaryColor, textColor: [255, 255, 255], fontSize: 9, halign: 'left' },
+      bodyStyles: { lineColor: [180, 180, 180], lineWidth: 0.1 },
+      alternateRowStyles: { fillColor: [240, 240, 240] },
+      columnStyles: { 1: { halign: 'right' } }
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
