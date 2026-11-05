@@ -28,33 +28,80 @@ export function applyStyle(
   try {
     if (t === "fill") {
       if (style.fill_color) {
-        map.setPaintProperty(maplibreLayerId, "fill-color", style.fill_color);
+        map.setPaintProperty(maplibreLayerId, "fill-color", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], "#facc15",
+          style.fill_color,
+        ]);
       }
-      if (style.opacity != null) {
+      if (style.has_fill === false) {
+        map.setPaintProperty(maplibreLayerId, "fill-opacity", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], 0.55,
+          0,
+        ]);
+      } else if (style.opacity != null) {
         map.setPaintProperty(maplibreLayerId, "fill-opacity", style.opacity);
       }
       if (style.stroke_color) {
-        map.setPaintProperty(maplibreLayerId, "fill-outline-color", style.stroke_color);
+        map.setPaintProperty(maplibreLayerId, "fill-outline-color", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], "#b45309",
+          style.stroke_color,
+        ]);
       }
     } else if (t === "line") {
       if (style.stroke_color) {
-        map.setPaintProperty(maplibreLayerId, "line-color", style.stroke_color);
+        map.setPaintProperty(maplibreLayerId, "line-color", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], "#facc15",
+          style.stroke_color,
+        ]);
       }
       if (style.line_width != null) {
-        map.setPaintProperty(maplibreLayerId, "line-width", style.line_width);
+        map.setPaintProperty(maplibreLayerId, "line-width", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          Math.max(Number(style.line_width) + 2, 4),
+          style.line_width,
+        ]);
+      }
+      if (style.opacity != null) {
+        map.setPaintProperty(maplibreLayerId, "line-opacity", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], 1,
+          style.opacity,
+        ]);
       }
     } else if (t === "circle") {
       if (style.fill_color) {
-        map.setPaintProperty(maplibreLayerId, "circle-color", style.fill_color);
+        map.setPaintProperty(maplibreLayerId, "circle-color", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], "#facc15",
+          style.fill_color,
+        ]);
       }
       if (style.opacity != null) {
-        map.setPaintProperty(maplibreLayerId, "circle-opacity", style.opacity);
+        map.setPaintProperty(maplibreLayerId, "circle-opacity", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], 1,
+          style.opacity,
+        ]);
       }
       if (style.stroke_color) {
-        map.setPaintProperty(maplibreLayerId, "circle-stroke-color", style.stroke_color);
+        map.setPaintProperty(maplibreLayerId, "circle-stroke-color", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false], "#b45309",
+          style.stroke_color,
+        ]);
       }
       if (style.line_width != null) {
-        map.setPaintProperty(maplibreLayerId, "circle-stroke-width", style.line_width);
+        map.setPaintProperty(maplibreLayerId, "circle-stroke-width", [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          Math.max(Number(style.line_width) + 2, 3),
+          style.line_width,
+        ]);
       }
     }
   } catch {

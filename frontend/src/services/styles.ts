@@ -20,6 +20,7 @@ export interface LayerStyle {
   stroke_color?: string | null;
   opacity?: number | null;
   line_width?: number | null;
+  has_fill?: boolean;
   min_zoom?: number | null;
   max_zoom?: number | null;
   visible_attributes: string[];
@@ -47,6 +48,7 @@ export async function saveStyle(
       stroke_color: style.stroke_color ?? null,
       opacity: style.opacity ?? null,
       line_width: style.line_width ?? null,
+      has_fill: style.has_fill ?? true,
       min_zoom: style.min_zoom ?? null,
       max_zoom: style.max_zoom ?? null,
       visible_attributes: style.visible_attributes ?? [],

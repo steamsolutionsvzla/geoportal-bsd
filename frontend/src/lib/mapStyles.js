@@ -25,17 +25,82 @@ export function applyStyle(map, baseId, type, style, defaultMinZoom = 0, default
 
     try {
       if (t === 'fill') {
-        if (style.fill_color)   map.setPaintProperty(id, 'fill-color', style.fill_color);
-        if (style.opacity != null) map.setPaintProperty(id, 'fill-opacity', style.opacity);
-        if (style.stroke_color) map.setPaintProperty(id, 'fill-outline-color', style.stroke_color);
+        if (style.fill_color) {
+          map.setPaintProperty(id, 'fill-color', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#facc15',
+            style.fill_color,
+          ]);
+        }
+        if (style.has_fill === false) {
+          map.setPaintProperty(id, 'fill-opacity', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 0.55,
+            0,
+          ]);
+        } else if (style.opacity != null) {
+          map.setPaintProperty(id, 'fill-opacity', style.opacity);
+        }
+        if (style.stroke_color) {
+          map.setPaintProperty(id, 'fill-outline-color', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#b45309',
+            style.stroke_color,
+          ]);
+        }
       } else if (t === 'line') {
-        if (style.stroke_color) map.setPaintProperty(id, 'line-color', style.stroke_color);
-        if (style.line_width != null) map.setPaintProperty(id, 'line-width', style.line_width);
+        if (style.stroke_color) {
+          map.setPaintProperty(id, 'line-color', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#facc15',
+            style.stroke_color,
+          ]);
+        }
+        if (style.line_width != null) {
+          map.setPaintProperty(id, 'line-width', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            Math.max(Number(style.line_width) + 2, 4),
+            style.line_width,
+          ]);
+        }
+        if (style.opacity != null) {
+          map.setPaintProperty(id, 'line-opacity', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            style.opacity,
+          ]);
+        }
       } else if (t === 'circle' || t === 'point') {
-        if (style.fill_color)   map.setPaintProperty(id, 'circle-color', style.fill_color);
-        if (style.opacity != null) map.setPaintProperty(id, 'circle-opacity', style.opacity);
-        if (style.stroke_color) map.setPaintProperty(id, 'circle-stroke-color', style.stroke_color);
-        if (style.line_width != null) map.setPaintProperty(id, 'circle-stroke-width', style.line_width);
+        if (style.fill_color) {
+          map.setPaintProperty(id, 'circle-color', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#facc15',
+            style.fill_color,
+          ]);
+        }
+        if (style.opacity != null) {
+          map.setPaintProperty(id, 'circle-opacity', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            style.opacity,
+          ]);
+        }
+        if (style.stroke_color) {
+          map.setPaintProperty(id, 'circle-stroke-color', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#b45309',
+            style.stroke_color,
+          ]);
+        }
+        if (style.line_width != null) {
+          map.setPaintProperty(id, 'circle-stroke-width', [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false],
+            Math.max(Number(style.line_width) + 2, 3),
+            style.line_width,
+          ]);
+        }
       }
     } catch (_) { /* prop no aplicable */ }
 
