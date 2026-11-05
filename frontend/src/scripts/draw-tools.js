@@ -588,3 +588,14 @@ export function initDrawTools({
 
   actualizarUI();
 }
+
+/**
+ * Activa la herramienta de polígono desde fuera de la barra del mapa
+ * (por ejemplo, desde el menú «Área de análisis» del geoportal).
+ * Devuelve true si la herramienta quedó activa.
+ */
+export function startPolygonTool() {
+  if (!mapRef) return false;
+  if (activeTool !== 'polygon') activarHerramienta('polygon');
+  return activeTool === 'polygon';
+}

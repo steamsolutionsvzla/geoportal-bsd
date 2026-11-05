@@ -130,12 +130,20 @@ import Footer from '../../components/Footer.astro';
             </button>
             <div class="loc-filter-dropdown area-dropdown" id="dropdownArea">
               <input type="file" id="areaFileInput" accept=".geojson,.json,.zip" hidden>
-              <button type="button" class="area-upload-btn" id="areaUploadBtn">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 16V4"></path><polyline points="7 9 12 4 17 9"></polyline><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path>
-                </svg>
-                Cargar polígono…
-              </button>
+              <div class="area-action-row">
+                <button type="button" class="area-upload-btn" id="areaUploadBtn">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 16V4"></path><polyline points="7 9 12 4 17 9"></polyline><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path>
+                  </svg>
+                  Cargar SHP / GeoJSON…
+                </button>
+                <button type="button" class="area-draw-btn" id="areaDrawBtn">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 15l4-9 8 2 4 7-6 5z"/><circle cx="8" cy="6" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="20" cy="15" r="1"/><circle cx="14" cy="20" r="1"/><circle cx="4" cy="15" r="1"/>
+                  </svg>
+                  Dibujar polígono
+                </button>
+              </div>
               <div class="area-file-row" id="areaFileRow" hidden>
                 <span class="area-file-name" id="areaFileName"></span>
                 <button type="button" class="area-clear-btn" id="areaClearLayerBtn" title="Quitar capa del área" aria-label="Quitar capa del área">✕</button>
@@ -145,7 +153,7 @@ import Footer from '../../components/Footer.astro';
                 <select id="areaLabelSelect"></select>
               </label>
               <div class="area-entity-list" id="areaEntityList"></div>
-              <p class="area-hint" id="areaHint">Carga un GeoJSON o Shapefile (.zip) o usa «Dibujar polígono» en el mapa.</p>
+              <p class="area-hint" id="areaHint">Carga un Shapefile (.zip) o GeoJSON, o dibuja un polígono.</p>
               <p class="area-error" id="areaError" hidden></p>
             </div>
           </div>
@@ -167,7 +175,9 @@ import Footer from '../../components/Footer.astro';
           autocomplete="off"
           aria-label="Buscar capa"
         />
+        <button type="button" class="layer-search-clear" id="layerSearchClear" title="Limpiar búsqueda" aria-label="Limpiar búsqueda" hidden>✕</button>
       </div>
+      <div class="layer-search-count" id="layerSearchCount" hidden></div>
       <div class="layers-scroll-area">
         <div id="layersGroupsContainer"></div>
       </div>

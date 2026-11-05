@@ -18,7 +18,7 @@ import {
   recalcularFiltrosActivos
 } from './filters.js';
 import { setDrawnArea } from './area-temporal.js';
-import { initDrawTools } from './draw-tools.js';
+import { initDrawTools, startPolygonTool } from './draw-tools.js';
 import { bringVenezuelaBoundaryToFront } from './venezuela-boundary.js';
 import { bringCountryLabelsToFront } from './map-labels.js';
 import {
@@ -159,6 +159,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.map = map;
 
   document.getElementById('layerSearch')?.addEventListener('input', aplicarBusquedaCapas);
+  document.getElementById('layerSearch')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      limpiarBusquedaCapas();
+    }
+  });
+  document.getElementById('layerSearchClear')?.addEventListener('click', limpiarBusquedaCapas);
 
   map.on('load', () => {
     addBaseLayers(map);
@@ -208,7 +215,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               const filtroBloque = document.getElementById('filterBloque');
               if (filtroBloque) filtroBloque.hidden = true;
               setupFilterDropdowns(estadosGeoJsonCache, null, { includeBloque: false });
-              setupAreaFilter();
+              setupAreaFilter({ onRequestDraw: () => startPolygonTool() });
             } else if (estadosGeoJsonCache && bloquesGeoJsonCache) {
               setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
             } else {
@@ -375,6 +382,67 @@ function normalizarBusqueda(texto) {
     .trim();
 }
 
+/**
+ * Mapa entre cada carácter del texto normalizado y su posición en el
+ * original, para poder resaltar la coincidencia aunque haya tildes.
+ */
+function indiceNormalizado(texto) {
+  let norm = '';
+  const mapa = [];
+  for (let i = 0; i < texto.length; i++) {
+    const trozo = normalizarBusqueda(texto[i]);
+    for (let j = 0; j < trozo.length; j++) {
+      norm += trozo[j];
+      mapa.push(i);
+    }
+  }
+  mapa.push(texto.length);
+  return { norm, mapa };
+}
+
+function resaltarCoincidencia(el, q) {
+  if (!el) return;
+  if (el.dataset.plain === undefined) el.dataset.plain = el.textContent || '';
+  const original = el.dataset.plain;
+  el.textContent = original;
+  if (!q) return;
+
+  const { norm, mapa } = indiceNormalizado(original);
+  const idx = norm.indexOf(q);
+  if (idx === -1) return;
+
+  const inicio = mapa[idx] ?? 0;
+  const fin = mapa[idx + q.length] ?? original.length;
+  if (fin <= inicio) return;
+
+  const antes = original.slice(0, inicio);
+  const coincidencia = original.slice(inicio, fin);
+  const despues = original.slice(fin);
+
+  el.textContent = '';
+  if (antes) el.appendChild(document.createTextNode(antes));
+  const mark = document.createElement('mark');
+  mark.textContent = coincidencia;
+  el.appendChild(mark);
+  if (despues) el.appendChild(document.createTextNode(despues));
+}
+
+function actualizarControlesBusqueda(q, total) {
+  const clearBtn = document.getElementById('layerSearchClear');
+  const countEl = document.getElementById('layerSearchCount');
+
+  if (clearBtn) clearBtn.hidden = !q;
+
+  if (countEl) {
+    countEl.hidden = !q;
+    if (q) {
+      countEl.textContent = total === 1
+        ? '1 capa encontrada'
+        : `${total} capas encontradas`;
+    }
+  }
+}
+
 function aplicarBusquedaCapas() {
   const input = document.getElementById('layerSearch');
   const cont = document.getElementById('layersGroupsContainer');
@@ -389,10 +457,12 @@ function aplicarBusquedaCapas() {
     let visibles = 0;
 
     items.forEach((item) => {
-      const layerName = normalizarBusqueda(item.querySelector('.lname')?.textContent);
+      const nameEl = item.querySelector('.lname');
+      const layerName = normalizarBusqueda(nameEl?.dataset.plain ?? nameEl?.textContent);
       const layerId = normalizarBusqueda(item.dataset.table);
       const coincide = !q || groupName.includes(q) || layerName.includes(q) || layerId.includes(q);
       item.hidden = !coincide;
+      resaltarCoincidencia(nameEl, q);
       if (coincide) visibles++;
     });
 
@@ -415,6 +485,16 @@ function aplicarBusquedaCapas() {
   } else if (empty) {
     empty.remove();
   }
+
+  actualizarControlesBusqueda(q, totalVisibles);
+}
+
+function limpiarBusquedaCapas() {
+  const input = document.getElementById('layerSearch');
+  if (!input) return;
+  input.value = '';
+  aplicarBusquedaCapas();
+  input.focus();
 }
 
 // =========================================================================

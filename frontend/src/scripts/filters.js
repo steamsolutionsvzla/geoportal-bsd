@@ -156,6 +156,7 @@ function areaEls() {
     filter: document.getElementById('filterArea'),
     dropdown: document.getElementById('dropdownArea'),
     uploadBtn: document.getElementById('areaUploadBtn'),
+    drawBtn: document.getElementById('areaDrawBtn'),
     fileInput: document.getElementById('areaFileInput'),
     fileRow: document.getElementById('areaFileRow'),
     fileName: document.getElementById('areaFileName'),
@@ -219,7 +220,7 @@ function renderAreaEntities() {
   entityList.innerHTML = '';
 
   if (!features.length) {
-    setAreaHint('Carga un GeoJSON o Shapefile (.zip) o usa "Dibujar polígono" en el mapa.');
+    setAreaHint('Carga un Shapefile (.zip) o GeoJSON, o dibuja un polígono.');
     return;
   }
 
@@ -339,7 +340,7 @@ export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
     if (labelSelect) labelSelect.innerHTML = '';
     if (entityList) entityList.innerHTML = '';
     if (error) error.hidden = true;
-    setAreaHint('Carga un GeoJSON o Shapefile (.zip) o usa "Dibujar polígono" en el mapa.');
+    setAreaHint('Carga un Shapefile (.zip) o GeoJSON, o dibuja un polígono.');
   } else if (!keepUI) {
     marcarEntidadSeleccionada(-1);
   }
@@ -353,10 +354,23 @@ export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
   renderInfoPanel();
 }
 
-export function setupAreaFilter() {
+export function setupAreaFilter({ onRequestDraw = null } = {}) {
   const els = areaEls();
   if (!els.filter) return;
   els.filter.hidden = false;
+
+  if (els.drawBtn && els.drawBtn.dataset.bound !== 'true') {
+    els.drawBtn.dataset.bound = 'true';
+    els.drawBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      els.filter?.classList.remove('open');
+      if (typeof onRequestDraw === 'function') {
+        onRequestDraw();
+      } else {
+        setAreaError('La herramienta de dibujo no está disponible.');
+      }
+    });
+  }
 
   if (els.uploadBtn && els.fileInput && els.uploadBtn.dataset.bound !== 'true') {
     els.uploadBtn.dataset.bound = 'true';
