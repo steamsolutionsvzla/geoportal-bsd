@@ -1,10 +1,121 @@
 import asyncio
 import time
+import io
+import os
+import re
+import zipfile
+import tempfile
 import httpx
 import logging
+import shapefile  # pyshp
 from fastapi import HTTPException
 from app.config import settings
 from typing import List, Dict, Optional, Set
+
+# WKT de WGS 84 (EPSG:4326) para el archivo .prj del Shapefile.
+_WGS84_PRJ = (
+    'GEOGCS["WGS 84",'
+    'DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],'
+    'PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],'
+    'UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],'
+    'AUTHORITY["EPSG","4326"]]'
+)
+
+
+def _sanitize_field_name(name: str) -> str:
+    """DBF limita los nombres de campo a 10 caracteres alfanuméricos."""
+    cleaned = re.sub(r"[^A-Za-z0-9_]", "_", str(name or "")).strip("_")
+    if not cleaned:
+        cleaned = "campo"
+    if cleaned[0].isdigit():
+        cleaned = "_" + cleaned
+    return cleaned[:10]
+
+
+def _geojson_to_shapefile_zip(feature_collection: dict, inner_name: str = "capa") -> bytes:
+    """Convierte un GeoJSON (FeatureCollection) a un Shapefile .zip en memoria."""
+    features = [f for f in (feature_collection.get("features") or []) if f and f.get("geometry")]
+    if not features:
+        raise HTTPException(400, "La capa no tiene geometrías para exportar.")
+
+    # Recolectar nombres de campo (orden estable) y definir tipo DBF por muestreo.
+    field_names = []
+    for f in features:
+        for k in (f.get("properties") or {}).keys():
+            if k not in field_names:
+                field_names.append(k)
+
+    def _field_type(name):
+        vals = [(f.get("properties") or {}).get(name) for f in features]
+        vals = [v for v in vals if v is not None]
+        if not vals:
+            return ("C", 254, 0)
+        if all(isinstance(v, bool) for v in vals):
+            return ("L", 1, 0)
+        if all(isinstance(v, int) and not isinstance(v, bool) for v in vals):
+            return ("N", 20, 0)
+        if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
+            return ("N", 32, 8)
+        return ("C", 254, 0)
+
+    specs = []  # (original_name, dbf_name, fieldType, size, decimal)
+    used_names = {}
+    for name in field_names:
+        base = _sanitize_field_name(name)
+        dbf_name = base
+        i = 1
+        while dbf_name in used_names:
+            dbf_name = f"{base[:9]}{i}"
+            i += 1
+        used_names[dbf_name] = True
+        ft, size, dec = _field_type(name)
+        specs.append((name, dbf_name, ft, size, dec))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base_path = os.path.join(tmp, inner_name or "capa")
+        w = shapefile.Writer(base_path)
+        try:
+            for _, dbf_name, ft, size, dec in specs:
+                w.field(dbf_name, fieldType=ft, size=size, decimal=dec)
+
+            for f in features:
+                props = f.get("properties") or {}
+                record = []
+                for orig, _dbf_name, ft, size, dec in specs:
+                    v = props.get(orig)
+                    if ft == "C":
+                        record.append("" if v is None else str(v)[:size])
+                    elif ft == "N":
+                        if v is None:
+                            record.append(None)
+                        elif dec:
+                            record.append(float(v))
+                        else:
+                            record.append(int(v))
+                    elif ft == "L":
+                        record.append(bool(v) if v is not None else False)
+                    else:
+                        record.append("" if v is None else str(v))
+                w.record(*record)
+                w.shape(f["geometry"])
+        finally:
+            try:
+                w.close()
+            except Exception:
+                pass
+
+        prj_path = base_path + ".prj"
+        with open(prj_path, "w", encoding="utf-8") as fh:
+            fh.write(_WGS84_PRJ)
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for ext in (".shp", ".shx", ".dbf", ".prj"):
+                path = base_path + ext
+                if os.path.exists(path):
+                    zf.write(path, (inner_name or "capa") + ext)
+        return buf.getvalue()
+
 
 # Bindings Java/JTS para geometría
 _GEOM_BINDING_TO_TYPE = {
@@ -202,7 +313,8 @@ class GeoServerService:
         return data
 
     # --------------------------------------------------------------
-    # Exportación de una capa a Shapefile (.zip) vía WFS de GeoServer
+    # Exportación de una capa a Shapefile (.zip) generado con pyshp
+    # (no depende de la salida SHAPE-ZIP de GeoServer).
     # --------------------------------------------------------------
     @staticmethod
     async def get_layer_shapefile_zip(table_name: str, workspace: Optional[str] = None) -> bytes:
@@ -217,33 +329,9 @@ class GeoServerService:
             if workspace is None:
                 raise HTTPException(404, f"No se encontró la capa '{table_name}' en ningún workspace.")
 
-        type_name = f"{workspace}:{table_name}"
-        url = f"{settings.GEOSERVER_URL.rstrip('/')}/wfs"
-        params = {
-            "service": "WFS",
-            "version": "1.0.0",
-            "request": "GetFeature",
-            "typeName": type_name,
-            "outputFormat": "SHAPE-ZIP",
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.get(url, params=params, auth=GeoServerService._auth())
-        except httpx.RequestError as e:
-            raise HTTPException(502, f"No se pudo conectar con GeoServer ({url}): {e}")
-
-        if response.status_code == 401:
-            raise HTTPException(502, "GeoServer rechazó las credenciales configuradas.")
-        if response.status_code != 200:
-            detalle = (response.text or "")[:400]
-            raise HTTPException(
-                502,
-                f"GeoServer respondió {response.status_code} al exportar '{type_name}'"
-                + (f": {detalle}" if detalle else "")
-            )
-
-        return response.content
+        feature_collection = await GeoServerService.get_layer_geojson(f"{workspace}:{table_name}")
+        inner_name = re.sub(r"[^A-Za-z0-9_]", "_", table_name) or "capa"
+        return _geojson_to_shapefile_zip(feature_collection, inner_name=inner_name)
 
     # --------------------------------------------------------------
     # Detección del tipo de geometría (usado por los endpoints de workspaces)
