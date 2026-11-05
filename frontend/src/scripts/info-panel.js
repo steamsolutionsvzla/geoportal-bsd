@@ -3,7 +3,6 @@ import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 // ========================================================================
@@ -462,8 +461,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
 
   const primaryColor = [26, 54, 93];
   const secondaryColor = [49, 130, 206];
-  const lightGray = [240, 240, 240];
-  const borderColor = [180, 180, 180];
 
   const logoData = await getLogoBase64();
   if (logoData) {
@@ -493,32 +490,6 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.setLineWidth(0.8);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
-
-  if (tablaResumenEl) {
-    const tableData = [];
-    const rows = tablaResumenEl.querySelectorAll('tr');
-    rows.forEach(row => {
-      const cells = row.querySelectorAll('th, td');
-      if (cells.length > 0) {
-        tableData.push(Array.from(cells).map(cell => cell.textContent.trim()));
-      }
-    });
-    autoTable(doc, {
-      head: tableData.slice(0, 1),
-      body: tableData.slice(1),
-      startY: y,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 3, lineColor: borderColor, lineWidth: 0.2, halign: 'left' },
-      headStyles: { fillColor: secondaryColor, textColor: [255,255,255], fontSize: 9, halign: 'left', lineColor: borderColor, lineWidth: 0.2 },
-      bodyStyles: { lineColor: borderColor, lineWidth: 0.1 },
-      alternateRowStyles: { fillColor: lightGray },
-      columnStyles: { 1: { halign: 'right' } },
-      didParseCell: function(data) {
-        if (data.column.index === 1) data.cell.styles.halign = 'right';
-      }
-    });
-    y = doc.lastAutoTable.finalY + 6;
-  }
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');

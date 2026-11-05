@@ -553,6 +553,11 @@ body.config-body .site-footer .footer-legal {
   cursor: pointer;
 }
 .cfg-field-toggle input { accent-color: var(--accent-navy); flex: none; }
+.cfg-field-toggle small {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--muted-500, #64748b);
+}
 .cfg-field-toggle[hidden] { display: none; }
 .cfg-field.is-disabled { opacity: .55; }
 .cfg-field.is-disabled input { cursor: not-allowed; }

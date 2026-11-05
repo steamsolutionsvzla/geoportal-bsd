@@ -352,6 +352,10 @@ export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
     isIntersectionFilterActive: false
   });
   renderInfoPanel();
+
+  // Limpia el resaltado amarillo y re-sincroniza los filtros que sigan activos.
+  if (typeof window.limpiarResaltadoFiltro === 'function') window.limpiarResaltadoFiltro();
+  recalcularFiltrosActivos();
 }
 
 export function setupAreaFilter({ onRequestDraw = null } = {}) {
@@ -503,6 +507,10 @@ export function limpiarFiltroEstado() {
     isIntersectionFilterActive: false
   });
   renderInfoPanel();
+
+  // Limpia el resaltado amarillo y re-sincroniza los filtros que sigan activos.
+  if (typeof window.limpiarResaltadoFiltro === 'function') window.limpiarResaltadoFiltro();
+  recalcularFiltrosActivos();
 }
 
 export function limpiarFiltroBloque() {
@@ -533,6 +541,10 @@ export function limpiarFiltroBloque() {
 
   setInfoPanelData({ currentBloqueFilterData: null, isBloqueFilterActive: false });
   renderInfoPanel();
+
+  // Limpia el resaltado amarillo y re-sincroniza los filtros que sigan activos.
+  if (typeof window.limpiarResaltadoFiltro === 'function') window.limpiarResaltadoFiltro();
+  recalcularFiltrosActivos();
 }
 
 // -------------------------------------------------------------------------

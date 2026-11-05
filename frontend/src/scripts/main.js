@@ -276,6 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: true });
+    window.limpiarResaltadoFiltro = limpiarResaltadoFiltro;
     window.cerrarSesion = cerrarSesion;
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
@@ -304,8 +305,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
     }
+
+    setupGeoservices();
   });
 });
+
+// =========================================================================
+// GEOSERVICIOS (WMS / WFS / WMTS)
+// =========================================================================
+function geoserverBaseUrl() {
+  return (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_GEOSERVER_URL) || '/geoserver';
+}
+
+function setupGeoservices() {
+  const toggle = document.getElementById('geoservicesToggleBtn');
+  const wrap = document.getElementById('geoservicesSwitch');
+  if (!toggle || !wrap) return;
+
+  const base = geoserverBaseUrl();
+  const urls = {
+    wms: `${base}/wms`,
+    wfs: `${base}/wfs`,
+    wmts: `${base}/gwc/service/wmts`
+  };
+
+  const wmsEl = document.getElementById('gsWmsUrl');
+  const wfsEl = document.getElementById('gsWfsUrl');
+  const wmtsEl = document.getElementById('gsWmtsUrl');
+  if (wmsEl) wmsEl.textContent = urls.wms;
+  if (wfsEl) wfsEl.textContent = urls.wfs;
+  if (wmtsEl) wmtsEl.textContent = urls.wmts;
+
+  const openCaps = document.getElementById('gsOpenCaps');
+  if (openCaps) {
+    openCaps.href = `${urls.wms}?service=WMS&version=1.3.0&request=GetCapabilities`;
+  }
+
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    wrap.classList.toggle('open');
+  });
+
+  const closeBtn = document.getElementById('closeGeoservicesBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      wrap.classList.remove('open');
+    });
+  }
+
+  wrap.querySelectorAll('.gs-copy[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const key = btn.getAttribute('data-copy');
+      const url = urls[key];
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+        const original = btn.textContent;
+        btn.textContent = 'Copiado';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      } catch (_) {
+        // Fallback si no hay permisos de portapapeles.
+        window.prompt('Copia la URL:', url);
+      }
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!wrap.contains(e.target)) wrap.classList.remove('open');
+  });
+}
 
 // =========================================================================
 // CARGA DE WORKSPACES
@@ -1199,6 +1268,41 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 }
 
 // =========================================================================
+// RESALTADO DE FEATURES FILTRADAS
+// Al aplicar un filtro (estado/bloque/área) las features que caen dentro se
+// marcan con `feature-state.selected` para que se pinten en amarillo.
+// Se lleva un registro por fuente para poder limpiarlas sin pisar el resaltado
+// de clic de una sola feature.
+// =========================================================================
+const filterHighlightRegistry = new Map(); // sourceId -> Set(featureId)
+
+function limpiarResaltadoFiltro() {
+  const map = getMap();
+  for (const [source, ids] of filterHighlightRegistry) {
+    ids.forEach((id) => {
+      try { map.setFeatureState({ source, id }, { selected: false }); } catch (_) { /* ignorar */ }
+    });
+  }
+  filterHighlightRegistry.clear();
+}
+
+function resaltarFeaturesFiltradas(sourceId, indices) {
+  const map = getMap();
+  const previos = filterHighlightRegistry.get(sourceId);
+  if (previos) {
+    previos.forEach((id) => {
+      try { map.setFeatureState({ source: sourceId, id }, { selected: false }); } catch (_) { /* ignorar */ }
+    });
+  }
+
+  const nuevos = new Set(indices);
+  nuevos.forEach((id) => {
+    try { map.setFeatureState({ source: sourceId, id }, { selected: true }); } catch (_) { /* ignorar */ }
+  });
+  filterHighlightRegistry.set(sourceId, nuevos);
+}
+
+// =========================================================================
 // CÁLCULO DE PUNTOS EN POLÍGONOS (para filtros)
 // 👇 AHORA LEEN DEL CACHÉ DE DATOS CRUDOS, NO DEL SOURCE DE MAPLIBRE
 // =========================================================================
@@ -1237,17 +1341,21 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
 
     let countInPolygon = 0;
     let featuresInLayer = [];
+    const indicesDentro = [];
 
-    sourceData.features.forEach(ptFeature => {
+    sourceData.features.forEach((ptFeature, index) => {
       if (!ptFeature || !ptFeature.geometry) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
           countInPolygon++;
           featuresInLayer.push(ptFeature.properties);
+          indicesDentro.push(index);
         }
       } catch (_) { /* geometría inválida, ignorar */ }
     });
+
+    resaltarFeaturesFiltradas(sourceId, indicesDentro);
 
     if (countInPolygon > 0) {
       capasContadas++;
@@ -1303,17 +1411,21 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
 
     let countInPolygon = 0;
     let featuresInLayer = [];
+    const indicesDentro = [];
 
-    sourceData.features.forEach(ptFeature => {
+    sourceData.features.forEach((ptFeature, index) => {
       if (!ptFeature || !ptFeature.geometry) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
           countInPolygon++;
           featuresInLayer.push(ptFeature.properties);
+          indicesDentro.push(index);
         }
       } catch (_) { /* ignore */ }
     });
+
+    resaltarFeaturesFiltradas(sourceId, indicesDentro);
 
     if (countInPolygon > 0) {
       capasContadas++;
@@ -1389,8 +1501,9 @@ function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } =
 
     let countInPoligonos = 0;
     const featuresInLayer = [];
+    const indicesDentro = [];
 
-    sourceData.features.forEach(feature => {
+    sourceData.features.forEach((feature, index) => {
       if (!feature || !feature.geometry) return;
 
       if (estadoFeature && !geometriaDentroDePoligono(feature, estadoFeature)) return;
@@ -1398,7 +1511,10 @@ function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } =
 
       countInPoligonos++;
       featuresInLayer.push(feature.properties);
+      indicesDentro.push(index);
     });
+
+    resaltarFeaturesFiltradas(sourceId, indicesDentro);
 
     if (countInPoligonos > 0) {
       capasContadas++;
