@@ -261,6 +261,15 @@ export function applySavedStyleColors(stylesMap) {
   availableLayers.forEach((layer) => {
     const st = stylesMap.get(layer.id);
     if (!st) return;
+
+    if (st.has_fill === false) {
+      const slider = document.querySelector(
+        `.layer-opacity-slider[data-table="${CSS.escape(layer.id)}"]`,
+      );
+      const row = slider?.closest('.layer-opacity-row');
+      if (row) row.remove();
+    }
+
     const t = (layer.type || '').toLowerCase();
     const color = t === 'line' ? st.stroke_color : st.fill_color;
     if (!color) return;
@@ -441,14 +450,22 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
             ['boolean', ['feature-state', 'hover'], false], 9,
             6
           ],
-          'circle-color': geomColor,
+          'circle-color': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#facc15',
+            geomColor
+          ],
           'circle-stroke-width': [
             'case',
             ['boolean', ['feature-state', 'selected'], false], 4,
             ['boolean', ['feature-state', 'hover'], false], 3,
             1
           ],
-          'circle-stroke-color': '#000000'
+          'circle-stroke-color': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], '#b45309',
+            '#000000'
+          ]
         }
       }, beforeLayerId);
     }
@@ -493,9 +510,17 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           type: 'fill',
           source: sourceId,
           paint: {
-            'fill-color': geomColor,
+            'fill-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], '#facc15',
+              geomColor
+            ],
             'fill-opacity': buildFillOpacityExpression(savedFactor),
-            'fill-outline-color': '#000000'
+            'fill-outline-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], '#b45309',
+              '#000000'
+            ]
           }
         }, beforeLayerId);
       } else if (geomType === 'line') {
@@ -511,7 +536,11 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           type: 'line',
           source: sourceId,
           paint: {
-            'line-color': lineColorExpression,
+            'line-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], '#facc15',
+              lineColorExpression
+            ],
             'line-width': [
               'case',
               ['boolean', ['feature-state', 'selected'], false], 6,

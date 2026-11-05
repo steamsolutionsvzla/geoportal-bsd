@@ -106,8 +106,9 @@ import '../styles/metadata-qgis.css';
           </div>
           <h2>Selecciona una capa para configurarla</h2>
           <p>
-            Ajusta colores, opacidad y rango de zoom, define los campos del popup con sus
-            nombres visibles y revisa los metadatos de la capa antes de publicar.
+            Ajusta colores, opacidad y rango de zoom, define los campos de la ventana
+            emergente con sus nombres visibles y revisa la información de la capa
+            antes de publicar.
           </p>
         </section>
 
@@ -138,7 +139,7 @@ import '../styles/metadata-qgis.css';
               <span class="cfg-stat-hint">detectados en la capa</span>
             </div>
             <div class="cfg-stat">
-              <span class="cfg-stat-label">Visibles en popup</span>
+              <span class="cfg-stat-label">Visibles en ventana emergente</span>
               <b class="cfg-stat-value" id="statVisibles">0</b>
               <span class="cfg-stat-hint">atributos configurados</span>
             </div>
@@ -156,22 +157,27 @@ import '../styles/metadata-qgis.css';
 
           <nav class="cfg-tabs" role="tablist" aria-label="Secciones de configuración">
             <button type="button" class="cfg-tab active" role="tab" aria-selected="true" data-tab="simbologia">Simbología</button>
-            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="popup">Popup</button>
-            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="metadatos">Metadatos</button>
+            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="popup">Ventana emergente</button>
+            <button type="button" class="cfg-tab" role="tab" aria-selected="false" data-tab="metadatos" hidden>Metadatos</button>
           </nav>
 
           <div class="cfg-body">
             <div class="cfg-panels">
               <section class="cfg-panel" data-panel="simbologia" role="tabpanel">
                 <div id="cfgRasterNotice" class="cfg-notice inline" hidden>
-                  Esta capa es un raster (WMS). La simbología vectorial y el popup de atributos
-                  no aplican; se muestra únicamente la ficha de metadatos.
+                  Esta capa es un raster (WMS). La simbología vectorial y la ventana
+                  emergente de atributos no aplican; se muestra únicamente la ficha de
+                  metadatos.
                 </div>
 
                 <div id="cfgFormFields" class="cfg-form">
                   <div class="cfg-section">
                     <h2 class="cfg-section-title">Color</h2>
                     <p class="cfg-section-desc">Relleno y borde de la geometría en el visor.</p>
+                    <label class="cfg-field-toggle" id="cfgFillToggleRow">
+                      <input type="checkbox" id="cfgHasFill" checked />
+                      <span>Mostrar relleno</span>
+                    </label>
                     <div class="cfg-grid-2">
                       <label class="cfg-field">
                         <span>Color de relleno</span>
@@ -222,7 +228,7 @@ import '../styles/metadata-qgis.css';
 
               <section class="cfg-panel" data-panel="popup" role="tabpanel" hidden>
                 <div class="cfg-section">
-                  <h2 class="cfg-section-title">Campos del popup</h2>
+                  <h2 class="cfg-section-title">Campos de la ventana emergente</h2>
                   <p class="cfg-section-desc">
                     Marca los atributos que se muestran al hacer clic en un elemento y, si lo
                     necesitas, asígnales un nombre visible para el usuario final.

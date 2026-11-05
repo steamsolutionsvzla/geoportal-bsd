@@ -553,6 +553,9 @@ body.config-body .site-footer .footer-legal {
   cursor: pointer;
 }
 .cfg-field-toggle input { accent-color: var(--accent-navy); flex: none; }
+.cfg-field-toggle[hidden] { display: none; }
+.cfg-field.is-disabled { opacity: .55; }
+.cfg-field.is-disabled input { cursor: not-allowed; }
 
 #cfgLabelControls .cfg-grid-2 { margin-top: 4px; }
 

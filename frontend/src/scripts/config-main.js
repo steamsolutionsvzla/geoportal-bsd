@@ -194,6 +194,15 @@ function bindUI() {
     btn.setAttribute('aria-expanded', String(abrir));
   });
   sincronizarColor($('#cfgLabelColor'), $('#cfgLabelColorHex'), 'label_color');
+
+  $('#cfgHasFill')?.addEventListener('change', (e) => {
+    if (!state.form) return;
+    state.form.has_fill = e.target.checked;
+    actualizarControlesRelleno();
+    marcarDirty(true);
+    renderPreview();
+  });
+
   document.addEventListener('click', cerrarDropdowns);
 
   $('#cfgFieldSearch')?.addEventListener('input', renderCampos);
@@ -371,6 +380,7 @@ async function seleccionar(layerId) {
     stroke_color: style?.stroke_color || DEFAULTS[layer.type]?.stroke_color || DEFAULTS.fill.stroke_color,
     opacity: style?.opacity ?? DEFAULTS[layer.type]?.opacity ?? 1,
     line_width: style?.line_width ?? DEFAULTS[layer.type]?.line_width ?? 1,
+    has_fill: style?.has_fill ?? true,
     min_zoom: style?.min_zoom ?? 0,
     max_zoom: style?.max_zoom ?? 24,
     show_labels: style?.show_labels ?? false,
@@ -530,6 +540,10 @@ function rellenarFormulario() {
   $('#cfgStroke').value = f.stroke_color;
   $('#cfgStrokeHex').value = f.stroke_color;
 
+  const hasFill = $('#cfgHasFill');
+  if (hasFill) hasFill.checked = f.has_fill !== false;
+  actualizarControlesRelleno();
+
   $('#cfgOpacity').value = f.opacity;
   $('#cfgOpacityOut').textContent = Number(f.opacity).toFixed(2);
   $('#cfgLineWidth').value = f.line_width;
@@ -543,6 +557,20 @@ function rellenarFormulario() {
   $('#cfgLabelColor').value = f.label_color || '#3b1650';
   $('#cfgLabelColorHex').value = f.label_color || '#3b1650';
   rellenarSelectEtiqueta();
+}
+
+function actualizarControlesRelleno() {
+  const row = $('#cfgFillToggleRow');
+  const layer = state.selected;
+  const esFill = layer?.type === 'fill';
+  if (row) row.hidden = !esFill;
+
+  const noFill = esFill && state.form?.has_fill === false;
+  ['#cfgFill', '#cfgFillHex', '#cfgOpacity'].forEach((sel) => {
+    const el = $(sel);
+    if (el) el.disabled = noFill;
+  });
+  $('#cfgOpacity')?.closest('.cfg-field')?.classList.toggle('is-disabled', noFill);
 }
 
 function rellenarSelectEtiqueta() {
@@ -679,7 +707,7 @@ function renderMetadata(meta) {
     cont.innerHTML = `
       <div class="cfg-empty-block">
         <strong>Sin metadatos registrados</strong>
-        <p>Esta capa no tiene ficha en el catálogo. Puedes configurar su simbología y su popup igualmente.</p>
+        <p>Esta capa no tiene ficha en el catálogo. Puedes configurar su simbología y su ventana emergente igualmente.</p>
       </div>`;
     return;
   }
@@ -709,7 +737,7 @@ function renderPreviewPopup(layer) {
       <div class="cfg-pp">
         <div class="cfg-pp-head">${escapeHtml(layer.name || layer.id)}</div>
         <div class="cfg-pp-body">
-          <p class="cfg-empty-mini">El popup de atributos no aplica a capas raster.</p>
+          <p class="cfg-empty-mini">La ventana emergente de atributos no aplica a capas raster.</p>
         </div>
       </div>`;
     return;
@@ -968,6 +996,7 @@ async function restablecer() {
     state.labels = {};
     state.form = {
       ...DEFAULTS[layer.type] || DEFAULTS.fill,
+      has_fill: true,
       min_zoom: 0, max_zoom: 24,
       show_labels: false, label_attribute: null, label_color: '#3b1650',
     };

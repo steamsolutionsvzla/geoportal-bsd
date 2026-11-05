@@ -57,6 +57,10 @@ const stats = [
             La industria petrolera,<br />
             <em>un solo portal</em>
           </h1>
+          <p class="hero-statement reveal">
+            Resguardamos, administramos y actualizamos la información técnica,
+            estadística y geoespacial del sector energético nacional.
+          </p>
           <p class="lead reveal">
             Un banco de datos soberano que centraliza, versiona y sirve información
             geoespacial crítica a los organismos que la necesitan — con control de
@@ -71,6 +75,50 @@ const stats = [
   <span>DATUM <b>REGVEN · EPSG:4189</b></span>
   <span>ESTADO <b>Operativo</b></span>
 </div>
+        </div>
+      </div>
+    </section>
+
+    {/* ===================== BANCO DE DATOS ===================== */}
+    <section class="bank-photo" id="banco">
+      <div class="wrap">
+        <div class="bank-photo-grid">
+          <figure class="bank-photo-media reveal">
+            <img
+              src="/img/banco-foto.jpeg"
+              srcset="/img/banco-foto.jpeg 1x, /img/banco-foto@2x.jpeg 2x"
+              width="516"
+              height="387"
+              alt="Equipo del Banco Soberano de Datos de Petróleo y Gas reunido frente a la sede"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>Equipo del Banco Soberano de Datos de Petróleo y Gas.</figcaption>
+          </figure>
+
+          <div class="bank-photo-copy">
+            <span class="eyebrow reveal">El banco de datos</span>
+            <h2 class="reveal">Información estratégica, construida en equipo.</h2>
+            <p class="reveal">
+              El Banco Soberano de Datos de Petróleo y Gas reúne a especialistas de
+              distintas áreas para centralizar, versionar y servir información
+              geoespacial crítica del sector.
+            </p>
+            <p class="reveal">
+              Desde esta plataforma, los organismos acceden a capas actualizadas,
+              metadatos trazables y herramientas de análisis para la toma de
+              decisiones sobre el territorio.
+            </p>
+            <p class="bank-photo-founded reveal">
+              Servicio desconcentrado del Ministerio de Hidrocarburos, creado el
+              11 de julio de 2023.
+            </p>
+            <div class="bank-photo-tags reveal">
+              <span>Datos soberanos</span>
+              <span>Acceso por rol</span>
+              <span>Trazabilidad</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -166,6 +214,7 @@ const stats = [
   <Footer
     sections={[
       { href: '#plataforma', label: 'Resumen' },
+      { href: '#banco', label: 'Banco de datos' },
       { href: '#funciones', label: 'Funciones' },
     ]}
   />

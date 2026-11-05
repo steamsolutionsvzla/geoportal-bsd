@@ -123,6 +123,16 @@
   padding: 1px 8px;
 }
 
+.ctrl.ctrl-toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.ctrl input[data-fill-control]:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
 .ctrl input[type="color"] {
   width: 100%;
   height: 32px;

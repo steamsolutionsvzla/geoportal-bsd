@@ -86,14 +86,6 @@ export function refreshCount(elementId = 'layerCount') {
   el.textContent = active + (active === 1 ? ' activa' : ' activas');
 }
 
-const LEGEND_GEOM_LABELS = {
-  fill: 'Polígono',
-  line: 'Línea',
-  circle: 'Punto',
-  point: 'Punto',
-  raster: 'Ráster'
-};
-
 export function updateLegendUI(availableLayers, legendListId = 'legendList') {
   const legendList = document.getElementById(legendListId) || document.querySelector('.legend-content');
   if (!legendList) return;
@@ -142,11 +134,7 @@ export function updateLegendUI(availableLayers, legendListId = 'legendList') {
       title.className = 'lt-title';
       title.textContent = layerConfig.name || tableName;
 
-      const sub = document.createElement('div');
-      sub.className = 'lt-sub';
-      sub.textContent = LEGEND_GEOM_LABELS[geomType] || 'Capa';
-
-      text.append(title, sub);
+      text.append(title);
       item.append(swatch, text);
       legendList.appendChild(item);
     });

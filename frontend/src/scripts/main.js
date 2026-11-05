@@ -158,6 +158,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const map = initMap('map');
   window.map = map;
 
+  document.getElementById('layerSearch')?.addEventListener('input', aplicarBusquedaCapas);
+
   map.on('load', () => {
     addBaseLayers(map);
     setupCompass(map);
@@ -359,6 +361,59 @@ async function loadWorkspaces() {
     }
   } finally {
     mostrarCargando(false);
+  }
+}
+
+// =========================================================================
+// BUSCADOR DE CAPAS
+// =========================================================================
+function normalizarBusqueda(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function aplicarBusquedaCapas() {
+  const input = document.getElementById('layerSearch');
+  const cont = document.getElementById('layersGroupsContainer');
+  if (!cont) return;
+
+  const q = normalizarBusqueda(input?.value);
+  let totalVisibles = 0;
+
+  cont.querySelectorAll('.layer-group').forEach((group) => {
+    const groupName = normalizarBusqueda(group.querySelector('.group-name')?.textContent);
+    const items = group.querySelectorAll('.layer-item');
+    let visibles = 0;
+
+    items.forEach((item) => {
+      const layerName = normalizarBusqueda(item.querySelector('.lname')?.textContent);
+      const layerId = normalizarBusqueda(item.dataset.table);
+      const coincide = !q || groupName.includes(q) || layerName.includes(q) || layerId.includes(q);
+      item.hidden = !coincide;
+      if (coincide) visibles++;
+    });
+
+    group.hidden = visibles === 0;
+    if (q && visibles > 0) {
+      group.querySelector('.group-layers')?.classList.add('open');
+      group.querySelector('.group-header')?.classList.add('open');
+    }
+    totalVisibles += visibles;
+  });
+
+  let empty = cont.querySelector('.layer-search-empty');
+  if (q && totalVisibles === 0) {
+    if (!empty) {
+      empty = document.createElement('p');
+      empty.className = 'layer-search-empty';
+      cont.appendChild(empty);
+    }
+    empty.textContent = `No hay capas que coincidan con “${input.value.trim()}”.`;
+  } else if (empty) {
+    empty.remove();
   }
 }
 

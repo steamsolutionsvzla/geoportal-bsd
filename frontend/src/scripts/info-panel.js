@@ -245,7 +245,7 @@ function buildFilterSummaryHtml() {
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
     html += `<div class="info-total"><span>Total de puntos en el estado</span><b>${totalPuntosGeneral}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtn" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadPdfBtn" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtn" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterEstadoBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de estado</button>`;
@@ -267,7 +267,7 @@ function buildBloqueFilterSummaryHtml() {
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
     html += `<div class="info-total"><span>Total de puntos en el bloque</span><b>${totalPuntosGeneral}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnBloque" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterBloqueBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de bloque</button>`;
@@ -289,7 +289,7 @@ function buildAreaFilterSummaryHtml() {
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
     html += `<div class="info-total"><span>Total de puntos y líneas en el área</span><b>${totalElementos}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnArea" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterAreaBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de área</button>`;
@@ -316,7 +316,7 @@ function buildIntersectionFilterSummaryHtml() {
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
     html += `<div class="info-total"><span>Total en la intersección</span><b>${totalElementos}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtnInterseccion" class="info-btn info-btn-primary">Descargar tabla en PDF</button>`;
+    html += `<button type="button" id="downloadPdfBtnInterseccion" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnInterseccion" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterInterseccionBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar ambos filtros</button>`;
@@ -484,7 +484,7 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(255, 255, 255);
-  doc.text('Reporte Estratégico de Puntos', pageWidth / 2, y + 14, { align: 'center' });
+  doc.text('Reporte Estratégico de Datos', pageWidth / 2, y + 14, { align: 'center' });
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text(`${etiqueta}: ${nombreSeleccionado}`, pageWidth / 2, y + 25, { align: 'center' });
@@ -523,63 +523,12 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`Total general de puntos: ${totalPuntosGeneral}`, margin, y);
+  doc.text(`Total general de elementos: ${totalPuntosGeneral}`, margin, y);
   y += 8;
   doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
   doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);
   y += 6;
-
-  if (Object.keys(capasDetalleMap).length > 0) {
-    const excludedKeys = new Set(['id', 'geoid', 'gid', 'objectid']);
-    for (let nombreCapa in capasDetalleMap) {
-      const listaProps = capasDetalleMap[nombreCapa];
-      const allKeysSet = new Set();
-      listaProps.forEach(props => {
-        for (let key in props) {
-          const lowerKey = key.toLowerCase();
-          const isExcluded = excludedKeys.has(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
-          if (!isExcluded) allKeysSet.add(key);
-        }
-      });
-      const columns = Array.from(allKeysSet);
-      if (columns.length === 0) continue;
-      const remainingSpace = doc.internal.pageSize.getHeight() - y - 20;
-      if (remainingSpace < 25) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text(`Detalle de ${nombreCapa}`, margin, y);
-      y += 5;
-      const head = ['#'].concat(columns);
-      const body = [];
-      listaProps.forEach((props, index) => {
-        const row = [index + 1];
-        columns.forEach(col => {
-          row.push(props[col] !== undefined ? String(props[col]) : '');
-        });
-        body.push(row);
-      });
-      autoTable(doc, {
-        head: [head],
-        body: body,
-        startY: y,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 2.5, lineColor: borderColor, lineWidth: 0.15, halign: 'left' },
-        headStyles: { fillColor: secondaryColor, textColor: [255,255,255], fontSize: 8, halign: 'center', lineColor: borderColor, lineWidth: 0.15 },
-        bodyStyles: { lineColor: borderColor, lineWidth: 0.1 },
-        alternateRowStyles: { fillColor: lightGray },
-        columnStyles: { 0: { halign: 'center', cellWidth: 12 } },
-        didParseCell: function(data) {
-          if (data.column.index === 0) data.cell.styles.halign = 'center';
-        }
-      });
-      y = doc.lastAutoTable.finalY + 5;
-    }
-  }
 
   const totalPages = doc.internal.getNumberOfPages();
   const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -594,7 +543,7 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
     doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
     doc.text(`Generado: ${currentDate}`, margin, pageHeight - 6);
   }
-  doc.save(`Reporte_Puntos_${nombreSeleccionado.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Reporte_Datos_${nombreSeleccionado.replace(/\s+/g, '_')}.pdf`);
 }
 
 function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl) {

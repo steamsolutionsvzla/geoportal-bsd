@@ -168,6 +168,7 @@ function buildLayerCard(layer) {
   const lineWidth   = style?.line_width   ?? (isLine ? 2 : 1);
   const minZoom     = style?.min_zoom     ?? 0;
   const maxZoom     = style?.max_zoom     ?? 22;
+  const hasFill     = style?.has_fill !== false;
 
   const geomClass = isCircle ? 'geom-point' : isLine ? 'geom-line' : 'geom-fill';
   const expanded = expandedLayers.has(layer.id);
@@ -188,13 +189,20 @@ function buildLayerCard(layer) {
 
     <div class="capa-controles"${expanded ? '' : ' hidden'}>
       ${isFill ? `
+        <div class="ctrl ctrl-toggle">
+          <span>Mostrar relleno</span>
+          <label class="switch">
+            <input type="checkbox" data-rol="has_fill" ${hasFill ? 'checked' : ''}>
+            <span class="switch-track"></span>
+          </label>
+        </div>
         <label class="ctrl">
           <span>Color de relleno</span>
-          <input type="color" data-rol="fill_color" value="${fillColor ?? '#3388ff'}">
+          <input type="color" data-rol="fill_color" data-fill-control value="${fillColor ?? '#3388ff'}" ${hasFill ? '' : 'disabled'}>
         </label>
         <label class="ctrl">
           <span>Opacidad <b data-out="opacity">${opacity}</b></span>
-          <input type="range" min="0" max="1" step="0.05" data-rol="opacity" value="${opacity}">
+          <input type="range" min="0" max="1" step="0.05" data-rol="opacity" data-fill-control value="${opacity}" ${hasFill ? '' : 'disabled'}>
         </label>
         <label class="ctrl">
           <span>Color de borde</span>
@@ -206,6 +214,10 @@ function buildLayerCard(layer) {
         <label class="ctrl">
           <span>Color de línea</span>
           <input type="color" data-rol="stroke_color" value="${strokeColor ?? '#3388ff'}">
+        </label>
+        <label class="ctrl">
+          <span>Opacidad <b data-out="opacity">${opacity}</b></span>
+          <input type="range" min="0" max="1" step="0.05" data-rol="opacity" value="${opacity}">
         </label>
         <label class="ctrl">
           <span>Grosor <b data-out="line_width">${lineWidth}</b></span>
@@ -260,6 +272,7 @@ function buildLayerCard(layer) {
     if (inp.dataset.rol === 'toggle') return;
     inp.addEventListener('input', () => {
       actualizarOut(card, inp);
+      if (inp.dataset.rol === 'has_fill') actualizarControlesRellenoCard(card);
       const patch = leerPatch(card, layer);
       actualizarIcono(card, layer, patch);
       previewEstilo(layer, patch);
@@ -294,6 +307,7 @@ function buildLayerCard(layer) {
           stroke_color: isLine ? layer.color : null,
           opacity: isFill ? 0.5 : 1,
           line_width: isLine ? 2 : 1,
+          has_fill: true,
           min_zoom: 0,
           max_zoom: 22,
         });
@@ -325,6 +339,14 @@ function actualizarOut(card, inp) {
   if (out) out.textContent = inp.value;
 }
 
+function actualizarControlesRellenoCard(card) {
+  const chk = card.querySelector('input[data-rol="has_fill"]');
+  if (!chk) return;
+  card.querySelectorAll('[data-fill-control]').forEach((el) => {
+    el.disabled = !chk.checked;
+  });
+}
+
 function leerPatch(card, layer) {
   const get = (rol) => {
     const el = card.querySelector(`input[data-rol="${rol}"]`);
@@ -332,11 +354,13 @@ function leerPatch(card, layer) {
     if (el.type === 'number' || el.type === 'range') return parseFloat(el.value);
     return el.value;
   };
+  const hasFillEl = card.querySelector('input[data-rol="has_fill"]');
   return {
     fill_color:   get('fill_color'),
     stroke_color: get('stroke_color'),
     opacity:      get('opacity'),
     line_width:   get('line_width'),
+    has_fill:     hasFillEl ? hasFillEl.checked : true,
     min_zoom:     get('min_zoom'),
     max_zoom:     get('max_zoom'),
     // Los atributos del popup se editan desde el popup del mapa (clic en un elemento)
@@ -485,7 +509,7 @@ async function abrirEditorPopup(layerId, props, lngLat) {
 
   const head = document.createElement('div');
   head.className = 'fp-head';
-  head.innerHTML = '<span class="fp-title"></span><span class="fp-sub">Elige los campos y su nombre visible en el popup</span>';
+  head.innerHTML = '<span class="fp-title"></span><span class="fp-sub">Elige los campos y su nombre visible en la ventana emergente</span>';
   head.querySelector('.fp-title').textContent = getLayerDisplayName(layerId);
   root.appendChild(head);
 
@@ -534,7 +558,7 @@ async function abrirEditorPopup(layerId, props, lngLat) {
     label.className = 'fp-edit-label';
     label.maxLength = 120;
     label.placeholder = 'Etiqueta visible (opcional)';
-    label.title = 'Nombre que se muestra para este campo en el popup';
+    label.title = 'Nombre que se muestra para este campo en la ventana emergente';
     label.value = etiquetas[k] ?? '';
     label.addEventListener('input', () => {
       const t = label.value.trim();
@@ -588,7 +612,7 @@ async function abrirEditorPopup(layerId, props, lngLat) {
         attribute_labels: etiquetas,
       });
       stylesMap.set(layerId, guardado);
-      estado.textContent = 'Aplicado a todos los popups de esta capa';
+      estado.textContent = 'Aplicado a las ventanas emergentes de esta capa';
       estado.className = 'fp-edit-status ok';
     } catch (e) {
       console.error(e);
