@@ -38,6 +38,7 @@ class LayerStyleIn(BaseModel):
     stroke_color: Optional[str]   = Field(None, pattern=_HEX)
     opacity:      Optional[float] = Field(None, ge=0.0, le=1.0)
     line_width:   Optional[float] = Field(None, ge=0.0, le=50.0)
+    has_fill:     bool = True
     min_zoom:     Optional[float] = Field(None, ge=0.0, le=24.0)
     max_zoom:     Optional[float] = Field(None, ge=0.0, le=24.0)
     visible_attributes: List[str] = []
@@ -82,6 +83,7 @@ class LayerStyleOut(BaseModel):
     stroke_color:       Optional[str]   = None
     opacity:            Optional[float] = None
     line_width:         Optional[float] = None
+    has_fill:           bool            = True
     min_zoom:           Optional[float] = None
     max_zoom:           Optional[float] = None
     visible_attributes: List[str]       = []
@@ -124,7 +126,7 @@ def _norm(s: str) -> str:
 
 
 _STYLE_COLS = """
-        layer_name, fill_color, stroke_color, opacity, line_width,
+        layer_name, fill_color, stroke_color, opacity, line_width, has_fill,
         min_zoom, max_zoom, visible_attributes, attribute_labels,
         show_labels, label_attribute, label_color,
         updated_by, updated_at
@@ -204,17 +206,18 @@ async def upsert_style(
     await pool.execute(
         """
         INSERT INTO layer_style_configs
-            (layer_name, fill_color, stroke_color, opacity, line_width,
+            (layer_name, fill_color, stroke_color, opacity, line_width, has_fill,
              min_zoom, max_zoom, visible_attributes, attribute_labels,
              show_labels, label_attribute, label_color,
              updated_by, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb,
-                $10, $11, $12, $13, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb,
+                $11, $12, $13, $14, NOW())
         ON CONFLICT (layer_name) DO UPDATE SET
             fill_color         = EXCLUDED.fill_color,
             stroke_color       = EXCLUDED.stroke_color,
             opacity            = EXCLUDED.opacity,
             line_width         = EXCLUDED.line_width,
+            has_fill           = EXCLUDED.has_fill,
             min_zoom           = EXCLUDED.min_zoom,
             max_zoom           = EXCLUDED.max_zoom,
             visible_attributes = EXCLUDED.visible_attributes,
@@ -230,6 +233,7 @@ async def upsert_style(
         payload.stroke_color,
         payload.opacity,
         payload.line_width,
+        payload.has_fill,
         payload.min_zoom,
         payload.max_zoom,
         json.dumps(payload.visible_attributes),
