@@ -119,6 +119,10 @@ frontend/
 
 ## Notas de operación
 
+- **Logs del backend**: siempre a stdout (`docker compose logs -f backend`, rotados
+  10 MB × 5 vía el driver json-file). Opcionalmente, con `LOG_FILE=/app/storage/logs/app.log`
+  en el `.env` se escribe además un archivo rotativo (10 MB × 5) dentro del volumen
+  `backend/storage/`, que sobrevive a recreaciones del contenedor.
 - **Sesiones**: viven en Postgres → `docker compose restart backend` ya no
   desloguea a nadie y se pueden correr varios workers si hiciera falta.
 - **Carpetas de capas**: son personales por usuario (`user_layer_folders`,

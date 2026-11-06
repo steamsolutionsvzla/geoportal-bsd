@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Sin defaults inseguros: DEBUG y las credenciales vienen SIEMPRE del .env.
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
+    # Archivo de log rotativo opcional (10 MB × 5). Vacío = solo stdout
+    # (capturado y rotado por Docker). Ej: /app/storage/logs/app.log
+    LOG_FILE: str = ""
 
     DB_HOST: str = "127.0.0.1"
     DB_PORT: int = 5433

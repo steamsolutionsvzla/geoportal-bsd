@@ -1,5 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,11 +16,43 @@ from app.api.styles import router as styles_router
 from app.config import settings
 from app.db.database import connect_db, disconnect_db
 
-# Logging estándar: nivel configurable por env; los módulos usan getLogger().
-logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
-    format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-)
+# ---------------------------------------------------------------------
+# Logging: todo (incl. uvicorn) fluye al logger raíz.
+#  - Siempre stdout (docker lo captura; rotado vía el bloque logging de compose).
+#  - Si LOG_FILE está definido, además archivo rotativo 10 MB × 5.
+# ---------------------------------------------------------------------
+_LOG_FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
+
+
+def _configurar_logging() -> None:
+    nivel = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+    fmt = logging.Formatter(_LOG_FORMAT)
+
+    root = logging.getLogger()
+    root.setLevel(nivel)
+    stream = logging.StreamHandler()
+    stream.setFormatter(fmt)
+    root.handlers = [stream]
+
+    if settings.LOG_FILE:
+        try:
+            Path(settings.LOG_FILE).parent.mkdir(parents=True, exist_ok=True)
+            fileh = RotatingFileHandler(
+                settings.LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+            )
+            fileh.setFormatter(fmt)
+            root.addHandler(fileh)
+        except OSError:
+            root.warning("LOG_FILE=%s no es escribible; se omite el log en archivo.", settings.LOG_FILE)
+
+    # Evita duplicados: uvicorn añade handlers propios a sus logger.
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        lg = logging.getLogger(name)
+        lg.handlers = []
+        lg.propagate = True
+
+
+_configurar_logging()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

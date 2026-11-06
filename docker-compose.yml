@@ -43,10 +43,18 @@ services:
       # DEBUG habilita /docs y tracebacks detallados: FALSE en producción.
       - DEBUG=${DEBUG:-False}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Archivo rotativo opcional (10 MB x 5) además de stdout. Vacío = stdout.
+      - LOG_FILE=${LOG_FILE:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./backend/storage:/app/storage
+    # (A) Rotación de los logs de stdout capturados por Docker.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     networks:
       - geoportal-net
 
