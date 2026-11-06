@@ -47,12 +47,20 @@ MAXZOOM = 13   # la fuente online "clara" corta en z13 y el relieve Esri no sube
 
 # Mismas URLs que usa el geoportal online (map-config.js) para que el
 # resultado offline sea visualmente idéntico.
+# clara-deep (CARTO light_nolabels, zoom profundo real z14-20) necesita la
+# clave pública de CARTO: pasarla con --carto-key o la variable CARTO_KEY.
+CARTO_KEY = os.environ.get("CARTO_KEY", "")
+
 LAYERS = {
     "clara": {
         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}",
         "attribution": "Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS",
         "name": "Mapa base fisico claro (Esri World_Terrain_Base)",
         "format": "jpg",
+        # Esri RETIRO este servicio por encima de z9: de z10+ devuelve un
+        # placeholder gris. No pedir mas alla de z9 (el zoom fino lo da
+        # clara-deep/CARTO). mbtiles_to_pmtiles descarta al convertir.
+        "maxzoom_cap": 9,
     },
     "satelite": {
         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -64,6 +72,12 @@ LAYERS = {
         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         "attribution": "Labels &copy; Esri",
         "name": "Etiquetas satelitales (Esri World_Boundaries_and_Places)",
+        "format": "png",
+    },
+    "clara-deep": {
+        "url": "https://{sub}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png?key={key}",
+        "attribution": "&copy; OpenStreetMap contributors &copy; CARTO",
+        "name": "Zoom profundo claro (CARTO light_nolabels)",
         "format": "png",
     },
 }
@@ -115,7 +129,7 @@ def all_tiles(bbox, minzoom, maxzoom):
 # DESCARGA
 # ---------------------------------------------------------------------------
 def fetch_tile(layer_cfg, z, x, y, attempt=0):
-    url = layer_cfg["url"].format(z=z, x=x, y=y, sub=random.choice("abc"))
+    url = layer_cfg["url"].format(z=z, x=x, y=y, sub=random.choice("abc"), key=CARTO_KEY)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
@@ -267,12 +281,25 @@ def main():
     parser.add_argument("--minzoom", type=int, default=MINZOOM)
     parser.add_argument("--maxzoom", type=int, default=MAXZOOM)
     parser.add_argument("--concurrency", type=int, default=16)
+    parser.add_argument("--carto-key", default=None,
+                        help="Clave publica CARTO para la capa clara-deep (o variable de env CARTO_KEY)")
     parser.add_argument("--no-resume", action="store_true", help="Ignora tiles ya descargados y empieza de cero")
     args = parser.parse_args()
 
+    global CARTO_KEY
+    if args.carto_key:
+        CARTO_KEY = args.carto_key
+    if "clara-deep" in args.layers and not CARTO_KEY:
+        print("Falta la clave de CARTO para clara-deep: use --carto-key KEY o defina CARTO_KEY (ver PUBLIC_CARTO_KEY en frontend/.env)")
+        sys.exit(1)
+
     print("BBOX=%s  zoom=%d-%d  capas=%s" % (args.bbox, args.minzoom, args.maxzoom, ",".join(args.layers)))
     for name in args.layers:
-        download_layer(name, LAYERS[name], args.bbox, args.minzoom, args.maxzoom, args.concurrency, resume=not args.no_resume)
+        cap = LAYERS[name].get("maxzoom_cap")
+        zm = min(args.maxzoom, cap) if cap else args.maxzoom
+        if cap and args.maxzoom > cap:
+            print("[%s] maxzoom limitado a %d (tope real del servicio)" % (name, zm))
+        download_layer(name, LAYERS[name], args.bbox, args.minzoom, zm, args.concurrency, resume=not args.no_resume)
     print("Terminado.")
 
 

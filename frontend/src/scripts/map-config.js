@@ -17,14 +17,22 @@ maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 
 // ============================================================
 //  MODO OFFLINE
-//  true  → fondos "Clara" y "Satelital" se sirven desde PMTiles
-//          locales (public/tiles/*.pmtiles), idénticos a los
-//          proveedores online (Esri Terrain / Esri Imagery /
-//          Esri Reference).
+//  true  → fondos "Clara" (y su zoom profundo) y "Satelital" se sirven
+//          desde PMTiles locales (public/tiles/*.pmtiles), idénticos a
+//          los proveedores online (Esri Terrain / CARTO deep / Esri
+//          Imagery / Esri Reference).
 //          Generarlos con:  py scripts/generate-offline-tiles.py
-//  false → fondos online (Esri), como siempre.
+//  false → fondos online: Esri Terrain hasta z13 + CARTO light_nolabels
+//          a partir de ~z13 (zoom profundo real hasta z20).
+//  Nota: el zoom profundo online requiere PUBLIC_CARTO_KEY definida al
+//  compilar (ver .env.example). Sin clave, Clara se queda en z13.
 // ============================================================
 export const USE_OFFLINE_TILES = false;
+
+// Clave pública de CARTO (solo para la CDN de teselas; build-time con el
+// prefijo PUBLIC_ de Astro). Sin clave no se añade la capa profunda.
+const CARTO_KEY = (import.meta.env && import.meta.env.PUBLIC_CARTO_KEY) || "";
+const CARTO_DEEP_URL = "https://a.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png";
 
 
 // ============================================================
@@ -152,17 +160,21 @@ export function addBaseLayers(map) {
       type: 'raster',
       url: 'pmtiles:///tiles/clara.pmtiles',
       tileSize: 256,
-      maxzoom: 13, // igual que la fuente online: por encima se escala
+      maxzoom: 9, // Esri Terrain solo sirve teselas reales hasta z9 (ver nota abajo)
       attribution: 'Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS'
     });
   } else {
     // Base física clara de Esri: sin fronteras políticas ni etiquetas, para
     // que la única delimitación visible sea la oficial del geoportal.
+    // OJO: World_Terrain_Base está RETIRADO por Esri: sirve teselas reales
+    // hasta z9; de z10 en adelante devuelve un placeholder gris. Por eso el
+    // maxzoom es 9 (MapLibre escala las buenas) y el zoom fino lo aporta la
+    // capa profunda CARTO que se añade justo debajo.
     map.addSource('clara-source', {
       type: 'raster',
       tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}'],
       tileSize: 256,
-      maxzoom: 13,
+      maxzoom: 9,
       attribution: 'Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS'
     });
   }
@@ -175,6 +187,42 @@ export function addBaseLayers(map) {
     minzoom: 0,
     maxzoom: 19
   });
+
+  // --- Zoom profundo de Clara (CARTO light_nolabels, sin etiquetas ni
+  //     fronteras): cubre desde ~z9, donde Esri Terrain se agota. Solo se
+  //     añade si hay clave (online) o en modo offline (PMTILES local). ---
+  const deepEnabled = USE_OFFLINE_TILES || Boolean(CARTO_KEY);
+  if (deepEnabled) {
+    if (USE_OFFLINE_TILES) {
+      map.addSource('clara-deep-source', {
+        type: 'raster',
+        url: 'pmtiles:///tiles/clara-deep.pmtiles',
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      });
+    } else {
+      map.addSource('clara-deep-source', {
+        type: 'raster',
+        tiles: [CARTO_DEEP_URL + '?key=' + encodeURIComponent(CARTO_KEY)],
+        tileSize: 256,
+        maxzoom: 20,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      });
+    }
+    map.addLayer({
+      id: 'clara-deep-layer',
+      type: 'raster',
+      source: 'clara-deep-source',
+      layout: { visibility: 'visible' },
+      minzoom: 8,
+      maxzoom: 22,
+      paint: {
+        // El relieve beige de Esri manda hasta ~z9; CARTO entra con fundido
+        // y domina el detalle urbano a partir de ahí.
+        'raster-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 10, 1]
+      }
+    });
+  }
 
   // --- Satélite: PMTiles local (offline) o Esri (online) ---
   if (USE_OFFLINE_TILES) {
@@ -336,7 +384,7 @@ export function setupBasemapSwitcher(map) {
 function switchBasemap(targetKey, map, activeBasemap) {
   if (targetKey === activeBasemap) return true;
 
-  const overlayLayers = ['clara-layer', 'satelite-layer', 'satelite-labels-layer'];
+  const overlayLayers = ['clara-layer', 'clara-deep-layer', 'satelite-layer', 'satelite-labels-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
@@ -344,6 +392,7 @@ function switchBasemap(targetKey, map, activeBasemap) {
 
   if (targetKey === 'clara') {
     if (map.getLayer('clara-layer')) map.setLayoutProperty('clara-layer', 'visibility', 'visible');
+    if (map.getLayer('clara-deep-layer')) map.setLayoutProperty('clara-deep-layer', 'visibility', 'visible');
   } else if (targetKey === 'satelite') {
     if (map.getLayer('satelite-layer')) map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
     if (map.getLayer('satelite-labels-layer')) map.setLayoutProperty('satelite-labels-layer', 'visibility', 'visible');

@@ -135,7 +135,25 @@ frontend/
   usar librerías que produzcan el PDF en el navegador: los antivirus corporativos
   marcaban los binarios de jsPDF como malware.
 
-## Mapa base sin conexión (offline)
+## Mapa base sin conexión (offline) y zoom profundo de Clara
+
+**Importante (jun 2026): Esri retiró World_Terrain_Base.** Solo sirve teselas
+reales **hasta z9**; de z10+ devuelve un placeholder gris. Por eso la vista
+Clara es híbrida:
+
+- **z5–9** → Esri World_Terrain_Base (el relieve beige actual).
+- **z9+** → **CARTO light_nolabels** (capa `clara-deep`): detalle real hasta
+  z18-20, mismo estilo limpio sin etiquetas ni fronteras. Requiere la clave
+  pública de CARTO al compilar el frontend:
+
+```bash
+cp frontend/.env.example frontend/.env   # y pon PUBLIC_CARTO_KEY=<clave>
+cd frontend && pnpm build
+```
+Sin clave, la capa profunda no se añade (Clara queda como hoy: relieve hasta
+z9 y escalado más allá).
+
+**Fondos offline (PMTiles, mismos proveedores que online):**
 
 El geoportal puede servir los fondos **Clara / Satélite / Etiquetas** desde
 archivos PMTiles locales, visualmente idénticos a los online (mismos
@@ -145,9 +163,17 @@ proveedores Esri), para LAN o equipos sin internet:
 # 1) Generar los tiles (requiere internet UNA vez; reanudable si se corta)
 cd frontend
 py -m pip install pmtiles
-py scripts/generate-offline-tiles.py            # Venezuela completa z5-13
+py scripts/generate-offline-tiles.py --layers clara satelite satelite-labels
 
-# Opcional: zoom profundo (z14-16) solo para una zona concreta, ej. el oriente:
+# Zoom profundo de Clara offline (CARTO; la clave sale de frontend/.env, de
+# la variable CARTO_KEY o de --carto-key):
+#   z9-14 nacional (~1.5-2 GB):
+py scripts/generate-offline-tiles.py --layers clara-deep --minzoom 9 --maxzoom 14
+#   y detalle z15-17 solo por zonas (ej. oriente):
+py scripts/generate-offline-tiles.py --layers clara-deep \
+    --bbox -64.8,8.4,-63.2,10.4 --minzoom 15 --maxzoom 17
+
+# Opcional: zoom profundo de satélite solo para una zona (ej. el oriente):
 py scripts/generate-offline-tiles.py --layers satelite satelite-labels \
     --bbox -64.8,8.4,-63.2,10.4 --minzoom 14 --maxzoom 16
 
@@ -161,8 +187,9 @@ pnpm build
 Notas:
 - Los datos vectoriales (capas, metadatos, login) siguen necesitando el
   backend (PostGIS/GeoServer/Odoo) en la LAN; lo offline son solo los fondos.
-- `--layers`: `clara` (~2-3 GB), `satelite` (~8-12 GB), `satelite-labels`
-  (~2-3 GB) en z5-13 nacionales. Usa `--concurrency` bajo (8-16) en redes
+- `--layers`: `clara` (tope z9 por el retiro del servicio; ~8 MB), `satelite`
+  (~8-12 GB z5-13), `satelite-labels` (~2-3 GB), `clara-deep` z9-14 nacional
+  ~1.5-2 GB y z15-17 solo por zonas. Usa `--concurrency` bajo (8-16) en redes
   corporativas para no bloquearte.
 - `public/tiles/` está gitignoreado: los PMTiles viajan a los servidores con
   el `dist/` o por copia manual.
