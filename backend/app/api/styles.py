@@ -15,11 +15,10 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from app.api.deps import auth_guard, role_guard, allowed_workspaces
+from app.api.deps import allowed_workspaces, auth_guard, role_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser, Rol
 from app.services.geoserver_service import GeoServerService
-
 
 router = APIRouter(
     prefix="/api/v1/styles",

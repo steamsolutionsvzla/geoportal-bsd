@@ -20,7 +20,6 @@ from pathlib import Path
 import asyncpg
 import shapefile
 
-
 SCHEMA = "gis_gerencia"
 TABLE = "licencias"
 QUALIFIED_TABLE = f"{SCHEMA}.{TABLE}"

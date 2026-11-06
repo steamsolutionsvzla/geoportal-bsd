@@ -1,7 +1,9 @@
 from typing import Iterable, List, Optional, Set
+
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
+
 from app.models.user import CurrentUser, Rol
 from app.services.geoserver_service import GeoServerService
 from app.services.session_service import resolve_user
@@ -50,7 +52,7 @@ def filter_layers_by_workspace(user: CurrentUser, layers: Iterable[dict]) -> Lis
     allowed = allowed_workspaces(user)
     if allowed is None:
         return list(layers)
-    return [l for l in layers if _norm(str(l.get("id", "")).split(":", 1)[0]) in allowed]
+    return [item for item in layers if _norm(str(item.get("id", "")).split(":", 1)[0]) in allowed]
 
 async def workspace_guard(table_name: str, user: CurrentUser = Depends(auth_guard)) -> CurrentUser:
     if ":" in table_name:

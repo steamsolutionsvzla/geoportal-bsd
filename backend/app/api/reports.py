@@ -14,12 +14,9 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 from pydantic import BaseModel, Field
-from starlette.concurrency import run_in_threadpool
-
-from app.api.deps import auth_guard
-from app.models.user import CurrentUser
-
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -27,9 +24,10 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as _canvas
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from starlette.concurrency import run_in_threadpool
 
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from app.api.deps import auth_guard
+from app.models.user import CurrentUser
 
 router = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
 

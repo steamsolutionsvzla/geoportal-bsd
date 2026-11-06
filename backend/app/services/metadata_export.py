@@ -139,7 +139,7 @@ def build_qmd(meta: Dict[str, Any]) -> bytes:
         word = _txt(k.get("palabra"))
         if not word:
             continue
-        kw = _sub(root, "keyword", word)
+        _sub(root, "keyword", word)
         vocab = _txt(k.get("concepto"))
         if vocab:
             _sub(root, "Keywordvocabulary", vocab, type=vocab)

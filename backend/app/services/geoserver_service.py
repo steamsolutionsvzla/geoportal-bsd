@@ -1,16 +1,17 @@
 import asyncio
-import time
 import io
 import os
 import re
-import zipfile
 import tempfile
+import time
+import zipfile
+from typing import Dict, List, Optional, Set
+
 import httpx
-import logging
 import shapefile  # pyshp
 from fastapi import HTTPException
+
 from app.config import settings
-from typing import List, Dict, Optional, Set
 
 # WKT de WGS 84 (EPSG:4326) para el archivo .prj del Shapefile.
 _WGS84_PRJ = (
@@ -522,7 +523,7 @@ class GeoServerService:
                         )
                         if layers:
                             result.append({"name": ws_name, "layers": layers})
-                    except Exception as e:
+                    except Exception:
                         # Registra el error (puedes usar logging) pero continúa
                         # logger.warning(f"Error procesando workspace '{ws_name}': {e}")
                         continue
