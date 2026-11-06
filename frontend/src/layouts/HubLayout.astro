@@ -89,6 +89,8 @@ const {
       window.location.href = '/login';
     }
     window.cerrarSesion = () => {
+      const tk = localStorage.getItem('auth_token');
+      if (tk) fetch('/api/auth/logout', { method: 'POST', keepalive: true, headers: { Authorization: 'Bearer ' + tk } }).catch(() => {});
       localStorage.removeItem('auth_session');
        localStorage.removeItem('auth_token'); 
       window.location.href = '/login';

@@ -29,7 +29,7 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo } from './utils.js';
+import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo, revokeSession } from './utils.js';
 import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
@@ -1863,6 +1863,7 @@ function setupInfoPanelToggle() {
 // CIERRE DE SESIÓN
 // =========================================================================
 function cerrarSesion() {
+  revokeSession();
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_session');
   sessionStorage.clear();

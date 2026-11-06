@@ -1,17 +1,19 @@
-import time
+import hashlib
+import json
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.config import settings
 from app.models.user import Rol
 
+logger = logging.getLogger("app.services.session")
+
 # ---------------------------------------------------------------------------
-# Sesiones en memoria: token (JWT de Odoo) -> (expira_en_epoch, perfil)
-# Se llenan en POST /api/auth/login. Si el backend se reinicia, el usuario
-# simplemente vuelve a iniciar sesión (resolve_user devuelve None -> 401).
-# Nota: válido con un solo worker de uvicorn (como está en el Dockerfile).
+# Sesiones persistidas en Postgres (tabla auth_sessions).
+# Clave: hash SHA-256 del token (el JWT de Odoo no se guarda en claro).
+# Ventajas: sobreviven a restarts/deploys y permiten escalar a >1 worker.
 # ---------------------------------------------------------------------------
-_SESSIONS: dict[str, tuple[float, dict]] = {}
-_MAX_SESSIONS = 5000
 
 _MOCK_USERS = {  # solo dev (AUTH_MOCK=true): token -> perfil
     "mock-admin":    {"nombre": "Ana", "apellido": "Admin",    "rol": "Administrador", "cargo": "Administradora", "workspaces": [], "usuario_id": "mock-admin"},
@@ -21,7 +23,6 @@ _MOCK_USERS = {  # solo dev (AUTH_MOCK=true): token -> perfil
 
 # Key de Odoo (geoportal_roles[0].key, en minúsculas) -> rol interno del backend.
 # Odoo devuelve "Rol_Analista" y el backend usa "Rol_analista": por eso se normaliza.
-# Agrega aquí las keys reales de Odoo para Administrador y Gerente.
 _ROLE_ALIASES = {
     "rol_analista": Rol.ANALISTA,
     "rol_gerente": Rol.GERENTE,
@@ -78,28 +79,73 @@ def build_profile(odoo: dict) -> dict:
     }
 
 
-def store_session(token: str, profile: dict, expires_in: int) -> None:
-    now = time.time()
-    # limpieza de sesiones vencidas (y tope de tamaño)
-    for t in [t for t, (exp, _) in _SESSIONS.items() if exp <= now]:
-        _SESSIONS.pop(t, None)
-    if len(_SESSIONS) >= _MAX_SESSIONS:
-        _SESSIONS.pop(next(iter(_SESSIONS)), None)
-    _SESSIONS[token] = (now + max(int(expires_in or 0), 60), profile)
+def _token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def drop_session(token: str) -> None:
-    _SESSIONS.pop(token, None)
+async def store_session(token: str, profile: dict, expires_in: int) -> None:
+    if settings.AUTH_MOCK:
+        return
+    from app.db.database import get_pool
+
+    pool = get_pool()
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=max(int(expires_in or 0), 60))
+    async with pool.acquire() as conn:
+        # Purga de sesiones vencidas (barata gracias al índice) + upsert.
+        await conn.execute("DELETE FROM auth_sessions WHERE expires_at < $1;", datetime.now(timezone.utc))
+        await conn.execute(
+            """
+            INSERT INTO auth_sessions (token_hash, profile, expires_at)
+            VALUES ($1, $2::jsonb, $3)
+            ON CONFLICT (token_hash) DO UPDATE SET
+                profile     = EXCLUDED.profile,
+                expires_at  = EXCLUDED.expires_at;
+            """,
+            _token_hash(token),
+            json.dumps(profile, ensure_ascii=False),
+            expires_at,
+        )
+
+
+async def drop_session(token: str) -> None:
+    if settings.AUTH_MOCK:
+        return
+    from app.db.database import get_pool
+
+    pool = get_pool()
+    await pool.execute(
+        "DELETE FROM auth_sessions WHERE token_hash = $1;",
+        _token_hash(token),
+    )
 
 
 async def resolve_user(token: str) -> Optional[dict]:
     if settings.AUTH_MOCK:
         return _MOCK_USERS.get(token)
-    entry = _SESSIONS.get(token)
-    if entry is None:
+    from app.db.database import get_pool
+
+    try:
+        pool = get_pool()
+        row = await pool.fetchrow(
+            "SELECT profile, expires_at FROM auth_sessions WHERE token_hash = $1;",
+            _token_hash(token),
+        )
+    except Exception:
+        logger.exception("No se pudo resolver la sesión desde la BD.")
         return None
-    exp, profile = entry
-    if time.time() >= exp:
-        _SESSIONS.pop(token, None)
+    if row is None:
         return None
-    return profile
+    if row["expires_at"] < datetime.now(timezone.utc):
+        # Expirada: limpiar y tratar como inválida.
+        try:
+            await pool.execute("DELETE FROM auth_sessions WHERE token_hash = $1;", _token_hash(token))
+        except Exception:
+            logger.warning("Fallo purgando sesión expirada.", exc_info=True)
+        return None
+    profile = row["profile"]
+    if isinstance(profile, str):
+        try:
+            profile = json.loads(profile)
+        except json.JSONDecodeError:
+            return None
+    return profile if isinstance(profile, dict) else None

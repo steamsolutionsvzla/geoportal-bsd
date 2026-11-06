@@ -149,7 +149,27 @@ export function getAuthToken() {
   return localStorage.getItem('auth_token');
 }
 
+/**
+ * Invalida la sesión en el backend (fire-and-forget, con keepalive para que
+ * sobreviva a la navegación inmediata a /login). Best-effort: si el backend
+ * no responde, la sesión local se limpia igualmente.
+ */
+export function revokeSession() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) return Promise.resolve();
+  try {
+    return fetch(resolveApiPath('/api/auth/logout'), {
+      method: 'POST',
+      keepalive: true,
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  } catch (_) {
+    return Promise.resolve();
+  }
+}
+
 export function clearSession() {
+  revokeSession();
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_session');
 }

@@ -1,13 +1,17 @@
+from typing import Optional
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
 from app.api.deps import auth_guard
 from app.config import settings
 from app.models.user import CurrentUser
-from app.services.session_service import build_profile, store_session
+from app.services.session_service import build_profile, drop_session, store_session
 
 router = APIRouter(prefix="/api", tags=["Auth"])
+_bearer = HTTPBearer(auto_error=False)
 
 
 class LoginIn(BaseModel):
@@ -66,8 +70,16 @@ async def login(body: LoginIn):
     except ValueError as e:
         raise HTTPException(403, str(e))
 
-    store_session(data["access_token"], profile, data.get("expires_in") or 28800)
+    await store_session(data["access_token"], profile, data.get("expires_in") or 28800)
     return data
+
+
+@router.post("/auth/logout")
+async def logout(cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)):
+    """Invalida la sesión del lado servidor (si el token existe)."""
+    if cred and cred.credentials:
+        await drop_session(cred.credentials)
+    return {"ok": True}
 
 
 @router.get("/me", response_model=CurrentUser)
