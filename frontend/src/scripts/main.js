@@ -1597,12 +1597,17 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
     let countInPolygon = 0;
     let featuresInLayer = [];
     const indicesDentro = [];
+    // Dedupe de filas gemelas exactas (duplicados ETL en las tablas base).
+    const vistos = new Set();
 
     sourceData.features.forEach((ptFeature, index) => {
       if (!ptFeature || !ptFeature.geometry) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
+      const clave = JSON.stringify(ptFeature.geometry) + '~' + JSON.stringify(ptFeature.properties || null);
+      if (vistos.has(clave)) return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, estadoPolygonFeature)) {
+          vistos.add(clave);
           countInPolygon++;
           featuresInLayer.push(ptFeature.properties);
           indicesDentro.push(index);
@@ -1667,12 +1672,17 @@ function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
     let countInPolygon = 0;
     let featuresInLayer = [];
     const indicesDentro = [];
+    // Dedupe de filas gemelas exactas (duplicados ETL en las tablas base).
+    const vistos = new Set();
 
     sourceData.features.forEach((ptFeature, index) => {
       if (!ptFeature || !ptFeature.geometry) return;
       if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
+      const clave = JSON.stringify(ptFeature.geometry) + '~' + JSON.stringify(ptFeature.properties || null);
+      if (vistos.has(clave)) return;
       try {
         if (turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
+          vistos.add(clave);
           countInPolygon++;
           featuresInLayer.push(ptFeature.properties);
           indicesDentro.push(index);
@@ -1748,22 +1758,31 @@ function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } =
     const esPunto =
       tipo === 'circle' || tipo === 'point' || tipo === 'punto' ||
       firstGeomType === 'Point' || firstGeomType === 'MultiPoint';
-    const esLinea =
-      tipo === 'line' ||
-      firstGeomType === 'LineString' || firstGeomType === 'MultiLineString';
 
-    if (!esPunto && !esLinea) return;
+    // El filtro cuenta SOLO puntos (decisión de producto): las líneas/ductos
+    // se siguen viendo en el mapa pero no entran al conteo.
+    if (!esPunto) return;
 
     let countInPoligonos = 0;
     const featuresInLayer = [];
     const indicesDentro = [];
+    // Claves de fila ya contadas: varias tablas llegan de GeoServer con
+    // duplicados exactos (misma geometría y mismos atributos; p. ej.
+    // Estaciones x3). Sin esto, un punto visible contaría varias veces.
+    const vistos = new Set();
 
     sourceData.features.forEach((feature, index) => {
       if (!feature || !feature.geometry) return;
+      const gtipo = feature.geometry.type;
+      if (gtipo !== 'Point' && gtipo !== 'MultiPoint') return;
+
+      const clave = JSON.stringify(feature.geometry) + '~' + JSON.stringify(feature.properties || null);
+      if (vistos.has(clave)) return; // fila gemela: no se cuenta ni resalta otra vez
 
       if (estadoFeature && !geometriaDentroDePoligono(feature, estadoFeature)) return;
       if (areaFeature && !geometriaDentroDePoligono(feature, areaFeature)) return;
 
+      vistos.add(clave);
       countInPoligonos++;
       featuresInLayer.push(feature.properties);
       indicesDentro.push(index);

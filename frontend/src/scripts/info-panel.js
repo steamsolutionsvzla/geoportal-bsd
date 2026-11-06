@@ -281,11 +281,11 @@ function buildAreaFilterSummaryHtml() {
   html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
   if (capasContadas === 0) {
-    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos o líneas activas dentro del área.</td></tr>`;
+    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos activas dentro del área.</td></tr>`;
   }
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
-    html += `<div class="info-total"><span>Total de puntos y líneas en el área</span><b>${totalElementos}</b></div>`;
+    html += `<div class="info-total"><span>Total de puntos en el área</span><b>${totalElementos}</b></div>`;
     html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnArea" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
@@ -308,7 +308,7 @@ function buildIntersectionFilterSummaryHtml() {
   html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
   html += rowsHtml;
   if (capasContadas === 0) {
-    html += `<tr><td colspan="2" class="info-table-empty">No hay puntos ni líneas dentro del estado y del área seleccionados.</td></tr>`;
+    html += `<tr><td colspan="2" class="info-table-empty">No hay puntos dentro del estado y del área seleccionados.</td></tr>`;
   }
   html += `</tbody></table></div>`;
   if (capasContadas > 0) {
