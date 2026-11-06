@@ -44,7 +44,7 @@ docker network create geoportal-net
 
 # 1) Variables de entorno
 cp .env.example .env        # ¡rellena los valores! sobre todo DB_PASSWORD,
-                            # GEOSERVER_*, ODOO_URL y MAPTILER_KEY
+                            # GEOSERVER_* y ODOO_URL
 
 # 2) Backend (FastAPI en :8000, http://localhost:8000/docs con DEBUG=True)
 cd backend

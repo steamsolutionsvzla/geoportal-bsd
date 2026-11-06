@@ -35,7 +35,6 @@ services:
       - GEOSERVER_USER=${GEOSERVER_USER}
       - GEOSERVER_PASSWORD=${GEOSERVER_PASSWORD}
       - GEOSERVER_WORKSPACE=${GEOSERVER_WORKSPACE}
-      - MAPTILER_KEY=${MAPTILER_KEY}
       # CORS_ORIGINS: orígenes exactos que sirven el frontend, separados por
       # coma. En producción (frontend y API tras el mismo dominio) basta el
       # dominio público; en dev, el dev server de Astro.

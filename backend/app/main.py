@@ -88,20 +88,6 @@ app.include_router(styles_router)
 app.include_router(reports_router)
 app.include_router(organization_router)
 
-# ============================================================
-# ENDPOINT DE CONFIGURACIÓN PARA EL FRONTEND
-# ============================================================
-@app.get("/api/config")
-async def get_config():
-    """
-    Devuelve la configuración pública necesaria para el frontend,
-    como la clave de MapTiler. 
-    La clave se lee desde el archivo .env (settings.MAPTILER_KEY).
-    """
-    return {
-        "MAPTILER_KEY": settings.MAPTILER_KEY  # Asegúrate de tener esta variable en app/config.py
-    }
-
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "Geoportal API Backend activo"}
