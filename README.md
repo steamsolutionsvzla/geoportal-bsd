@@ -159,6 +159,10 @@ El geoportal puede servir los fondos **Clara / Satélite / Etiquetas** desde
 archivos PMTiles locales, visualmente idénticos a los online (mismos
 proveedores Esri), para LAN o equipos sin internet:
 
+El build offline necesita los 4 archivos: `clara.pmtiles` (z5-9),
+`clara-deep.pmtiles` (z9-12 nacional + zonas a 17), `satelite.pmtiles`
+(z5-13) y `satelite-labels.pmtiles` (z5-13).
+
 ```bash
 # 1) Generar los tiles (requiere internet UNA vez; reanudable si se corta)
 cd frontend
@@ -177,8 +181,8 @@ py scripts/generate-offline-tiles.py --layers clara-deep \
 py scripts/generate-offline-tiles.py --layers satelite satelite-labels \
     --bbox -64.8,8.4,-63.2,10.4 --minzoom 14 --maxzoom 16
 
-# 2) Activar el modo offline en src/scripts/map-config.js:
-#    export const USE_OFFLINE_TILES = true;
+# 2) Activar el modo offline: en frontend/.env pone
+#    PUBLIC_OFFLINE_TILES=true   (sin editar código)
 
 # 3) Compilar y servir dist/ normalmente.
 pnpm build

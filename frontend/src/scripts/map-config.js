@@ -17,17 +17,19 @@ maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 
 // ============================================================
 //  MODO OFFLINE
-//  true  → fondos "Clara" (y su zoom profundo) y "Satelital" se sirven
-//          desde PMTiles locales (public/tiles/*.pmtiles), idénticos a
-//          los proveedores online (Esri Terrain / CARTO deep / Esri
-//          Imagery / Esri Reference).
-//          Generarlos con:  py scripts/generate-offline-tiles.py
-//  false → fondos online: Esri Terrain hasta z13 + CARTO light_nolabels
-//          a partir de ~z13 (zoom profundo real hasta z20).
-//  Nota: el zoom profundo online requiere PUBLIC_CARTO_KEY definida al
-//  compilar (ver .env.example). Sin clave, Clara se queda en z13.
+//  Se activa AL COMPILAR con PUBLIC_OFFLINE_TILES=true en
+//  frontend/.env — no hace falta editar este archivo:
+//
+//    .env (online)   → PUBLIC_OFFLINE_TILES=false  (Esri + CARTO)
+//    .env (offline)  → PUBLIC_OFFLINE_TILES=true   (PMTiles locales)
+//
+//  Requisitos del build offline (public/tiles/, generados con
+//  py scripts/generate-offline-tiles.py):
+//    clara.pmtiles (z5-9), clara-deep.pmtiles (z9-12/14),
+//    satelite.pmtiles, satelite-labels.pmtiles
 // ============================================================
-export const USE_OFFLINE_TILES = false;
+export const USE_OFFLINE_TILES =
+  String((import.meta.env && import.meta.env.PUBLIC_OFFLINE_TILES) || 'false').toLowerCase() === 'true';
 
 // Clave pública de CARTO (solo para la CDN de teselas; build-time con el
 // prefijo PUBLIC_ de Astro). Sin clave no se añade la capa profunda.
