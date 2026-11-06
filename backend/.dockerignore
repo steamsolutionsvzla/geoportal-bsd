@@ -1,7 +1,16 @@
 venv/
+.venv/
+env/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .git
+.gitignore
 .env
+storage/
+.pytest_cache/
+.mypy_cache/
+*.md
+Dockerfile
+.dockerignore

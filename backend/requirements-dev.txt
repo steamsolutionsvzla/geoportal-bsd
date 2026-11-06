@@ -1,0 +1,4 @@
+# Dependencias de desarrollo/test (no van en la imagen de producción).
+-r requirements.txt
+pytest==8.3.4
+ruff==0.6.9

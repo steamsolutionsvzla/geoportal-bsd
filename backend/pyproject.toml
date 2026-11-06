@@ -1,0 +1,11 @@
+# Configuración de lint/formato para el backend.
+# Reglas conservadoras: errores reales (F), estilo esencial (E4/E7/E9) e imports (I).
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
