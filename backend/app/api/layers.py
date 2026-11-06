@@ -1,13 +1,18 @@
 # app/api/layers.py
+import io
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from app.api.deps import auth_guard, workspace_guard, allowed_workspaces, filter_layers_by_workspace
-from app.models.user import CurrentUser
+
+from app.api.deps import allowed_workspaces, auth_guard, filter_layers_by_workspace, workspace_guard
 from app.db.database import get_pool
+from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
 from app.services.layer_service import get_layer_metadata
 from app.services.metadata_export import build_iso19139, build_qmd
-import io
+
+logger = logging.getLogger("app.api.layers")
 
 router = APIRouter(
     prefix="/api/v1/layers",
@@ -62,7 +67,7 @@ async def download_layer_shapefile(table_name: str):
             extras[".qmd"] = build_qmd(meta)
             extras[".xml"] = build_iso19139(meta)
     except Exception as e:
-        print(f"[download] sin sidecars de metadatos para '{table_name}': {e}")
+        logger.warning("Descarga de '%s' sin sidecars de metadatos: %s", table_name, e)
 
     try:
         data = await GeoServerService.get_layer_shapefile_zip(table_name, extras=extras or None)
