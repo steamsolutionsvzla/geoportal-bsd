@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """
-Genera los tiles offline (PMTiles) de los fondos "Clara" (CARTO) y "Satelite" (Esri)
-para uso del geoportal sin internet.
+Genera los tiles offline (PMTiles) de los fondos del geoportal, IDÉNTICOS a
+lo que se ve online hoy:
 
-Requiere internet SOLO al ejecutarlo (una vez). Produce:
-    frontend/public/tiles/clara.pmtiles
-    frontend/public/tiles/satelite.pmtiles
+    clara            -> Esri World_Terrain_Base (igual que map-config.js)
+    satelite         -> Esri World_Imagery
+    satelite-labels  -> Esri World_Boundaries_and_Places (PNG transparente)
+
+Requiere internet SOLO al ejecutarlo (una vez). Produce en public/tiles/:
+    clara.pmtiles  satelite.pmtiles  satelite-labels.pmtiles
 
 Uso:
-    py scripts/generate-offline-tiles.py                     # todo (z5-13, ambas capas)
+    py scripts/generate-offline-tiles.py                     # Venezuela z5-13, 3 capas
     py scripts/generate-offline-tiles.py --layers clara      # solo una capa
-    py scripts/generate-offline-tiles.py --maxzoom 12        # zoom maximo menor (mas ligero)
+    py scripts/generate-offline-tiles.py --layers satelite satelite-labels \
+        --bbox -64.8,8.4,-63.2,10.4 --minzoom 14 --maxzoom 16   # zoom profundo por zona
     py scripts/generate-offline-tiles.py --concurrency 24    # hilos de descarga
 
 Es reanudable: si se interrumpe, vuelve a ejecutar el mismo comando y continúa
@@ -36,29 +40,31 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # CONFIGURACIÓN
 # ---------------------------------------------------------------------------
-# BBOX de descarga: -75.5,0.5,-56.0,13.6  (minx, miny, maxx, maxy)
+# BBOX por defecto: Venezuela (minx, miny, maxx, maxy).
 BBOX = (-75.5, 0.5, -56.0, 13.6)
 MINZOOM = 5
+MAXZOOM = 13   # la fuente online "clara" corta en z13 y el relieve Esri no sube más
 
-# Clave CARTO (misma que usa el frontend en map-config.js)
-CARTO_KEY = "cb1_33kc_1_d2fff4a23840225df4cca1fa"
-
-CARTO_SUBDOMAINS = ["a", "b", "c"]
+# Mismas URLs que usa el geoportal online (map-config.js) para que el
+# resultado offline sea visualmente idéntico.
 LAYERS = {
     "clara": {
-        "url": "https://{sub}.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png?key=" + CARTO_KEY,
-        "attribution": "&copy; OpenStreetMap contributors &copy; CARTO",
-        "name": "Mapa base claro (CARTO light_nolabels)",
+        "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS",
+        "name": "Mapa base fisico claro (Esri World_Terrain_Base)",
+        "format": "jpg",
     },
     "satelite": {
         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         "attribution": "Tiles &copy; Esri",
-        "name": "Imagen satelital (Esri World Imagery)",
+        "name": "Imagen satelital (Esri World_Imagery)",
+        "format": "jpg",
     },
     "satelite-labels": {
         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
         "attribution": "Labels &copy; Esri",
         "name": "Etiquetas satelitales (Esri World_Boundaries_and_Places)",
+        "format": "png",
     },
 }
 
@@ -68,6 +74,9 @@ RETRIES = 3
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TILES_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, "..", "public", "tiles"))
+# Caché reanudable (.mbtiles) FUERA de public/ para que el build no la copie
+# a dist/. Solo los .pmtiles terminados viajan al sitio estático.
+CACHE_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".tiles-cache"))
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +115,7 @@ def all_tiles(bbox, minzoom, maxzoom):
 # DESCARGA
 # ---------------------------------------------------------------------------
 def fetch_tile(layer_cfg, z, x, y, attempt=0):
-    url = layer_cfg["url"].format(
-        z=z, x=x, y=y, sub=random.choice(CARTO_SUBDOMAINS)
-    )
+    url = layer_cfg["url"].format(z=z, x=x, y=y, sub=random.choice("abc"))
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
@@ -120,9 +127,6 @@ def fetch_tile(layer_cfg, z, x, y, attempt=0):
     except urllib.error.HTTPError as e:
         if e.code in (204, 404):
             return None
-        if e.code == 403 and attempt < RETRIES:
-            time.sleep(1.5 * (attempt + 1))
-            return fetch_tile(layer_cfg, z, x, y, attempt + 1)
         if attempt < RETRIES:
             time.sleep(0.8 * (attempt + 1) + random.random())
             return fetch_tile(layer_cfg, z, x, y, attempt + 1)
@@ -161,7 +165,7 @@ def write_metadata(conn, layer_cfg, bbox, minzoom, maxzoom):
     minx, miny, maxx, maxy = bbox
     meta = {
         "name": layer_cfg["name"],
-        "format": "png",
+        "format": layer_cfg.get("format", "png"),
         "bounds": "%f,%f,%f,%f" % (minx, miny, maxx, maxy),
         "center": "%f,%f,%d" % ((minx + maxx) / 2, (miny + maxy) / 2, minzoom + 3),
         "minzoom": str(minzoom),
@@ -178,8 +182,15 @@ def write_metadata(conn, layer_cfg, bbox, minzoom, maxzoom):
 
 def download_layer(layer_name, layer_cfg, bbox, minzoom, maxzoom, concurrency, resume):
     os.makedirs(TILES_DIR, exist_ok=True)
-    mbtiles_path = os.path.join(TILES_DIR, "%s.mbtiles" % layer_name)
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    mbtiles_path = os.path.join(CACHE_DIR, "%s.mbtiles" % layer_name)
     pmtiles_path = os.path.join(TILES_DIR, "%s.pmtiles" % layer_name)
+
+    # Migración: si aún existe la caché vieja dentro de public/tiles, se traslada.
+    old_cache = os.path.join(TILES_DIR, "%s.mbtiles" % layer_name)
+    if os.path.exists(old_cache) and not os.path.exists(mbtiles_path):
+        os.replace(old_cache, mbtiles_path)
+        print("[%s] caché migrada a %s" % (layer_name, CACHE_DIR))
 
     tiles = all_tiles(bbox, minzoom, maxzoom)
     conn = open_mbtiles(mbtiles_path)
@@ -230,21 +241,38 @@ def download_layer(layer_name, layer_cfg, bbox, minzoom, maxzoom, concurrency, r
     print("[%s] listo: %s (%.1f MB)" % (layer_name, pmtiles_path, size_mb))
 
 
+def parse_bbox(texto):
+    """'-75.5,0.5,-56.0,13.6' -> (minx, miny, maxx, maxy)."""
+    partes = [p.strip() for p in texto.split(",")]
+    if len(partes) != 4:
+        raise argparse.ArgumentTypeError("--bbox necesita 4 valores: minx,miny,maxx,maxy")
+    try:
+        vals = tuple(float(p) for p in partes)
+    except ValueError:
+        raise argparse.ArgumentTypeError("--bbox necesita números")
+    minx, miny, maxx, maxy = vals
+    if minx >= maxx or miny >= maxy:
+        raise argparse.ArgumentTypeError("--bbox: minx<maxx y miny<maxy requeridos")
+    return vals
+
+
 # ---------------------------------------------------------------------------
 # MAIN
 # ---------------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(description="Genera PMTiles offline de los fondos del geoportal")
     parser.add_argument("--layers", nargs="+", choices=list(LAYERS.keys()), default=list(LAYERS.keys()))
+    parser.add_argument("--bbox", type=parse_bbox, default=BBOX,
+                        help="'minx,miny,maxx,maxy' (default: Venezuela -75.5,0.5,-56.0,13.6)")
     parser.add_argument("--minzoom", type=int, default=MINZOOM)
-    parser.add_argument("--maxzoom", type=int, default=13)
+    parser.add_argument("--maxzoom", type=int, default=MAXZOOM)
     parser.add_argument("--concurrency", type=int, default=16)
     parser.add_argument("--no-resume", action="store_true", help="Ignora tiles ya descargados y empieza de cero")
     args = parser.parse_args()
 
-    print("BBOX=%s  zoom=%d-%d  capas=%s" % (BBOX, args.minzoom, args.maxzoom, ",".join(args.layers)))
+    print("BBOX=%s  zoom=%d-%d  capas=%s" % (args.bbox, args.minzoom, args.maxzoom, ",".join(args.layers)))
     for name in args.layers:
-        download_layer(name, LAYERS[name], BBOX, args.minzoom, args.maxzoom, args.concurrency, resume=not args.no_resume)
+        download_layer(name, LAYERS[name], args.bbox, args.minzoom, args.maxzoom, args.concurrency, resume=not args.no_resume)
     print("Terminado.")
 
 

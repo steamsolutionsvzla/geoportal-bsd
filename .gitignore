@@ -77,6 +77,7 @@ video/
 # ---------- Mapa offline del geoportal ----------
 # Tiles generados con frontend/scripts/generate-offline-tiles.py
 frontend/public/tiles/
+frontend/.tiles-cache/
 frontend/tiles-generate.log
 
 # ---------- Agentes / skills (no versionar) ----------

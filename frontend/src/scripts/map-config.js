@@ -18,11 +18,11 @@ maplibregl.addProtocol('pmtiles', pmtilesProtocol.tile);
 // ============================================================
 //  MODO OFFLINE
 //  true  → fondos "Clara" y "Satelital" se sirven desde PMTiles
-//          locales (public/tiles/clara.pmtiles y satelite.pmtiles).
+//          locales (public/tiles/*.pmtiles), idénticos a los
+//          proveedores online (Esri Terrain / Esri Imagery /
+//          Esri Reference).
 //          Generarlos con:  py scripts/generate-offline-tiles.py
-//  false → fondos online (CARTO / Esri), como siempre.
-//  El Relieve 3D siempre es online: si no hay conexión y se
-//  selecciona, aparece un aviso.
+//  false → fondos online (Esri), como siempre.
 // ============================================================
 export const USE_OFFLINE_TILES = false;
 
@@ -144,7 +144,7 @@ export function setupStatusBar(map) {
 //  CAPAS BASE (fondo del mapa)
 // ============================================================
 export function addBaseLayers(map) {
-  // --- Capa clara: PMTiles local (offline) o CARTO/OSM (online) ---
+  // --- Capa clara: PMTiles local (offline) o Esri Terrain (online) ---
   if (USE_OFFLINE_TILES) {
     // IMPORTANTE: con pmtiles se declara con `url:` (no `tiles:`), para que el
     // protocolo resuelva el TileJSON y sirva cada tile como .../{z}/{x}/{y}.
@@ -152,7 +152,8 @@ export function addBaseLayers(map) {
       type: 'raster',
       url: 'pmtiles:///tiles/clara.pmtiles',
       tileSize: 256,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> &copy; <a href="https://carto.com/" target="_blank">CARTO</a>'
+      maxzoom: 13, // igual que la fuente online: por encima se escala
+      attribution: 'Tiles &copy; Esri &mdash; Source: USGS, Esri, TANA, DeLorme, and NPS'
     });
   } else {
     // Base física clara de Esri: sin fronteras políticas ni etiquetas, para

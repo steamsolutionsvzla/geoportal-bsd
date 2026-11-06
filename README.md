@@ -135,6 +135,40 @@ frontend/
   usar librerías que produzcan el PDF en el navegador: los antivirus corporativos
   marcaban los binarios de jsPDF como malware.
 
+## Mapa base sin conexión (offline)
+
+El geoportal puede servir los fondos **Clara / Satélite / Etiquetas** desde
+archivos PMTiles locales, visualmente idénticos a los online (mismos
+proveedores Esri), para LAN o equipos sin internet:
+
+```bash
+# 1) Generar los tiles (requiere internet UNA vez; reanudable si se corta)
+cd frontend
+py -m pip install pmtiles
+py scripts/generate-offline-tiles.py            # Venezuela completa z5-13
+
+# Opcional: zoom profundo (z14-16) solo para una zona concreta, ej. el oriente:
+py scripts/generate-offline-tiles.py --layers satelite satelite-labels \
+    --bbox -64.8,8.4,-63.2,10.4 --minzoom 14 --maxzoom 16
+
+# 2) Activar el modo offline en src/scripts/map-config.js:
+#    export const USE_OFFLINE_TILES = true;
+
+# 3) Compilar y servir dist/ normalmente.
+pnpm build
+```
+
+Notas:
+- Los datos vectoriales (capas, metadatos, login) siguen necesitando el
+  backend (PostGIS/GeoServer/Odoo) en la LAN; lo offline son solo los fondos.
+- `--layers`: `clara` (~2-3 GB), `satelite` (~8-12 GB), `satelite-labels`
+  (~2-3 GB) en z5-13 nacionales. Usa `--concurrency` bajo (8-16) en redes
+  corporativas para no bloquearte.
+- `public/tiles/` está gitignoreado: los PMTiles viajan a los servidores con
+  el `dist/` o por copia manual.
+- Por encima del máximo descargado, MapLibre escala los tiles (igual que hace
+  hoy la fuente clara online al pasar de z13).
+
 ## Licencia / contacto
 
 Proyecto interno Steam Solutions — Banco Soberano de Datos de Petróleo y Gas.
