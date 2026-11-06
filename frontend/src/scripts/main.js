@@ -37,8 +37,12 @@ import {
   attachLayerOpacityEvents,
   attachLayerDownloadEvents,
   getLayerRawData, clearLayerRawData,   // 👈 NUEVOS
-  isRasterLayer, addRasterLayerToMap, removeRasterLayer
+  isRasterLayer, addRasterLayerToMap, removeRasterLayer,
+  setLayerFillOpacity
 } from './layer-manager.js';
+import {
+  obtenerOrganizacion, abrirPanelOrganizacion, construirGruposDesdeCarpetas
+} from './org-panel.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 import { beginBusy, endBusy } from './busy-overlay.js';
 
@@ -139,6 +143,11 @@ function mostrarCargando(mostrar) {
 // =========================================================================
 let availableLayers = [];
 let stylesMap = new Map();
+
+// Organización de capas en carpetas (personal del usuario) y estado de render.
+let wsGroupsBase = [];        // grupos originales por workspace (fuente de capas)
+let organizacionActual = null; // carpetas guardadas del usuario; null = por workspaces
+let gruposRenderizados = [];   // grupos tal como se muestran (para buscador/índice)
 let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;
 let currentFilterData = null;
@@ -159,14 +168,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   const map = initMap('map');
   window.map = map;
 
-  document.getElementById('layerSearch')?.addEventListener('input', aplicarBusquedaCapas);
-  document.getElementById('layerSearch')?.addEventListener('keydown', (e) => {
+  // Buscador: debounce + Escape limpia al perder foco; '/' enfoca.
+  let searchDebounce = null;
+  const layerSearchInput = document.getElementById('layerSearch');
+  layerSearchInput?.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(aplicarBusquedaCapas, 120);
+  });
+  layerSearchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchDebounce); aplicarBusquedaCapas(); return; }
     if (e.key === 'Escape') {
       e.preventDefault();
       limpiarBusquedaCapas();
+      layerSearchInput.blur();
     }
   });
   document.getElementById('layerSearchClear')?.addEventListener('click', limpiarBusquedaCapas);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.repeat) return;
+    const t = e.target;
+    if (t && (['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable)) return;
+    const s = document.getElementById('layerSearch');
+    if (!s) return;
+    e.preventDefault();
+    s.focus();
+    s.select();
+  });
+  setupBusquedaChips();
+
+  // Botón "Apagar todas": desactiva todas las capas activas (equivale a
+  // hacer clic en cada toggle). Se habilita solo cuando hay capas activas.
+  document.getElementById('layerOffAllBtn')?.addEventListener('click', () => {
+    const cont = document.getElementById('layersGroupsContainer');
+    if (!cont) return;
+    [...cont.querySelectorAll('.toggle.on')].forEach(t => t.click());
+  });
+  // Refrescar el estado del botón tras cualquier toggle (delegado; rAF para
+  // correr después de que el handler de layer-manager actualice las clases).
+  document.getElementById('sidebar')?.addEventListener('click', (e) => {
+    if (e.target.closest('.layer-row')) requestAnimationFrame(actualizarBotonApagar);
+  });
 
   map.on('load', () => {
     addBaseLayers(map);
@@ -282,8 +323,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.cerrarSesion = cerrarSesion;
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
-    document.querySelector('.icon-btn[title="Ajustes"]')?.addEventListener('click', () => {
-      alert('Ajustes aún no implementados');
+    // Engranaje: organizar capas en carpetas personales (solo geoportal).
+    document.getElementById('organizeBtn')?.addEventListener('click', () => {
+      abrirPanelOrganizacion({
+        wsGroups: wsGroupsBase,
+        folders: organizacionActual,
+        onGuardado: (folders) => {
+          organizacionActual = folders && folders.length ? folders : null;
+          renderizarListaCapas(gruposParaRender());
+        }
+      });
     });
 
     const legendToggleBtn = document.getElementById('legendToggleBtn');
@@ -357,11 +406,21 @@ async function loadWorkspaces() {
 
     availableLayers = allLayers;
     setAvailableLayers(availableLayers);
+    wsGroupsBase = groups;
 
-    renderLayerGroups(groups, 'layersGroupsContainer');
+    // Organización en carpetas: solo en el geoportal (no showroom).
+    if (IS_SHOWROOM) {
+      organizacionActual = null;
+    } else {
+      try {
+        organizacionActual = await obtenerOrganizacion();
+      } catch (e) {
+        console.warn('No se pudo cargar la organización de carpetas (se usa la vista por workspace):', e);
+        organizacionActual = null;
+      }
+    }
 
-    refreshCount();
-    updateLegendUI(availableLayers);
+    renderizarListaCapas(gruposParaRender());
   } catch (error) {
     console.error('Error al obtener workspaces:', error);
     mostrarError('No se pudo cargar la estructura de capas. Verifica que el backend esté funcionando.');
@@ -430,74 +489,336 @@ function resaltarCoincidencia(el, q) {
   if (despues) el.appendChild(document.createTextNode(despues));
 }
 
-function actualizarControlesBusqueda(q, total) {
-  const clearBtn = document.getElementById('layerSearchClear');
-  const countEl = document.getElementById('layerSearchCount');
+// Aliases de tipo de geometría para el buscador (sin tildes: se normalizan).
+const TIPO_ALIAS = {
+  circle: ['punto', 'puntos', 'point', 'circulo', 'marker'],
+  line: ['linea', 'lineas', 'line', 'ducto', 'ductos', 'ruta'],
+  fill: ['poligono', 'poligonos', 'polygon', 'fill', 'area', 'areas', 'zona', 'zonas'],
+  raster: ['raster', 'imagen', 'imagenes', 'grid', 'base']
+};
 
-  if (clearBtn) clearBtn.hidden = !q;
+// true si la distancia de edición entre a y b es como máximo 1 (typos leves).
+function edDistMax1(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (i >= Math.min(a.length, b.length)) return true; // uno es prefijo del otro
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  if (a.length < b.length) return b.slice(i + 1) === a.slice(i);
+  return a.slice(i + 1) === b.slice(i);
+}
 
-  if (countEl) {
-    countEl.hidden = !q;
-    if (q) {
-      countEl.textContent = total === 1
-        ? '1 capa encontrada'
-        : `${total} capas encontradas`;
-    }
-  }
+function puntuarToken(e, t) {
+  if (!t) return 0;
+  if (e.nameNorm === t) return 100;
+  if (e.nameNorm.startsWith(t)) return 70;
+  if (e.palabras.some(w => w.startsWith(t))) return 60;
+  if (e.nameNorm.includes(t)) return 45;
+  if ((TIPO_ALIAS[e.kind] || []).includes(t)) return 38;
+  if (e.groupNorm && e.groupNorm.includes(t)) return 28;
+  if (e.wsNorm && e.wsNorm.includes(t)) return 25;
+  if (e.idNorm.includes(t)) return 18;
+  if (t.length >= 4 && e.palabras.some(w => w.length >= 3 && edDistMax1(t, w))) return 14;
+  return 0;
+}
+
+// Índice de búsqueda sobre el modelo (nombre, id, workspace, grupo, tipo).
+function construirIndiceBusqueda() {
+  const idx = new Map();
+  gruposRenderizados.forEach(g => {
+    const gNorm = normalizarBusqueda(g.title || g.name || '');
+    (g.layers || []).forEach(l => {
+      const nameNorm = normalizarBusqueda(l.name || '');
+      idx.set(l.id, {
+        id: l.id,
+        kind: (l.type === 'point' ? 'circle' : (l.type || 'fill')),
+        nameNorm,
+        idNorm: normalizarBusqueda(l.id),
+        wsNorm: normalizarBusqueda(l.id.includes(':') ? l.id.split(':')[0] : ''),
+        groupNorm: gNorm,
+        palabras: nameNorm.split(/\s+/).filter(Boolean)
+      });
+    });
+  });
+  return idx;
+}
+
+function leerChipsFiltro() {
+  const cont = document.getElementById('layerSearchChips');
+  const tipos = new Set();
+  let visib = null;
+  cont?.querySelectorAll('.ls-chip.active[data-chip]').forEach(c => {
+    const v = c.dataset.chip;
+    if (!v || v === 'help') return;
+    if (v === 'on' || v === 'off') visib = v;
+    else tipos.add(v);
+  });
+  return { tipos, visib };
 }
 
 function aplicarBusquedaCapas() {
-  const input = document.getElementById('layerSearch');
   const cont = document.getElementById('layersGroupsContainer');
   if (!cont) return;
+  const input = document.getElementById('layerSearch');
+  const q = normalizarBusqueda(input?.value || '');
+  const tokens = q ? q.split(/\s+/).filter(Boolean) : [];
+  const { tipos, visib } = leerChipsFiltro();
+  const filtrando = tokens.length > 0 || tipos.size > 0 || Boolean(visib);
+  const idx = construirIndiceBusqueda();
 
-  const q = normalizarBusqueda(input?.value);
+  const groupBlocks = [...cont.querySelectorAll('.layer-group')];
   let totalVisibles = 0;
 
-  cont.querySelectorAll('.layer-group').forEach((group) => {
-    const groupName = normalizarBusqueda(group.querySelector('.group-name')?.textContent);
-    const items = group.querySelectorAll('.layer-item');
-    let visibles = 0;
+  groupBlocks.forEach(group => {
+    const layersBox = group.querySelector('.group-layers');
+    if (!layersBox) return;
+    const items = [...layersBox.querySelectorAll('.layer-item')];
+    const conScore = [];
 
-    items.forEach((item) => {
+    items.forEach(item => {
+      const entry = idx.get(item.dataset.table);
+      const toggleOn = Boolean(item.querySelector('.toggle.on'));
+      let ok = Boolean(entry);
+      let score = 0;
+
+      if (ok && tipos.size && !tipos.has(entry.kind)) ok = false;
+      if (ok && visib === 'on' && !toggleOn) ok = false;
+      if (ok && visib === 'off' && toggleOn) ok = false;
+      if (ok) {
+        for (const t of tokens) {
+          const s = puntuarToken(entry, t);
+          if (!s) { ok = false; break; }
+          score += s;
+        }
+      }
+
+      item.hidden = !ok;
       const nameEl = item.querySelector('.lname');
-      const layerName = normalizarBusqueda(nameEl?.dataset.plain ?? nameEl?.textContent);
-      const layerId = normalizarBusqueda(item.dataset.table);
-      const coincide = !q || groupName.includes(q) || layerName.includes(q) || layerId.includes(q);
-      item.hidden = !coincide;
-      resaltarCoincidencia(nameEl, q);
-      if (coincide) visibles++;
+      if (nameEl) {
+        const tmatch = ok ? tokens.find(t => entry.nameNorm.includes(t)) : null;
+        resaltarCoincidencia(nameEl, tmatch || '');
+      }
+      if (ok) { totalVisibles++; conScore.push({ item, score }); }
     });
 
-    group.hidden = visibles === 0;
-    if (q && visibles > 0) {
-      group.querySelector('.group-layers')?.classList.add('open');
-      group.querySelector('.group-header')?.classList.add('open');
+    group.hidden = conScore.length === 0;
+
+    if (filtrando) {
+      conScore.sort((a, b) => b.score - a.score || Number(a.item.dataset.origIdx || 0) - Number(b.item.dataset.origIdx || 0));
+      conScore.forEach(({ item }) => layersBox.appendChild(item));
+      if (conScore.length) {
+        layersBox.classList.add('open');
+        group.querySelector('.group-header')?.classList.add('open');
+      }
+    } else {
+      items
+        .sort((a, b) => Number(a.dataset.origIdx || 0) - Number(b.dataset.origIdx || 0))
+        .forEach(item => layersBox.appendChild(item));
     }
-    totalVisibles += visibles;
+
+    group._scoreMax = conScore.length ? Math.max(...conScore.map(c => c.score)) : 0;
   });
 
+  // Reordenar grupos por relevancia mientras se filtra.
+  if (filtrando) {
+    groupBlocks
+      .sort((a, b) => (b._scoreMax || 0) - (a._scoreMax || 0) || Number(a.dataset.origIdx || 0) - Number(b.dataset.origIdx || 0))
+      .forEach(g => cont.appendChild(g));
+  } else {
+    groupBlocks
+      .sort((a, b) => Number(a.dataset.origIdx || 0) - Number(b.dataset.origIdx || 0))
+      .forEach(g => cont.appendChild(g));
+  }
+
+  // Mensaje de vacío con sugerencia "¿Quizás buscabas…?".
   let empty = cont.querySelector('.layer-search-empty');
-  if (q && totalVisibles === 0) {
+  if (filtrando && totalVisibles === 0) {
     if (!empty) {
       empty = document.createElement('p');
       empty.className = 'layer-search-empty';
       cont.appendChild(empty);
     }
-    empty.textContent = `No hay capas que coincidan con “${input.value.trim()}”.`;
+    const texto = (input?.value || '').trim();
+    const primer = q ? q.split(/\s+/)[0] : '';
+    const sug = sugerirCapas(texto);
+    empty.textContent = sug
+      ? `Nada coincide con “${texto}”. ¿Quizás buscabas “${sug}”?`
+      : 'No hay capas que coincidan con el filtro actual.';
   } else if (empty) {
     empty.remove();
   }
 
-  actualizarControlesBusqueda(q, totalVisibles);
+  // Controles: botón limpiar + contador.
+  const clearBtn = document.getElementById('layerSearchClear');
+  const countEl = document.getElementById('layerSearchCount');
+  if (clearBtn) clearBtn.hidden = !(input?.value);
+  if (countEl) {
+    countEl.hidden = !filtrando;
+    if (filtrando) {
+      countEl.textContent = totalVisibles === 1
+        ? `1 de ${availableLayers.length} capa`
+        : `${totalVisibles} de ${availableLayers.length} capas`;
+    }
+  }
+}
+
+// Devuelve el nombre de la capa más parecida al texto (para el aviso de arriba).
+function sugerirCapas(texto) {
+  const t = normalizarBusqueda(texto || '').split(/\s+/)[0];
+  if (!t || t.length < 3) return '';
+  let mejor = null;
+  let mejorScore = 0;
+  availableLayers.forEach(l => {
+    const nameNorm = normalizarBusqueda(l.name || '');
+    const palabras = nameNorm.split(/\s+/).filter(Boolean);
+    let s = 0;
+    if (nameNorm.includes(t)) s = 45;
+    else if (palabras.some(w => w.length >= 4 && edDistMax1(t, w))) s = 14;
+    if (s > mejorScore) { mejorScore = s; mejor = l; }
+  });
+  return mejor ? String(mejor.name || '') : '';
 }
 
 function limpiarBusquedaCapas() {
   const input = document.getElementById('layerSearch');
   if (!input) return;
   input.value = '';
+  document.querySelectorAll('#layerSearchChips .ls-chip.active').forEach(c => {
+    if (c.id === 'layerSearchHelp') return; // los tips se quedan como están
+    c.classList.remove('active');
+    c.setAttribute('aria-pressed', 'false');
+  });
   aplicarBusquedaCapas();
   input.focus();
+}
+
+// Chips de filtro rápido + panel de tips.
+function setupBusquedaChips() {
+  const cont = document.getElementById('layerSearchChips');
+  if (!cont) return;
+
+  cont.querySelectorAll('.ls-chip[data-chip]').forEach(chip => {
+    if (chip.id === 'layerSearchHelp') return;
+    chip.addEventListener('click', () => {
+      const v = chip.dataset.chip;
+      if (v === 'on' || v === 'off') {
+        const estaba = chip.classList.contains('active');
+        cont.querySelectorAll('.ls-chip[data-chip="on"], .ls-chip[data-chip="off"]').forEach(c => {
+          c.classList.remove('active');
+          c.setAttribute('aria-pressed', 'false');
+        });
+        if (!estaba) {
+          chip.classList.add('active');
+          chip.setAttribute('aria-pressed', 'true');
+        }
+      } else {
+        const activo = chip.classList.toggle('active');
+        chip.setAttribute('aria-pressed', activo ? 'true' : 'false');
+      }
+      aplicarBusquedaCapas();
+    });
+  });
+
+  const help = document.getElementById('layerSearchHelp');
+  let tipsEl = null;
+  help?.addEventListener('click', () => {
+    const activo = help.classList.toggle('active');
+    help.setAttribute('aria-pressed', activo ? 'true' : 'false');
+    if (activo) {
+      if (!tipsEl) {
+        tipsEl = document.createElement('p');
+        tipsEl.className = 'layer-search-tips';
+        tipsEl.innerHTML = 'Varias palabras («pozos someros») · «puntos», «líneas», «polígonos» o «raster» filtran por tipo · <b>/</b> enfoca la búsqueda · <b>Esc</b> limpia · <b>Enter</b> busca al instante.';
+        cont.parentNode.insertBefore(tipsEl, cont.nextSibling);
+      }
+      tipsEl.hidden = false;
+    } else if (tipsEl) {
+      tipsEl.hidden = true;
+    }
+  });
+}
+
+// =========================================================================
+// RENDER DE LA LISTA DE CAPAS (conserva estado al reagrupar)
+// =========================================================================
+function gruposParaRender() {
+  if (organizacionActual) return construirGruposDesdeCarpetas(organizacionActual, wsGroupsBase);
+  return wsGroupsBase;
+}
+
+// Habilita/deshabilita el botón "Apagar todas" según haya capas activas.
+function actualizarBotonApagar() {
+  const btn = document.getElementById('layerOffAllBtn');
+  if (!btn) return;
+  const activas = document.querySelectorAll('#layersGroupsContainer .toggle.on').length;
+  btn.disabled = activas === 0;
+  btn.title = activas ? `Apagar las ${activas} capas activas` : 'No hay capas activas';
+}
+
+/**
+ * Renderiza grupos en el sidebar preservando: toggles activos, conteos,
+ * opacidad, grupos abiertos y estilos guardados. Al terminar aplica la
+ * búsqueda activa.
+ */
+function renderizarListaCapas(grupos) {
+  const cont = document.getElementById('layersGroupsContainer');
+  if (!cont) return;
+
+  // 1) Capturar estado antes de reconstruir el DOM.
+  const activas = new Set([...cont.querySelectorAll('.toggle.on')].map(t => t.getAttribute('data-table')));
+  const opacidades = new Map([...cont.querySelectorAll('.layer-opacity-slider')].map(s => [s.getAttribute('data-table'), s.value]));
+  const gruposAbiertos = new Set(
+    [...cont.querySelectorAll('.group-header.open .group-name')].map(el => (el.textContent || '').trim())
+  );
+
+  // 2) Render nuevo.
+  renderLayerGroups(grupos, 'layersGroupsContainer');
+  gruposRenderizados = grupos;
+
+  // Orden original (para restaurar al limpiar la búsqueda).
+  cont.querySelectorAll('.layer-group').forEach((g, gi) => {
+    g.dataset.origIdx = String(gi);
+    g.querySelectorAll('.layer-item').forEach((it, ii) => { it.dataset.origIdx = String(ii); });
+  });
+
+  // 3) Reaplicar estilos guardados por el analista.
+  applySavedStyleColors(stylesMap);
+
+  // 4) Restaurar toggles activos y conteos (las capas siguen en el mapa).
+  activas.forEach(id => {
+    const toggle = cont.querySelector(`.toggle[data-table="${CSS.escape(id)}"]`);
+    if (!toggle) return;
+    toggle.classList.add('on');
+    toggle.closest('.layer-row')?.classList.remove('off');
+    toggle.closest('.layer-item')?.classList.add('active');
+    const layer = availableLayers.find(l => l.id === id);
+    if (layer && Number.isFinite(layer.featureCount)) updateLayerFeatureCount(id, layer.featureCount);
+  });
+
+  // 5) Restaurar opacidades individuales.
+  opacidades.forEach((val, id) => {
+    const slider = cont.querySelector(`.layer-opacity-slider[data-table="${CSS.escape(id)}"]`);
+    if (!slider) return;
+    slider.value = val;
+    const label = slider.parentElement?.querySelector('.layer-opacity-value');
+    if (label) label.textContent = `${val}%`;
+    setLayerFillOpacity(id, val);
+  });
+
+  // 6) Grupos que estaban abiertos siguen abiertos.
+  cont.querySelectorAll('.layer-group').forEach(group => {
+    const name = (group.querySelector('.group-name')?.textContent || '').trim();
+    if (name && gruposAbiertos.has(name)) {
+      group.querySelector('.group-header')?.classList.add('open');
+      group.querySelector('.group-layers')?.classList.add('open');
+    }
+  });
+
+  refreshCount();
+  updateLegendUI(availableLayers);
+  actualizarBotonApagar();
+  aplicarBusquedaCapas();
 }
 
 // =========================================================================

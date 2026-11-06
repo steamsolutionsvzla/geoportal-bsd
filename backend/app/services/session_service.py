@@ -14,9 +14,9 @@ _SESSIONS: dict[str, tuple[float, dict]] = {}
 _MAX_SESSIONS = 5000
 
 _MOCK_USERS = {  # solo dev (AUTH_MOCK=true): token -> perfil
-    "mock-admin":    {"nombre": "Ana", "apellido": "Admin",    "rol": "Administrador", "cargo": "Administradora", "workspaces": []},
-    "mock-gerente":  {"nombre": "Gil", "apellido": "Gerente",  "rol": "Rol_gerente",   "cargo": "Gerente",        "workspaces": ["ws1", "ws2"]},
-    "mock-analista": {"nombre": "Ari", "apellido": "Analista", "rol": "Rol_analista",  "cargo": "Analista",       "workspaces": ["ws1"]},
+    "mock-admin":    {"nombre": "Ana", "apellido": "Admin",    "rol": "Administrador", "cargo": "Administradora", "workspaces": [], "usuario_id": "mock-admin"},
+    "mock-gerente":  {"nombre": "Gil", "apellido": "Gerente",  "rol": "Rol_gerente",   "cargo": "Gerente",        "workspaces": ["ws1", "ws2"], "usuario_id": "mock-gerente"},
+    "mock-analista": {"nombre": "Ari", "apellido": "Analista", "rol": "Rol_analista",  "cargo": "Analista",       "workspaces": ["ws1"], "usuario_id": "mock-analista"},
 }
 
 # Key de Odoo (geoportal_roles[0].key, en minúsculas) -> rol interno del backend.
@@ -29,6 +29,19 @@ _ROLE_ALIASES = {
     "rol_administrador": Rol.ADMIN,
     "rol_admin": Rol.ADMIN,
 }
+
+
+def _usuario_id(odoo: dict) -> str:
+    """Identificador estable del usuario para sus preferencias personales."""
+    user = odoo.get("user") or {}
+    uid = user.get("id") or user.get("uid") or user.get("user_id") or odoo.get("user_id")
+    if uid not in (None, "", 0):
+        return str(uid).strip()
+    ident = (user.get("login") or user.get("email") or "").strip().lower()
+    if ident:
+        return f"u:{ident}"
+    full = (user.get("name") or "").strip().lower()
+    return f"n:{full}" if full else ""
 
 
 def build_profile(odoo: dict) -> dict:
@@ -61,6 +74,7 @@ def build_profile(odoo: dict) -> dict:
         "rol": rol.value,
         "cargo": cargo,
         "workspaces": workspaces,
+        "usuario_id": _usuario_id(odoo),
     }
 
 

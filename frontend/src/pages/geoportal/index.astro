@@ -17,6 +17,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '../../styles/geoportal.css';
 import '../../styles/metadata-qgis.css';
+import '../../styles/org-panel.css';
 import Footer from '../../components/Footer.astro';
 ---
 
@@ -78,6 +79,12 @@ import Footer from '../../components/Footer.astro';
             <path d="M5 10v10h14V10"/>
           </svg>
         </a>
+        <button class="icon-btn" id="organizeBtn" title="Organizar capas en carpetas" aria-label="Organizar capas en carpetas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
         <button class="icon-btn logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión" onclick="cerrarSesion()">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -161,7 +168,14 @@ import Footer from '../../components/Footer.astro';
       </div>
       <div class="panel-heading">
         <span class="eyebrow">Capas del mapa</span>
-        <span class="count" id="layerCount">0 activas</span>
+        <span class="panel-heading-right">
+          <span class="count" id="layerCount">0 activas</span>
+          <button type="button" class="layer-offall-btn" id="layerOffAllBtn" title="Apagar todas las capas" aria-label="Apagar todas las capas" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+            </svg>
+          </button>
+        </span>
       </div>
       <div class="layer-search">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -176,6 +190,17 @@ import Footer from '../../components/Footer.astro';
           aria-label="Buscar capa"
         />
         <button type="button" class="layer-search-clear" id="layerSearchClear" title="Limpiar búsqueda" aria-label="Limpiar búsqueda" hidden>✕</button>
+      </div>
+      <div class="layer-search-chips" id="layerSearchChips" role="group" aria-label="Filtros rápidos de capas">
+        <button type="button" class="ls-chip" data-chip="circle" aria-pressed="false">Puntos</button>
+        <button type="button" class="ls-chip" data-chip="line" aria-pressed="false">Líneas</button>
+        <button type="button" class="ls-chip" data-chip="fill" aria-pressed="false">Polígonos</button>
+        <button type="button" class="ls-chip" data-chip="raster" aria-pressed="false">Ráster</button>
+        <span class="ls-chip-sep" aria-hidden="true"></span>
+        <button type="button" class="ls-chip" data-chip="on" aria-pressed="false">Visibles</button>
+        <button type="button" class="ls-chip" data-chip="off" aria-pressed="false">Ocultas</button>
+        <span class="ls-chip-sep" aria-hidden="true"></span>
+        <button type="button" class="ls-chip ls-chip-help" id="layerSearchHelp" aria-pressed="false" title="Consejos de búsqueda">Tips <kbd>/</kbd></button>
       </div>
       <div class="layer-search-count" id="layerSearchCount" hidden></div>
       <div class="layers-scroll-area">

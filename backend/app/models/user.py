@@ -13,3 +13,6 @@ class CurrentUser(BaseModel):
     rol: Rol
     cargo: str
     workspaces: List[str] = Field(default_factory=list)
+    # Identificador estable del usuario (id de Odoo; con fallbacks si no viene).
+    # Clave de preferencias personales (p. ej. carpetas de capas del geoportal).
+    usuario_id: str = ""
