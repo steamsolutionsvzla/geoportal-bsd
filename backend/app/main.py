@@ -8,6 +8,7 @@ from app.api.manager import router as manager_router
 from app.api.auth import router as auth_router
 from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
+from app.api.reports import router as reports_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +36,7 @@ app.include_router(manager_router)
 app.include_router(showroom_router)
 app.include_router(auth_router)
 app.include_router(styles_router)
+app.include_router(reports_router)
 
 # ============================================================
 # ENDPOINT DE CONFIGURACIÓN PARA EL FRONTEND

@@ -2,9 +2,6 @@
 import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 
 // ========================================================================
 // ESTADO INTERNO DEL PANEL
@@ -451,118 +448,83 @@ function attachIntersectionFilterDownloadListeners() {
 }
 
 // =========================================================================
-// GENERACIÓN DE REPORTES (PDF y EXCEL)
+// GENERACIÓN DE REPORTES (PDF y EXCEL) — vía backend
+// El backend renderiza el archivo (ReportLab / openpyxl) para evitar los
+// falsos positivos de antivirus que provocaba jsPDF en el navegador.
 // =========================================================================
 async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGeneral, capasDetalleMap, tablaResumenEl) {
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 14;
-  let y = margin;
-
-  const primaryColor = [26, 54, 93];
-  const secondaryColor = [49, 130, 206];
-
-  const logoData = await getLogoBase64();
-  if (logoData) {
-    try {
-      doc.addImage(logoData, 'PNG', margin, y, 35, 12);
-    } catch (e) {
-      // Si falla la imagen, continuar sin logo
-    }
-  }
-  y += 12 + 4;
-
-  const headerHeight = 32;
-  doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.rect(margin, y, pageWidth - 2 * margin, headerHeight, 'F');
-  doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-  doc.setLineWidth(1.5);
-  doc.line(margin, y + headerHeight, pageWidth - margin, y + headerHeight);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(255, 255, 255);
-  doc.text('Reporte Estratégico de Datos', pageWidth / 2, y + 14, { align: 'center' });
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${etiqueta}: ${nombreSeleccionado}`, pageWidth / 2, y + 25, { align: 'center' });
-  y += headerHeight + 8;
-  doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 6;
-
-  // Tabla resumen: nombre de la capa y cantidad de elementos.
-  const filas = Object.entries(capasDetalleMap || {}).map(([capa, lista]) => [capa, String((lista || []).length)]);
-  if (filas.length > 0) {
-    autoTable(doc, {
-      head: [['Capa / Elemento', 'Cantidad']],
-      body: filas,
-      startY: y,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 9, cellPadding: 3, lineColor: [180, 180, 180], lineWidth: 0.2, halign: 'left' },
-      headStyles: { fillColor: secondaryColor, textColor: [255, 255, 255], fontSize: 9, halign: 'left' },
-      bodyStyles: { lineColor: [180, 180, 180], lineWidth: 0.1 },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
-      columnStyles: { 1: { halign: 'right' } }
+  try {
+    const logoData = await getLogoBase64();
+    const payload = {
+      etiqueta,
+      nombre: nombreSeleccionado,
+      total: totalPuntosGeneral,
+      detalle: capasDetalleMap || {},
+      logo_base64: logoData || null
+    };
+    const response = await apiFetch('/api/v1/reports/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-    y = doc.lastAutoTable.finalY + 6;
+    if (!response.ok) {
+      throw new Error(await leerErrorReporte(response));
+    }
+    const blob = await response.blob();
+    descargarBlobReporte(blob, `Reporte_Datos_${nombreSeleccionado.replace(/\s+/g, '_')}.pdf`);
+  } catch (e) {
+    console.error('Error al generar el PDF:', e);
+    alert(`No se pudo generar el PDF: ${e?.message || e}`);
   }
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-  doc.text(`Total general de elementos: ${totalPuntosGeneral}`, margin, y);
-  y += 8;
-  doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-  doc.setLineWidth(0.5);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 6;
-
-  const totalPages = doc.internal.getNumberOfPages();
-  const currentDate = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
-    doc.text(`Generado: ${currentDate}`, margin, pageHeight - 6);
-  }
-  doc.save(`Reporte_Datos_${nombreSeleccionado.replace(/\s+/g, '_')}.pdf`);
 }
 
-function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl) {
-  const wb = XLSX.utils.book_new();
-  if (tablaResumenEl) {
-    const wsResumen = XLSX.utils.table_to_sheet(tablaResumenEl);
-    XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen General");
-  }
-  if (Object.keys(capasDetalleMap).length > 0) {
-    const excludedKeys = new Set(['id', 'geoid', 'gid', 'objectid']);
-    for (let nombreCapa in capasDetalleMap) {
-      const listaProps = capasDetalleMap[nombreCapa];
-      const rowsForSheet = [];
-      listaProps.forEach((props, index) => {
-        let cleanRow = { "#": index + 1 };
-        for (let key in props) {
-          const lowerKey = key.toLowerCase();
-          const isExcluded = excludedKeys.has(lowerKey) || lowerKey.endsWith('_id') || lowerKey.startsWith('id_');
-          if (!isExcluded) {
-            cleanRow[key] = props[key] !== undefined ? props[key] : '';
-          }
-        }
-        rowsForSheet.push(cleanRow);
-      });
-      if (rowsForSheet.length > 0) {
-        const wsDetalle = XLSX.utils.json_to_sheet(rowsForSheet);
-        let sheetName = nombreCapa.substring(0, 31);
-        XLSX.utils.book_append_sheet(wb, wsDetalle, sheetName);
-      }
+async function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaResumenEl) {
+  try {
+    const payload = {
+      etiqueta: 'Estado',
+      nombre: nombreSeleccionado,
+      total: 0,
+      detalle: capasDetalleMap || {}
+    };
+    const response = await apiFetch('/api/v1/reports/excel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      throw new Error(await leerErrorReporte(response));
     }
+    const blob = await response.blob();
+    descargarBlobReporte(blob, `Reporte_Puntos_${nombreSeleccionado.replace(/\s+/g, '_')}.xlsx`);
+  } catch (e) {
+    console.error('Error al generar el Excel:', e);
+    alert(`No se pudo generar el Excel: ${e?.message || e}`);
   }
-  XLSX.writeFile(wb, `Reporte_Puntos_${nombreSeleccionado.replace(/\s+/g, '_')}.xlsx`);
+}
+
+async function leerErrorReporte(response) {
+  try {
+    const text = await response.text();
+    if (text) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && parsed.detail) {
+          return typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+        }
+      } catch (_) { /* no es JSON */ }
+      return text;
+    }
+  } catch (_) { /* ignorar */ }
+  return `Error ${response.status}`;
+}
+
+function descargarBlobReporte(blob, filename) {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
