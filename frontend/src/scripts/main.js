@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.updateInfoPanel = renderInfoPanel;
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
-    window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: true });
+    window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: false });
     window.limpiarResaltadoFiltro = limpiarResaltadoFiltro;
     window.cerrarSesion = cerrarSesion;
 

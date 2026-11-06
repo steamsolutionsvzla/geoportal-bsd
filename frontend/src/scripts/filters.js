@@ -368,6 +368,11 @@ export function setupAreaFilter({ onRequestDraw = null } = {}) {
     els.drawBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       els.filter?.classList.remove('open');
+      // Si ya existe un área dibujada/cargada, se borra automáticamente
+      // antes de iniciar un nuevo dibujo.
+      if (hasAreaLayer()) {
+        limpiarFiltroArea({ keepLayer: false });
+      }
       if (typeof onRequestDraw === 'function') {
         onRequestDraw();
       } else {
