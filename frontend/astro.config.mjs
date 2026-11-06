@@ -2,7 +2,8 @@
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
-  site: 'https://tu-dominio.com',
+  // Dominio real del geoportal (canonical URLs / sitemap).
+  site: 'https://geobsd.steamsolutions.tech',
   base: '/',
   trailingSlash: 'ignore',
   build: {
