@@ -1,15 +1,24 @@
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
-from app.db.database import connect_db, disconnect_db
+
+from app.api.auth import router as auth_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
-from app.api.auth import router as auth_router
+from app.api.organization import router as organization_router
+from app.api.reports import router as reports_router
 from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
-from app.api.reports import router as reports_router
-from app.api.organization import router as organization_router
+from app.config import settings
+from app.db.database import connect_db, disconnect_db
+
+# Logging estándar: nivel configurable por env; los módulos usan getLogger().
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,13 +30,18 @@ app = FastAPI(
     title="Geoportal API Backend",
     version="1.0.0",
     debug=settings.DEBUG,
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Swagger/ReDoc/OpenAPI solo con DEBUG=True (nunca expuestos en producción).
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins,
+    # La auth via Bearer en header (no cookies): sin credenciales cross-origin.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

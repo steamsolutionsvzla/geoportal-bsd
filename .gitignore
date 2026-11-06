@@ -11,19 +11,11 @@
 *.p12
 *.pfx
 
-# ---------- Docker / despliegue (no subir) ----------
-docker-compose.yml
-docker-compose.yaml
-docker-compose.*.yml
-docker-compose.*.yaml
-compose.yml
-compose.yaml
-!docker-compose.example.yml
-frontend/Dockerfile
-frontend/.dockerignore
-frontend/nginx.conf
-backend/Dockerfile
-backend/.dockerignore
+# ---------- Docker / despliegue ----------
+# El compose y los Dockerfile SÍ se versionan (reproducibilidad del deploy).
+# Los overrides locales con secretos/máquinas, no.
+docker-compose.override.yml
+docker-compose.*.override.yml
 
 # ---------- GeoServer (datos, logs y credenciales) ----------
 geoserver_data/
