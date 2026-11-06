@@ -32,8 +32,15 @@ def _sanitize_field_name(name: str) -> str:
     return cleaned[:10]
 
 
-def _geojson_to_shapefile_zip(feature_collection: dict, inner_name: str = "capa") -> bytes:
-    """Convierte un GeoJSON (FeatureCollection) a un Shapefile .zip en memoria."""
+def _geojson_to_shapefile_zip(feature_collection: dict, inner_name: str = "capa",
+                              extras: dict | None = None) -> bytes:
+    """
+    Convierte un GeoJSON (FeatureCollection) a un Shapefile .zip en memoria.
+
+    extras: archivos sidecar opcionales a incluir en el zip, dict que mapea
+    extensión → contenido bytes (ej. {".qmd": b"...", ".xml": b"..."}) con el
+    mismo nombre base que el .shp para que QGIS los reconozca.
+    """
     features = [f for f in (feature_collection.get("features") or []) if f and f.get("geometry")]
     if not features:
         raise HTTPException(400, "La capa no tiene geometrías para exportar.")
@@ -114,6 +121,10 @@ def _geojson_to_shapefile_zip(feature_collection: dict, inner_name: str = "capa"
                 path = base_path + ext
                 if os.path.exists(path):
                     zf.write(path, (inner_name or "capa") + ext)
+            # Sidecars de metadatos (.qmd / .xml) con el mismo nombre base.
+            for ext, payload in (extras or {}).items():
+                if payload:
+                    zf.writestr((inner_name or "capa") + ext, payload)
         return buf.getvalue()
 
 
@@ -317,8 +328,12 @@ class GeoServerService:
     # (no depende de la salida SHAPE-ZIP de GeoServer).
     # --------------------------------------------------------------
     @staticmethod
-    async def get_layer_shapefile_zip(table_name: str, workspace: Optional[str] = None) -> bytes:
-        """Devuelve el contenido binario de un Shapefile comprimido (.zip)."""
+    async def get_layer_shapefile_zip(table_name: str, workspace: Optional[str] = None,
+                                      extras: Optional[dict] = None) -> bytes:
+        """
+        Devuelve el contenido binario de un Shapefile comprimido (.zip).
+        extras: sidecars de metadatos opcionales {".qmd": bytes, ".xml": bytes}.
+        """
         if ':' in table_name and workspace is None:
             parts = table_name.split(':', 1)
             workspace = parts[0]
@@ -331,7 +346,7 @@ class GeoServerService:
 
         feature_collection = await GeoServerService.get_layer_geojson(f"{workspace}:{table_name}")
         inner_name = re.sub(r"[^A-Za-z0-9_]", "_", table_name) or "capa"
-        return _geojson_to_shapefile_zip(feature_collection, inner_name=inner_name)
+        return _geojson_to_shapefile_zip(feature_collection, inner_name=inner_name, extras=extras)
 
     # --------------------------------------------------------------
     # Detección del tipo de geometría (usado por los endpoints de workspaces)

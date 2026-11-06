@@ -6,6 +6,7 @@ from app.models.user import CurrentUser
 from app.db.database import get_pool
 from app.services.geoserver_service import GeoServerService
 from app.services.layer_service import get_layer_metadata
+from app.services.metadata_export import build_iso19139, build_qmd
 import io
 
 router = APIRouter(
@@ -47,9 +48,24 @@ async def get_layer(table_name: str, geom_col: str = "geom"):
 
 @router.get("/{table_name}/download", dependencies=[Depends(workspace_guard)])
 async def download_layer_shapefile(table_name: str):
-    """Descarga la capa como Shapefile comprimido (.zip) vía WFS de GeoServer."""
+    """Descarga la capa como Shapefile comprimido (.zip) vía WFS de GeoServer.
+
+    Si la capa tiene ficha en el esquema `metadatos` de la BD, se incluyen
+    además los sidecars QGIS/ISO 19139 (<capa>.qmd y <capa>.xml) en el zip.
+    Un fallo leyendo metadatos no bloquea la descarga: se sirve sin sidecars.
+    """
+    extras = {}
     try:
-        data = await GeoServerService.get_layer_shapefile_zip(table_name)
+        pool = get_pool()
+        meta = await get_layer_metadata(pool, table_name)
+        if meta:
+            extras[".qmd"] = build_qmd(meta)
+            extras[".xml"] = build_iso19139(meta)
+    except Exception as e:
+        print(f"[download] sin sidecars de metadatos para '{table_name}': {e}")
+
+    try:
+        data = await GeoServerService.get_layer_shapefile_zip(table_name, extras=extras or None)
     except HTTPException:
         raise
     except Exception as e:
