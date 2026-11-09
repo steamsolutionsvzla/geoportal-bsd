@@ -95,7 +95,7 @@ export function initShareView(map) {
 // ------------------------------------------------------------------
 // Restauración al arrancar (después de cargar capas y filtros)
 // ------------------------------------------------------------------
-export function applySharedView(map) {
+export async function applySharedView(map) {
   const params = new URLSearchParams(window.location.search);
   if (![...params.keys()].some((k) => ['c', 'z', 'bm', 'capas', 'estado', 'bloque'].includes(k))) return;
 
@@ -106,7 +106,8 @@ export function applySharedView(map) {
     if (opt && !opt.classList.contains('active')) opt.click();
   }
 
-  // Capas activas: mismo clic programado que el usuario haría.
+  // Capas activas: se restauran en paralelo. El candado es por capa (en
+  // main.js), así que una capa lenta no bloquea a las demás.
   (params.get('capas') || '').split(',').filter(Boolean).forEach((table) => {
     const toggle = document.querySelector(
       `#layersGroupsContainer .toggle[data-table="${CSS.escape(table)}"]`,

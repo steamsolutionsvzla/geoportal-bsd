@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // páginas quedan como no-op.
           initLocationSearch();
           initShareView(map);
-          applySharedView(map);
+          await applySharedView(map);
         } finally {
           endBusy();
         }
@@ -1382,11 +1382,16 @@ function aplicarEtiquetasCapa(tableName, data, style) {
 // =========================================================================
 // MANEJADOR DE TOGGLE DE CAPAS
 // =========================================================================
-let isLoading = false;
+// Candado POR CAPA (no global): cada capa se puede cargar en paralelo, pero
+// no se permite re-entrar en la misma mientras su GeoJSON está en vuelo.
+// El candado global anterior descartaba clics consecutivos (p. ej. al
+// restaurar un enlace de "compartir vista"): la capa quedaba marcada como
+// activa en la UI pero nunca se dibujaba en el mapa.
+const cargandoCapas = new Set();
 
 async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
-  if (isLoading) return;
-  isLoading = true;
+  if (cargandoCapas.has(tableName)) return;
+  cargandoCapas.add(tableName);
 
   if (!isVisible) closeFeaturePopup(tableName);
 
@@ -1405,7 +1410,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
-      isLoading = false;
+      cargandoCapas.delete(tableName);
       return;
     }
 
@@ -1439,7 +1444,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       }
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
-      isLoading = false;
+      cargandoCapas.delete(tableName);
       return;
     }
 
@@ -1450,11 +1455,13 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     const layerInfo = getAvailableLayers().find(l => l.id === tableName);
     if (isRasterLayer(layerInfo)) {
       if (isVisible) {
+        rowTarget?.classList.add('is-loading');
         mostrarCargando(true);
         try {
           addRasterLayerToMap(layerInfo, map);
           await esperarMapaListo(map);
         } finally {
+          rowTarget?.classList.remove('is-loading');
           mostrarCargando(false);
         }
       } else {
@@ -1464,11 +1471,12 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       refreshCount();
       updateLegendUI(getAvailableLayers());
       renderInfoPanel();
-      isLoading = false;
+      cargandoCapas.delete(tableName);
       return;
     }
 
     if (isVisible) {
+      rowTarget?.classList.add('is-loading');
       mostrarCargando(true);
       try {
         await loadLayerToMap(tableName, map, getAvailableLayers(), (tn, srcId, lyrId, featureCount) => {
@@ -1484,6 +1492,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
         // Mantiene el loader hasta que la capa ya está pintada en el mapa
         await esperarMapaListo(map);
       } finally {
+        rowTarget?.classList.remove('is-loading');
         mostrarCargando(false);
       }
     } else {
@@ -1529,7 +1538,8 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     refreshCount();
     updateLegendUI(getAvailableLayers());
   } finally {
-    isLoading = false;
+    cargandoCapas.delete(tableName);
+    rowTarget?.classList.remove('is-loading');
   }
 }
 

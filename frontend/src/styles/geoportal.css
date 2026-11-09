@@ -634,6 +634,21 @@ input { font-family: inherit; }
 }
 .layer-download:hover { color: var(--accent-navy); background: var(--accent-navy-soft); }
 
+/* Indicador de carga por capa (GeoJSON en camino) */
+.layer-row.is-loading .lname::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border: 1.5px solid var(--accent-navy);
+  border-top-color: transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: layer-loading-spin .7s linear infinite;
+}
+@keyframes layer-loading-spin { to { transform: rotate(360deg); } }
+
 .layer-opacity-row { display: none; align-items: center; gap: 8px; padding: 2px 10px 9px 37px; }
 .layer-item.active .layer-opacity-row { display: flex; }
 .layer-opacity-icon { flex-shrink: 0; color: var(--muted-500); }
