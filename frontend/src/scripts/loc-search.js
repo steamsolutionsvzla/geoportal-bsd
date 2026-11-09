@@ -1,16 +1,25 @@
 // loc-search.js
-// Buscador de ubicación en la topbar: estados, bloques y capas.
-// Reutiliza los mismos handlers de los dropdowns de filtro (clic en la
-// .loc-option) para que la UI y el resaltado queden exactamente igual que
-// si el usuario hubiera filtrado a mano.
+// Buscador de ubicación en la topbar.
+// - Estado / bloque → lista las capas con datos en esa zona (en el dropdown).
+// - Coordenadas      → zona circular (Punto / 15 / 50 km) con las capas.
+// - Capa             → la enciende en el catálogo y ajusta el mapa a ella.
 import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
 import { getEstadosCache, getBloquesCache } from './filters.js';
 import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
-import { parseCoordenadas, analizarCoordenadas } from './zone-scan.js';
+import {
+  parseCoordenadas, geometriaDeZona, dibujarZona, limpiarZona,
+  consultarZona, capaActiva, activarCapaEnCatalogo,
+} from './zone-scan.js';
+import { beginBusy, endBusy } from './busy-overlay.js';
 
 const MAX_PER_GROUP = 8;
+const RADIOS = [
+  { km: 0, label: 'Punto' },
+  { km: 15, label: '15 km' },
+  { km: 50, label: '50 km' },
+];
 
 // Plegado de acentos/minúsculas (igual que utils.normalizarNombreEstado).
 function norm(texto) {
@@ -35,6 +44,11 @@ function marcarCoincidencia(nombre, q) {
   return `${escHtml(n.slice(0, i))}<mark>${escHtml(n.slice(i, i + q.length))}</mark>${escHtml(n.slice(i + q.length))}`;
 }
 
+const GEOM_LABEL = {
+  circle: 'punto', point: 'punto', fill: 'polígono',
+  line: 'línea', raster: 'ráster',
+};
+
 // ------------------------------------------------------------------
 // Recolección de resultados
 // ------------------------------------------------------------------
@@ -58,7 +72,7 @@ function buscar(texto) {
     items.forEach((it) => resultados.push({ tipo: 'item', ...it }));
   };
 
-  // Coordenadas → ofrecer el análisis de zona (mismo flujo del panel lateral).
+  // Coordenadas → zona circular.
   const coords = parseCoordenadas(texto);
   if (coords) {
     pushGrupo('Coordenadas', [{
@@ -104,11 +118,6 @@ function buscar(texto) {
 const ICON_PIN = '<svg class="lsd-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
 const ICON_LAYERS = '<svg class="lsd-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
 
-const GEOM_LABEL = {
-  circle: 'punto', point: 'punto', fill: 'polígono',
-  line: 'línea', raster: 'ráster',
-};
-
 function render(items, dropdown, query) {
   if (!items.length) {
     dropdown.innerHTML = `<div class="loc-search-empty">Sin resultados para “${escHtml(query)}”.</div>`;
@@ -129,16 +138,114 @@ function render(items, dropdown, query) {
 }
 
 // ------------------------------------------------------------------
-// Selección de resultados
+// Modo zona (estado / bloque / coordenadas)
 // ------------------------------------------------------------------
-function clickOptionLoc(dropdownId, nombre) {
-  const dropdown = document.getElementById(dropdownId);
-  if (!dropdown) return;
-  const opt = Array.from(dropdown.querySelectorAll('.loc-option'))
-    .find((o) => norm(o.getAttribute('data-value') || o.textContent) === norm(nombre));
-  if (opt) opt.click();
+let zona = null;
+let zonaToken = 0;
+
+function renderZona(dropdown) {
+  if (!zona) return;
+  const colores = new Map(getAvailableLayers().map((l) => [l.id, l.color]));
+  const capas = zona.capas || [];
+
+  const chips = zona.tipo === 'coords'
+    ? `<div class="lsd-radius">${RADIOS.map((r) =>
+        `<button type="button" class="ls-chip${r.km === zona.radioKm ? ' active' : ''}" data-km="${r.km}">${r.label}</button>`,
+      ).join('')}</div>`
+    : '';
+
+  let cuerpo;
+  if (zona.cargando) {
+    cuerpo = '<div class="loc-search-empty">Buscando capas en la zona…</div>';
+  } else if (zona.error) {
+    cuerpo = `<div class="loc-search-empty">No se pudo analizar la zona: ${escHtml(zona.error)}</div>`;
+  } else if (!capas.length) {
+    cuerpo = '<div class="loc-search-empty">Sin capas con datos en esta zona.</div>';
+  } else {
+    cuerpo = capas.map((c) => {
+      const activa = capaActiva(c.id);
+      return `<div class="lsd-item lsd-zone-item${activa ? ' is-active' : ''}" data-table="${escHtml(c.id)}">
+        <span class="lsd-dot" style="--c:${escHtml(colores.get(c.id) || '#6fa3e0')}"></span>
+        <span class="lsd-name">${escHtml(c.name)}</span>
+        <span class="lsd-sub">${GEOM_LABEL[String(c.type).toLowerCase()] || ''}</span>
+        <span class="lsd-count">${Number(c.count).toLocaleString('es')}</span>
+        <span class="lsd-check">✓</span>
+      </div>`;
+    }).join('');
+  }
+
+  const todas = capas.length > 0 && capas.every((c) => capaActiva(c.id));
+  dropdown.innerHTML = `
+    <div class="lsd-head">
+      <button type="button" class="lsd-back" data-acc="volver" title="Volver a la búsqueda" aria-label="Volver">←</button>
+      <span class="lsd-head-title" title="Capas con datos en la zona">Capas en «${escHtml(zona.titulo)}»</span>
+      <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length || todas) ? 'disabled' : ''}>Activar todas</button>
+    </div>
+    ${chips}
+    ${cuerpo}`;
 }
 
+async function consultarZonaActual(dropdown) {
+  if (!zona) return;
+  const token = ++zonaToken;
+  zona.cargando = true;
+  zona.error = null;
+  renderZona(dropdown);
+
+  beginBusy('Buscando capas en la zona…');
+  try {
+    const data = await consultarZona(zona.geometry);
+    if (token !== zonaToken || !zona) return;
+    zona.capas = data?.layers || [];
+    zona.cargando = false;
+    renderZona(dropdown);
+  } catch (e) {
+    if (token !== zonaToken || !zona) return;
+    zona.cargando = false;
+    zona.error = String(e.message || e);
+    renderZona(dropdown);
+  } finally {
+    // Siempre liberar el busy, aunque la respuesta sea obsoleta.
+    endBusy();
+  }
+}
+
+function abrirModoZona(cfg, dropdown) {
+  const map = getMap();
+  dropdown.closest('.loc-search')?.classList.add('open');
+  zona = {
+    tipo: cfg.tipo,
+    titulo: cfg.titulo,
+    lat: cfg.lat ?? null,
+    lng: cfg.lng ?? null,
+    radioKm: cfg.radioKm ?? 15,
+    capas: [],
+    cargando: true,
+    error: null,
+    geometry: null,
+  };
+
+  if (cfg.tipo === 'coords' && map) {
+    zona.geometry = geometriaDeZona(zona.lat, zona.lng, zona.radioKm);
+    dibujarZona(zona.geometry, [zona.lng, zona.lat]);
+  } else {
+    zona.geometry = cfg.geometry;
+    limpiarZona();
+  }
+
+  consultarZonaActual(dropdown);
+}
+
+function volverDeZona(dropdown, refrescarFn) {
+  zona = null;
+  zonaToken++;
+  limpiarZona();
+  refrescarFn(dropdown);
+}
+
+// ------------------------------------------------------------------
+// Capa: encenderla y volar a su extensión
+// ------------------------------------------------------------------
 function esperarDatosCapa(tableName, timeoutMs = 8000) {
   return new Promise((resolve) => {
     const t0 = Date.now();
@@ -167,23 +274,7 @@ async function seleccionarCapa(table) {
   const item = document.querySelector(`#layersGroupsContainer .layer-item[data-table="${CSS.escape(table)}"]`);
   if (!item) return;
 
-  // Abrir el grupo si está colapsado.
-  const group = item.closest('.layer-group');
-  const list = group?.querySelector('.group-layers');
-  if (group && list && !list.classList.contains('open')) {
-    group.querySelector('.group-header')?.click();
-  }
-
-  // Encender la capa si está apagada (mismo camino que el clic manual).
-  const toggle = item.querySelector('.toggle');
-  const yaActiva = toggle?.classList.contains('on');
-  if (toggle && !yaActiva) toggle.click();
-
-  item.classList.remove('ls-flash');
-  void item.offsetWidth;              // reiniciar la animación
-  item.classList.add('ls-flash');
-  setTimeout(() => item.classList.remove('ls-flash'), 1800);
-  item.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  activarCapaEnCatalogo(table);
 
   if (String(item.getAttribute('data-geom')).toLowerCase() === 'raster') return;
 
@@ -211,9 +302,14 @@ export function initLocationSearch() {
   const cerrar = () => {
     wrap.classList.remove('open');
     activo = -1;
+    if (zona) {
+      zona = null;
+      zonaToken++;
+      limpiarZona();
+    }
   };
 
-  const opciones = () => Array.from(dropdown.querySelectorAll('.lsd-item'));
+  const opciones = () => Array.from(dropdown.querySelectorAll('.lsd-item:not(.lsd-zone-item)'));
 
   const pintarActivo = () => {
     const els = opciones();
@@ -225,40 +321,62 @@ export function initLocationSearch() {
     if (pos >= 0) els[pos]?.scrollIntoView({ block: 'nearest' });
   };
 
+  function refrescar(dd = dropdown) {
+    const q = input.value.trim();
+    zona = null;
+    zonaToken++;
+    if (!q) { cerrar(); dd.innerHTML = ''; return; }
+    items = buscar(q);
+    render(items, dd, q);
+    activo = -1;
+    wrap.classList.add('open');
+    const first = opciones();
+    if (first.length) { activo = items.findIndex((x) => x.tipo === 'item'); pintarActivo(); }
+  }
+
   const seleccionar = (idx) => {
     const it = items[idx];
     if (!it || it.tipo === 'grupo') return;
-    cerrar();
-    if (it.kind === 'estado') {
-      clickOptionLoc('dropdownEstado', it.nombre);
-    } else if (it.kind === 'bloque') {
-      clickOptionLoc('dropdownBloque', it.nombre);
-    } else if (it.kind === 'capa') {
-      seleccionarCapa(it.table);
-    } else if (it.kind === 'coords') {
-      analizarCoordenadas(`${it.lat}, ${it.lng}`);
-    }
-    input.blur();
-  };
 
-  const refrescar = () => {
-    const q = input.value.trim();
-    if (!q) { cerrar(); dropdown.innerHTML = ''; return; }
-    items = buscar(q);
-    render(items, dropdown, q);
-    activo = -1;
-    wrap.classList.add('open');
-    // Primer item como activo para Enter rápido.
-    const first = opciones();
-    if (first.length) { activo = items.findIndex((x) => x.tipo === 'item'); pintarActivo(); }
+    if (it.kind === 'estado' || it.kind === 'bloque') {
+      const esEstado = it.kind === 'estado';
+      const cache = esEstado ? getEstadosCache() : getBloquesCache();
+      const getter = esEstado ? obtenerNombreEstado : obtenerNombreBloque;
+      const feature = (cache?.features || []).find((f) => {
+        const n = getter(f.properties);
+        return n && norm(n) === norm(it.nombre);
+      });
+      if (feature) abrirModoZona({ tipo: it.kind, titulo: it.nombre, geometry: feature.geometry }, dropdown);
+      return;
+    }
+
+    if (it.kind === 'coords') {
+      abrirModoZona({ tipo: 'coords', titulo: `${it.lat}, ${it.lng}`, lat: it.lat, lng: it.lng }, dropdown);
+      return;
+    }
+
+    if (it.kind === 'capa') {
+      cerrar();
+      seleccionarCapa(it.table);
+      input.blur();
+    }
   };
 
   input.addEventListener('input', () => {
     clearTimeout(debounce);
-    debounce = setTimeout(refrescar, 120);
+    debounce = setTimeout(() => refrescar(), 120);
   });
-  input.addEventListener('focus', () => { if (input.value.trim()) refrescar(); });
+  input.addEventListener('focus', () => {
+    // El busy overlay devuelve el foco al input al terminar una consulta;
+    // en modo zona no debe reiniciar la búsqueda.
+    if (zona) return;
+    if (input.value.trim()) refrescar();
+  });
   input.addEventListener('keydown', (e) => {
+    if (zona) {
+      if (e.key === 'Escape') { e.preventDefault(); cerrar(); input.blur(); }
+      return;
+    }
     const nItems = items.filter((x) => x.tipo === 'item').length;
     if (!nItems) return;
     if (e.key === 'ArrowDown') {
@@ -278,12 +396,43 @@ export function initLocationSearch() {
       input.blur();
     }
   });
+
   dropdown.addEventListener('click', (e) => {
-    const el = e.target.closest('.lsd-item');
-    if (!el) return;
-    seleccionar(Number(el.dataset.idx));
+    // Controles del modo zona
+    const acc = e.target.closest('[data-acc]');
+    if (acc) {
+      const accion = acc.getAttribute('data-acc');
+      if (accion === 'volver') volverDeZona(dropdown, refrescar);
+      else if (accion === 'todas' && zona) {
+        (zona.capas || []).forEach((c) => { if (!capaActiva(c.id)) activarCapaEnCatalogo(c.id); });
+        renderZona(dropdown);
+      }
+      return;
+    }
+    const chip = e.target.closest('.ls-chip[data-km]');
+    if (chip && zona && zona.tipo === 'coords') {
+      zona.radioKm = Number(chip.dataset.km) || 0;
+      zona.geometry = geometriaDeZona(zona.lat, zona.lng, zona.radioKm);
+      dibujarZona(zona.geometry, [zona.lng, zona.lat]);
+      consultarZonaActual(dropdown);
+      return;
+    }
+    const fila = e.target.closest('.lsd-zone-item[data-table]');
+    if (fila && zona) {
+      activarCapaEnCatalogo(fila.dataset.table);
+      renderZona(dropdown);
+      return;
+    }
+    // Resultados de búsqueda normales
+    const el = e.target.closest('.lsd-item[data-idx]');
+    if (el) seleccionar(Number(el.dataset.idx));
   });
-  document.addEventListener('click', (e) => {
+
+  // Cierre al clicar fuera. Se usa pointerdown (no click) porque los clics
+  // programáticos del catálogo (activar capas) burbujean un click a document
+  // que cerraba el buscador sin ser una interacción real del usuario.
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.isConnected) return;
     if (!wrap.contains(e.target)) cerrar();
   });
 

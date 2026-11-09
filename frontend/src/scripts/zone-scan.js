@@ -1,36 +1,16 @@
 // zone-scan.js
-// "Capas por zona": el usuario indica un estado/bloque o unas coordenadas
-// (con radio opcional) y se listan las capas con datos en esa zona, con la
-// opción de activarlas directamente en el mapa.
+// Utilidades de "capas por zona" usadas por el buscador de la topbar:
+// parseo de coordenadas, geometría de la zona, consulta al backend y
+// activación de una capa en el catálogo lateral. Sin UI propia.
 import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
-import { apiFetch, obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
-import { getEstadosCache, getBloquesCache } from './filters.js';
-import { getAvailableLayers } from './layer-manager.js';
-import { beginBusy, endBusy } from './busy-overlay.js';
+import { apiFetch } from './utils.js';
 
-const DEFAULT_RADIUS_KM = 15;
 const ZONE_SRC = 'source-zone-scan';
 const ZONE_FILL = 'layer-zone-scan-fill';
 const ZONE_LINE = 'layer-zone-scan-line';
 const ZONE_POINT_SRC = 'source-zone-scan-point';
 const ZONE_POINT = 'layer-zone-scan-point';
-
-const GEOM_LABEL = {
-  circle: 'punto', point: 'punto', fill: 'polígono',
-  line: 'línea', raster: 'ráster',
-};
-
-let radioKm = DEFAULT_RADIUS_KM;
-let ultimoPunto = null;      // {lat, lng}
-let scanToken = 0;
-let debounceTimer = null;
-
-function escHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 // ------------------------------------------------------------------
 // Parseo de coordenadas — acepta:
@@ -69,16 +49,18 @@ export function parseCoordenadas(texto) {
 }
 
 // ------------------------------------------------------------------
-// Geometría de la zona y dibujo en el mapa
+// Geometría de la zona
 // ------------------------------------------------------------------
-function geometriaDeZona(lat, lng, km) {
-  const centro = [lng, lat];
+export function geometriaDeZona(lat, lng, km) {
   // "Punto exacto" → círculo mínimo (~30 m) para que el backend (polígono) lo acepte.
-  // turf.circle devuelve un Feature: se envía solo la geometría.
+  // turf.circle devuelve un Feature: se usa solo la geometría.
   const radius = km > 0 ? km : 0.03;
-  return turf.circle(centro, radius, { units: 'kilometers', steps: 64 }).geometry;
+  return turf.circle([lng, lat], radius, { units: 'kilometers', steps: 64 }).geometry;
 }
 
+// ------------------------------------------------------------------
+// Dibujo de la zona en el mapa
+// ------------------------------------------------------------------
 function ensureZoneLayers(map) {
   if (!map.getSource(ZONE_SRC)) {
     map.addSource(ZONE_SRC, {
@@ -117,26 +99,34 @@ function ensureZoneLayers(map) {
   }
 }
 
-function pintarZona(map, polygon, center) {
+export function dibujarZona(geometry, center = null) {
+  const map = getMap();
+  if (!map || !geometry) return;
   ensureZoneLayers(map);
-  map.getSource(ZONE_SRC).setData(polygon ? { type: 'Feature', geometry: polygon, properties: {} } : { type: 'FeatureCollection', features: [] });
+  map.getSource(ZONE_SRC).setData({
+    type: 'Feature', geometry, properties: {},
+  });
   map.getSource(ZONE_POINT_SRC).setData(
     center
       ? { type: 'Feature', geometry: { type: 'Point', coordinates: center }, properties: {} }
       : { type: 'FeatureCollection', features: [] },
   );
+  try {
+    map.fitBounds(turf.bbox(turf.feature(geometry)), { padding: 60, duration: 1200 });
+  } catch (_) { /* ignorar */ }
 }
 
-function limpiarZona() {
+export function limpiarZona() {
   const map = getMap();
   if (!map) return;
-  pintarZona(map, null, null);
+  if (map.getSource(ZONE_SRC)) map.getSource(ZONE_SRC).setData({ type: 'FeatureCollection', features: [] });
+  if (map.getSource(ZONE_POINT_SRC)) map.getSource(ZONE_POINT_SRC).setData({ type: 'FeatureCollection', features: [] });
 }
 
 // ------------------------------------------------------------------
 // Consulta al backend
 // ------------------------------------------------------------------
-async function consultarZona(geometry) {
+export async function consultarZona(geometry) {
   const res = await apiFetch('/api/v1/search/zone', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -154,208 +144,39 @@ async function consultarZona(geometry) {
 }
 
 // ------------------------------------------------------------------
-// UI
+// Catálogo: revelar / activar una capa
 // ------------------------------------------------------------------
-function ui() {
-  return {
-    input: document.getElementById('zoneCoords'),
-    goBtn: document.getElementById('zoneGoBtn'),
-    error: document.getElementById('zoneError'),
-    results: document.getElementById('zoneResults'),
-    summary: document.getElementById('zoneSummary'),
-    list: document.getElementById('zoneList'),
-    activateAll: document.getElementById('zoneActivateAll'),
-  };
+export function capaActiva(tableName) {
+  const toggle = document.querySelector(
+    `#layersGroupsContainer .toggle[data-table="${CSS.escape(tableName)}"]`,
+  );
+  return !!toggle?.classList.contains('on');
 }
 
-function mostrarError(texto) {
-  const { error } = ui();
-  if (!error) return;
-  error.textContent = texto || '';
-  error.hidden = !texto;
-}
-
-function abrirFila(tableName) {
-  const item = document.querySelector(`#layersGroupsContainer .layer-item[data-table="${CSS.escape(tableName)}"]`);
+export function revelarFila(tableName) {
+  const item = document.querySelector(
+    `#layersGroupsContainer .layer-item[data-table="${CSS.escape(tableName)}"]`,
+  );
   if (!item) return null;
   const group = item.closest('.layer-group');
   const list = group?.querySelector('.group-layers');
   if (group && list && !list.classList.contains('open')) {
     group.querySelector('.group-header')?.click();
   }
-  item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   item.classList.remove('ls-flash');
-  void item.offsetWidth;
+  void item.offsetWidth;          // reiniciar la animación
   item.classList.add('ls-flash');
   setTimeout(() => item.classList.remove('ls-flash'), 1800);
+  item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   return item;
 }
 
-function activarCapa(tableName) {
-  const toggle = document.querySelector(`#layersGroupsContainer .toggle[data-table="${CSS.escape(tableName)}"]`);
-  if (!toggle) return;
+export function activarCapaEnCatalogo(tableName) {
+  const toggle = document.querySelector(
+    `#layersGroupsContainer .toggle[data-table="${CSS.escape(tableName)}"]`,
+  );
+  if (!toggle) return false;
   if (!toggle.classList.contains('on')) toggle.click();
-  abrirFila(tableName);
-  actualizarBotonesActivacion();
-}
-
-function actualizarBotonesActivacion() {
-  document.querySelectorAll('.zone-activate[data-table]').forEach((btn) => {
-    const toggle = document.querySelector(`#layersGroupsContainer .toggle[data-table="${CSS.escape(btn.dataset.table)}"]`);
-    const activa = !!toggle?.classList.contains('on');
-    btn.classList.toggle('is-active', activa);
-    btn.textContent = activa ? 'Activa' : 'Activar';
-    btn.disabled = activa;
-  });
-}
-
-function renderResultados(data) {
-  const { results, summary, list, activateAll } = ui();
-  if (!results || !list) return;
-
-  const capas = (data?.layers) || [];
-  results.hidden = false;
-  summary.textContent = capas.length
-    ? `${capas.length} capa${capas.length === 1 ? '' : 's'} en la zona`
-    : 'Sin capas con datos en esta zona';
-  activateAll.disabled = !capas.some((c) => c.count > 0);
-
-  if (!capas.length) {
-    list.innerHTML = '<div class="zone-empty">Prueba con un radio mayor o mueve la zona.</div>';
-    return;
-  }
-
-  const colores = new Map(getAvailableLayers().map((l) => [l.id, l.color]));
-  list.innerHTML = capas.map((c) => `
-    <div class="zone-layer">
-      <span class="zone-dot" style="--c:${escHtml(colores.get(c.id) || '#6fa3e0')}"></span>
-      <span class="zone-name" title="${escHtml(c.id)}">${escHtml(c.name)}</span>
-      <span class="zone-type">${escHtml(GEOM_LABEL[String(c.type).toLowerCase()] || '')}</span>
-      <span class="zone-count">${Number(c.count).toLocaleString('es')}</span>
-      <button type="button" class="zone-activate" data-table="${escHtml(c.id)}">Activar</button>
-    </div>`).join('');
-
-  actualizarBotonesActivacion();
-}
-
-async function escanear({ geometry, center = null, fit = false, dibujar = true }) {
-  const map = getMap();
-  if (!map || !geometry) return;
-  const token = ++scanToken;
-
-  if (dibujar) pintarZona(map, geometry, center);
-  if (fit) {
-    try { map.fitBounds(turf.bbox(turf.feature(geometry)), { padding: 60, duration: 1200 }); } catch (_) { /* ignorar */ }
-  }
-
-  const { results, summary, list } = ui();
-  if (results) results.hidden = false;
-  if (summary) summary.textContent = 'Buscando capas en la zona…';
-  if (list) list.innerHTML = '<div class="zone-empty">Consultando capas…</div>';
-  mostrarError('');
-
-  beginBusy('Buscando capas en la zona…');
-  try {
-    const data = await consultarZona(geometry);
-    if (token !== scanToken) return;   // llegó tarde: hay un escaneo más nuevo
-    renderResultados(data);
-  } catch (e) {
-    if (token !== scanToken) return;
-    if (summary) summary.textContent = 'No se pudo analizar la zona';
-    if (list) list.innerHTML = '';
-    mostrarError(String(e.message || e));
-  } finally {
-    if (token === scanToken) endBusy();
-  }
-}
-
-function buscarFeature(cache, getter, nombre) {
-  return (cache?.features || []).find((f) => {
-    const n = getter(f.properties);
-    return n && String(n).toLowerCase() === String(nombre).toLowerCase();
-  });
-}
-
-// ------------------------------------------------------------------
-// API pública
-// ------------------------------------------------------------------
-export function analizarCoordenadas(texto) {
-  const coords = parseCoordenadas(texto);
-  const { input } = ui();
-  if (!coords) {
-    mostrarError('Coordenadas no válidas. Usa "lat, lng" (p. ej. 10.17, -71.00).');
-    return false;
-  }
-  if (input) input.value = `${coords.lat}, ${coords.lng}`;
-  ultimoPunto = coords;
-  mostrarError('');
-  const geometry = geometriaDeZona(coords.lat, coords.lng, radioKm);
-  escanear({ geometry, center: [coords.lng, coords.lat], fit: true });
+  revelarFila(tableName);
   return true;
-}
-
-export function initZoneScan() {
-  const { input, goBtn, results, list, activateAll } = ui();
-  if (!input || !goBtn) return;   // página sin el panel
-
-  const analizarInput = () => {
-    const texto = input.value.trim();
-    if (!texto) { limpiarZona(); if (results) results.hidden = true; mostrarError(''); ultimoPunto = null; return; }
-    analizarCoordenadas(texto);
-  };
-
-  goBtn.addEventListener('click', analizarInput);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); analizarInput(); }
-    if (e.key === 'Escape') { input.value = ''; analizarInput(); input.blur(); }
-  });
-
-  // Radio: punto / 15 / 50 km. Recalcula si ya había un punto.
-  document.querySelectorAll('.zone-radius-chip[data-km]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.zone-radius-chip').forEach((c) => c.classList.remove('active'));
-      chip.classList.add('active');
-      radioKm = Number(chip.dataset.km) || 0;
-      if (ultimoPunto) {
-        const geometry = geometriaDeZona(ultimoPunto.lat, ultimoPunto.lng, radioKm);
-        escanear({ geometry, center: [ultimoPunto.lng, ultimoPunto.lat], fit: true });
-      }
-    });
-  });
-
-  // Activar / activar todas.
-  list?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.zone-activate');
-    if (btn) activarCapa(btn.dataset.table);
-  });
-  activateAll?.addEventListener('click', () => {
-    document.querySelectorAll('.zone-activate:not(.is-active)').forEach((btn) => {
-      const toggle = document.querySelector(`#layersGroupsContainer .toggle[data-table="${CSS.escape(btn.dataset.table)}"]`);
-      if (toggle && !toggle.classList.contains('on')) toggle.click();
-    });
-    actualizarBotonesActivacion();
-  });
-
-  // Escaneo automático al elegir estado/bloque en los filtros existentes.
-  const hookDropdown = (id, cacheGetter, nombreGetter) => {
-    const dropdown = document.getElementById(id);
-    if (!dropdown) return;
-    dropdown.addEventListener('click', (e) => {
-      const opt = e.target.closest('.loc-option');
-      if (!opt) return;
-      const valor = opt.getAttribute('data-value') || '';
-      clearTimeout(debounceTimer);
-      if (!valor) { limpiarZona(); if (results) results.hidden = true; return; }
-      debounceTimer = setTimeout(() => {
-        const feature = buscarFeature(cacheGetter(), nombreGetter, valor);
-        if (!feature) return;
-        if (results) results.hidden = false;
-        const { summary } = ui();
-        if (summary) summary.textContent = `Analizando «${valor}»…`;
-        escanear({ geometry: feature.geometry, center: null, fit: false, dibujar: false });
-      }, 150);
-    });
-  };
-  hookDropdown('dropdownEstado', getEstadosCache, obtenerNombreEstado);
-  hookDropdown('dropdownBloque', getBloquesCache, obtenerNombreBloque);
 }
