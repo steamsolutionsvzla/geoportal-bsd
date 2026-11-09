@@ -16,7 +16,15 @@ import '../../styles/manager-licencias.css';
       <h2 id="licencias-title">Licencias</h2>
       <p>Licencias, empresas, vigencia y superficie concesionada.</p>
     </div>
-    <span class="manager-status" id="licencias-status" aria-live="polite">Cargando datos…</span>
+    <div class="manager-head-actions">
+      <button
+        type="button"
+        class="manager-layers-btn"
+        id="lic-layer-btn"
+        title="Cambiar la capa que alimenta este panel"
+      >⚙ Capa</button>
+      <span class="manager-status" id="licencias-status" aria-live="polite">Cargando datos…</span>
+    </div>
   </header>
 
   <div class="licencias-filters" aria-label="Filtros de licencias">
@@ -159,6 +167,34 @@ import '../../styles/manager-licencias.css';
     </div>
   </div>
 </section>
+
+<!-- Selector de la capa que alimenta el panel gerencial -->
+<div class="lic-layer-modal" id="lic-layer-modal" hidden>
+  <div class="lic-layer-card" role="dialog" aria-modal="true" aria-labelledby="lic-layer-title">
+    <header>
+      <h3 id="lic-layer-title">Capa del dashboard</h3>
+      <button type="button" class="lic-layer-close" id="lic-layer-close" aria-label="Cerrar">✕</button>
+    </header>
+    <p class="lic-layer-hint">
+      Elige la capa de GeoServer que alimenta el panel. El cambio aplica al
+      dashboard gerencial (no modifica la capa original).
+    </p>
+    <input
+      type="search"
+      class="lic-layer-search"
+      id="lic-layer-search"
+      placeholder="Buscar capa o workspace…"
+      autocomplete="off"
+    />
+    <div class="lic-layer-list" id="lic-layer-list">
+      <p class="lic-layer-empty">Cargando capas…</p>
+    </div>
+    <footer>
+      <button type="button" class="lic-layer-cancel" id="lic-layer-cancel">Cancelar</button>
+      <button type="button" class="lic-layer-save" id="lic-layer-save" disabled>Guardar</button>
+    </footer>
+  </div>
+</div>
 
 <script>
   import '../../scripts/manager-licencias.js';

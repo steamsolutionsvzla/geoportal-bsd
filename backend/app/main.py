@@ -8,11 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.catalog import router as catalog_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
 from app.api.organization import router as organization_router
 from app.api.reports import router as reports_router
 from app.api.search import router as search_router
+from app.api.settings import router as settings_router
 from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
 from app.config import settings
@@ -91,6 +93,8 @@ app.include_router(reports_router)
 app.include_router(organization_router)
 app.include_router(search_router)
 app.include_router(admin_router)
+app.include_router(settings_router)
+app.include_router(catalog_router)
 
 @app.get("/")
 def health_check():

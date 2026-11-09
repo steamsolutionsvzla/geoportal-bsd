@@ -817,10 +817,106 @@ async function init() {
 function boot() {
   if (document.documentElement.dataset.role === 'Rol_gerente') {
     init();
-    return;
+  } else {
+    document.addEventListener('session:ready', (event) => {
+      if (event.detail?.rol === 'Rol_gerente') init();
+    });
   }
-  document.addEventListener('session:ready', (event) => {
-    if (event.detail?.rol === 'Rol_gerente') init();
+  initLayerPicker();
+}
+
+// ---------------------------------------------------------------------------
+// Selector de la capa que alimenta el dashboard (config persistida)
+// ---------------------------------------------------------------------------
+function initLayerPicker() {
+  const btn = $('lic-layer-btn');
+  const modal = $('lic-layer-modal');
+  if (!btn || !modal) return;
+
+  const listEl = $('lic-layer-list');
+  const searchEl = $('lic-layer-search');
+  const saveEl = $('lic-layer-save');
+  let candidates = null;
+  let currentLayer = '';
+  let selected = '';
+
+  const cerrar = () => { modal.hidden = true; };
+
+  const render = () => {
+    if (!candidates) return;
+    const q = (searchEl.value || '').toLowerCase().trim();
+    let html = '';
+    (candidates.workspaces || []).forEach((group) => {
+      const capas = (group.layers || []).filter(
+        (l) => !q || `${l.name} ${l.id}`.toLowerCase().includes(q),
+      );
+      if (!capas.length) return;
+      html += `<div class="lic-layer-group"><span>${esc(group.name)}</span></div>`;
+      capas.forEach((l) => {
+        const sel = l.id === selected ? ' selected' : '';
+        const actual = l.id === currentLayer ? '<span class="lic-layer-cur">actual</span>' : '';
+        html += `<button type="button" class="lic-layer-item${sel}" data-id="${esc(l.id)}">
+          <span class="lic-layer-name">${esc(l.name)}</span>${actual}
+        </button>`;
+      });
+    });
+    listEl.innerHTML = html || '<p class="lic-layer-empty">Sin coincidencias.</p>';
+    if (saveEl) saveEl.disabled = !selected || selected === currentLayer;
+  };
+
+  const abrir = async () => {
+    modal.hidden = false;
+    searchEl.value = '';
+    listEl.innerHTML = '<p class="lic-layer-empty">Cargando capas…</p>';
+    if (!candidates) {
+      try {
+        const [rc, rs] = await Promise.all([
+          apiFetch('/api/v1/admin/settings/licenses-candidates'),
+          apiFetch('/api/v1/admin/settings'),
+        ]);
+        if (!rc.ok) throw new Error(`HTTP ${rc.status}`);
+        candidates = await rc.json();
+        const cfg = rs.ok ? await rs.json() : {};
+        currentLayer = cfg.licenses_layer || '';
+        selected = currentLayer;
+      } catch (e) {
+        listEl.innerHTML = `<p class="lic-layer-empty">No se pudieron cargar las capas (${esc(e.message)}).</p>`;
+        return;
+      }
+    }
+    render();
+  };
+
+  btn.addEventListener('click', abrir);
+  $('lic-layer-close')?.addEventListener('click', cerrar);
+  $('lic-layer-cancel')?.addEventListener('click', cerrar);
+  modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) cerrar(); });
+  searchEl?.addEventListener('input', render);
+  listEl?.addEventListener('click', (e) => {
+    const item = e.target.closest('.lic-layer-item[data-id]');
+    if (!item) return;
+    selected = item.dataset.id;
+    render();
+  });
+
+  saveEl?.addEventListener('click', async () => {
+    if (!selected) return;
+    saveEl.disabled = true;
+    saveEl.textContent = 'Guardando…';
+    try {
+      const res = await apiFetch('/api/v1/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licenses_layer: selected }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      window.location.reload();
+    } catch (e) {
+      saveEl.textContent = 'Guardar';
+      saveEl.disabled = false;
+      setStatus(`No se pudo cambiar la capa (${e.message}).`, true);
+    }
   });
 }
 

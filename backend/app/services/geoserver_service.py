@@ -145,8 +145,8 @@ _GEOM_BINDING_TO_TYPE = {
 # Caché para mapeo de capas a workspaces
 _LAYER_MAPPING_CACHE = {}
 _LAYER_MAPPING_CACHE_TIME = 0
-_NATIVE_NAMES_CACHE: Dict[str, str] = {}
-_NATIVE_NAMES_CACHE_TIME = 0.0
+_DETAILS_CACHE: Dict[str, Dict] = {}
+_DETAILS_CACHE_TIME = 0.0
 
 # Workspaces que solo se consumen desde endpoints dedicados y no deben
 # aparecer en el catálogo general del geoportal.
@@ -261,25 +261,25 @@ class GeoServerService:
         return mapping.get(table_name)
 
     # --------------------------------------------------------------
-    # Nombre nativo (tabla PostGIS) de cada capa — para consultas SQL
+    # Detalle de cada capa (tabla nativa, datastore y estado) — cacheado
     # --------------------------------------------------------------
     @staticmethod
-    async def get_native_table_names(force_refresh: bool = False, ttl: float = 300.0) -> Dict[str, str]:
+    async def get_featuretype_details(force_refresh: bool = False, ttl: float = 300.0) -> Dict[str, Dict]:
         """
-        Mapa "ws:capa" → nombre de tabla nativo del datastore (PostGIS).
+        Mapa "ws:capa" → {"native", "datastore", "enabled"}.
 
-        GeoServer permite renombrar la capa al publicarla, por lo que el nombre
-        visible no siempre coincide con la tabla. Se consulta el detalle de
-        cada featuretype (con `nativeName`) y se cachea unos minutos.
+        GeoServer permite renombrar la capa al publicarla: el nombre visible no
+        siempre coincide con la tabla PostGIS. Se consulta el detalle de cada
+        featuretype y se cachea unos minutos.
         """
-        global _NATIVE_NAMES_CACHE, _NATIVE_NAMES_CACHE_TIME
+        global _DETAILS_CACHE, _DETAILS_CACHE_TIME
         now = time.time()
-        if not force_refresh and _NATIVE_NAMES_CACHE and (now - _NATIVE_NAMES_CACHE_TIME) < ttl:
-            return _NATIVE_NAMES_CACHE
+        if not force_refresh and _DETAILS_CACHE and (now - _DETAILS_CACHE_TIME) < ttl:
+            return _DETAILS_CACHE
 
         base_url = settings.GEOSERVER_URL.rstrip('/')
         auth = GeoServerService._auth()
-        mapping: Dict[str, str] = {}
+        result: Dict[str, Dict] = {}
 
         async def _detail(client, ws_name: str, ds_name: str, ft_name: str):
             try:
@@ -291,7 +291,11 @@ class GeoServerService:
                 if d.status_code != 200:
                     return None
                 ft = d.json().get("featureType") or {}
-                return (f"{ws_name}:{ft_name}", ft.get("nativeName") or ft_name)
+                return (f"{ws_name}:{ft_name}", {
+                    "native": ft.get("nativeName") or ft_name,
+                    "datastore": ds_name,
+                    "enabled": bool(ft.get("enabled", True)),
+                })
             except Exception:
                 return None
 
@@ -299,7 +303,7 @@ class GeoServerService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.get(f"{base_url}/rest/workspaces.json", auth=auth)
                 if resp.status_code != 200:
-                    return _NATIVE_NAMES_CACHE
+                    return _DETAILS_CACHE
                 workspaces = _json_items(resp.json(), "workspaces", "workspace")
 
                 jobs = []
@@ -335,14 +339,55 @@ class GeoServerService:
                                 jobs.append(_detail(client, ws_name, ds_name, ft_name))
 
                 got = await asyncio.gather(*jobs) if jobs else []
-                mapping = {item[0]: item[1] for item in got if item}
+                result = {item[0]: item[1] for item in got if item}
         except Exception:
-            return _NATIVE_NAMES_CACHE
+            return _DETAILS_CACHE
 
-        if mapping:
-            _NATIVE_NAMES_CACHE = mapping
-            _NATIVE_NAMES_CACHE_TIME = now
-        return mapping
+        if result:
+            _DETAILS_CACHE = result
+            _DETAILS_CACHE_TIME = now
+        return result or _DETAILS_CACHE
+
+    @staticmethod
+    async def get_native_table_names(force_refresh: bool = False, ttl: float = 300.0) -> Dict[str, str]:
+        """Compatibilidad: "ws:capa" → nombre de tabla nativo."""
+        details = await GeoServerService.get_featuretype_details(force_refresh, ttl)
+        return {k: v["native"] for k, v in details.items() if v.get("native")}
+
+    @staticmethod
+    async def set_featuretype_enabled(layer_id: str, enabled: bool) -> None:
+        """Publica/oculta una capa vectorial en GeoServer (REST)."""
+        global _DETAILS_CACHE, _DETAILS_CACHE_TIME
+        if ":" not in layer_id:
+            raise HTTPException(400, "El id de capa debe ser 'workspace:capa'.")
+        ws_name, ft_name = layer_id.split(":", 1)
+
+        details = await GeoServerService.get_featuretype_details(force_refresh=True)
+        info = details.get(layer_id)
+        if not info:
+            raise HTTPException(404, f"No se encontró la capa '{layer_id}' en GeoServer.")
+        ds_name = info.get("datastore")
+        if not ds_name:
+            raise HTTPException(400, "La capa no pertenece a un datastore vectorial.")
+
+        base_url = settings.GEOSERVER_URL.rstrip('/')
+        url = f"{base_url}/rest/workspaces/{ws_name}/datastores/{ds_name}/featuretypes/{ft_name}"
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r = await client.put(
+                    url,
+                    json={"featureType": {"enabled": bool(enabled)}},
+                    headers={"Content-Type": "application/json"},
+                    auth=GeoServerService._auth(),
+                )
+        except Exception as exc:
+            raise HTTPException(502, f"No se pudo actualizar el estado de la capa: {exc}") from exc
+        if r.status_code not in (200, 201):
+            raise HTTPException(502, f"GeoServer rechazó el cambio (HTTP {r.status_code}).")
+
+        # El estado cambió: refrescar en la siguiente lectura.
+        _DETAILS_CACHE = {}
+        _DETAILS_CACHE_TIME = 0.0
 
     # --------------------------------------------------------------
     # Obtención de GeoJSON de una capa
@@ -573,7 +618,10 @@ class GeoServerService:
             return await GeoServerService._collect_layers_for_workspace(client, base_url, workspace, auth)
 
     @staticmethod
-    async def get_workspaces_with_layers(only: Optional[Set[str]] = None) -> List[Dict]:
+    async def get_workspaces_with_layers(
+        only: Optional[Set[str]] = None,
+        include_hidden: bool = False,
+    ) -> List[Dict]:
         """
         Obtiene TODOS los workspaces de GeoServer y, para cada uno,
         la lista de capas (feature types) con su tipo de geometría.
@@ -581,6 +629,8 @@ class GeoServerService:
 
         `only`: conjunto de nombres de workspace en casefold para filtrar.
         None = sin restricción (todos).
+        `include_hidden`: incluye workspaces ocultos del catálogo (p. ej.
+        "Gerencia"), necesario para el panel de administración del catálogo.
         """
         base_url = settings.GEOSERVER_URL.rstrip('/')
         auth = GeoServerService._auth()
@@ -594,11 +644,13 @@ class GeoServerService:
                 workspaces = _json_items(resp.json(), "workspaces", "workspace")
                 names = [w["name"] for w in workspaces if w.get("name")]
                 # El workspace gerencial se consume solo desde
-                # /api/v1/manager/licenses; nunca desde el catálogo general.
-                names = [
-                    n for n in names
-                    if n.strip().casefold() not in HIDDEN_CATALOG_WORKSPACES
-                ]
+                # /api/v1/manager/licenses; nunca desde el catálogo general
+                # (salvo en el panel de catálogo: include_hidden=True).
+                if not include_hidden:
+                    names = [
+                        n for n in names
+                        if n.strip().casefold() not in HIDDEN_CATALOG_WORKSPACES
+                    ]
                 if only is not None:  # set en casefold; None = todos
                     names = [n for n in names if n.strip().casefold() in only]
                 result = []

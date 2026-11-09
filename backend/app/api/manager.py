@@ -14,12 +14,15 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import role_guard
+from app.db.database import get_pool
 from app.models.user import CurrentUser, Rol
 from app.services.geoserver_service import GeoServerService
+from app.services.settings_service import get_setting
 
 router = APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 
 LICENSES_LAYER = "Gerencia:licencias"
+LICENSES_LAYER_KEY = "licenses_layer"
 
 
 def _find_key(properties: dict[str, Any], *names: str) -> str | None:
@@ -112,7 +115,12 @@ async def get_manager_licenses(
     """
 
     try:
-        data = await GeoServerService.get_layer_geojson(LICENSES_LAYER)
+        layer_id = LICENSES_LAYER
+        try:
+            layer_id = await get_setting(get_pool(), LICENSES_LAYER_KEY, LICENSES_LAYER)
+        except Exception:
+            pass
+        data = await GeoServerService.get_layer_geojson(layer_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -136,6 +144,7 @@ async def get_manager_licenses(
     return {
         "type": "FeatureCollection",
         "features": features,
+        "layer": layer_id,
         "summary": {
             "total": len(features),
             "by_tipo": _counter(p["tipo"] for p in props),

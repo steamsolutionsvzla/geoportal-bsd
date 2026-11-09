@@ -1,0 +1,61 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<AdminLayout title="Catálogo · Admin BSD">
+  <header class="admin-header">
+    <div>
+      <span class="admin-eyebrow">Sección</span>
+      <h1>Catálogo GeoServer</h1>
+      <p>Capas publicadas, su tabla real en PostGIS, estado de publicación y datos por zona.</p>
+    </div>
+  </header>
+
+  <section class="cat-controls" aria-label="Filtros del catálogo">
+    <div class="cat-zone-row">
+      <label for="cat-state">Estado</label>
+      <select id="cat-state">
+        <option value="">Estado…</option>
+      </select>
+      <span class="cat-or">o</span>
+      <input id="cat-coords" type="text" placeholder="Lat, Lng — 10.65, -71.62" autocomplete="off" />
+      <div class="cat-radius" role="group" aria-label="Radio">
+        <button type="button" class="cat-chip" data-km="0">Punto</button>
+        <button type="button" class="cat-chip active" data-km="15">15 km</button>
+        <button type="button" class="cat-chip" data-km="50">50 km</button>
+      </div>
+      <button type="button" class="cat-primary" id="cat-analyze">Analizar zona</button>
+      <button type="button" class="cat-ghost" id="cat-clear">Limpiar</button>
+    </div>
+    <div class="cat-zone-row cat-zone-row-secondary">
+      <label class="cat-only">
+        <input type="checkbox" id="cat-only" checked />
+        Solo capas con datos en la zona
+      </label>
+      <p class="admin-status" id="cat-status" aria-live="polite">Cargando catálogo…</p>
+    </div>
+  </section>
+
+  <div id="cat-workspaces"></div>
+
+  <div class="cat-confirm" id="cat-confirm" hidden>
+    <div class="cat-confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="cat-confirm-title">
+      <h3 id="cat-confirm-title">Apagar capa</h3>
+      <p>
+        «<b id="cat-confirm-name">—</b>» dejará de servirse en el geoportal, WMS y WFS
+        hasta que la vuelvas a publicar.
+      </p>
+      <footer>
+        <button type="button" class="cat-ghost" id="cat-confirm-cancel">Cancelar</button>
+        <button type="button" class="cat-danger" id="cat-confirm-ok">Apagar</button>
+      </footer>
+    </div>
+  </div>
+
+  <Footer slot="footer" />
+</AdminLayout>
+
+<script>
+  import '../../scripts/admin-catalogo.js';
+</script>
