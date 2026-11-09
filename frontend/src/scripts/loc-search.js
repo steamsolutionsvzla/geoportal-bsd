@@ -8,6 +8,7 @@ import { getMap } from './map-config.js';
 import { getEstadosCache, getBloquesCache } from './filters.js';
 import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
+import { parseCoordenadas, analizarCoordenadas } from './zone-scan.js';
 
 const MAX_PER_GROUP = 8;
 
@@ -56,6 +57,17 @@ function buscar(texto) {
     resultados.push({ tipo: 'grupo', titulo, icono });
     items.forEach((it) => resultados.push({ tipo: 'item', ...it }));
   };
+
+  // Coordenadas → ofrecer el análisis de zona (mismo flujo del panel lateral).
+  const coords = parseCoordenadas(texto);
+  if (coords) {
+    pushGrupo('Coordenadas', [{
+      kind: 'coords',
+      nombre: `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`,
+      lat: coords.lat,
+      lng: coords.lng,
+    }], 'pin');
+  }
 
   // Estados (solo si el filtro existe en esta página)
   if (document.getElementById('dropdownEstado')) {
@@ -109,7 +121,7 @@ function render(items, dropdown, query) {
     const icono = it.kind === 'capa' ? ICON_LAYERS : ICON_PIN;
     const sub = it.kind === 'capa'
       ? `<span class="lsd-sub">${GEOM_LABEL[String(it.geom).toLowerCase()] || ''}</span>`
-      : '';
+      : it.kind === 'coords' ? '<span class="lsd-sub">zona</span>' : '';
     return `<div class="lsd-item" role="option" data-idx="${idx}">
       ${icono}<span class="lsd-name">${marcarCoincidencia(it.nombre, query)}</span>${sub}
     </div>`;
@@ -223,6 +235,8 @@ export function initLocationSearch() {
       clickOptionLoc('dropdownBloque', it.nombre);
     } else if (it.kind === 'capa') {
       seleccionarCapa(it.table);
+    } else if (it.kind === 'coords') {
+      analizarCoordenadas(`${it.lat}, ${it.lng}`);
     }
     input.blur();
   };

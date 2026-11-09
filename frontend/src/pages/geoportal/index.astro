@@ -205,6 +205,33 @@ import Footer from '../../components/Footer.astro';
             </div>
           </div>
         </div>
+        <!-- BUSCAR CAPAS POR ZONA (coordenadas) -->
+        <div class="zone-scan" id="zoneScan">
+          <div class="zone-title">Capas por zona</div>
+          <div class="zone-coord-row">
+            <input
+              type="text"
+              id="zoneCoords"
+              placeholder="Lat, Lng — p. ej. 10.17, -71.00"
+              autocomplete="off"
+              aria-label="Coordenadas para buscar capas"
+            />
+            <button type="button" class="zone-go-btn" id="zoneGoBtn" title="Buscar capas en la zona">Analizar</button>
+          </div>
+          <div class="zone-radius" role="group" aria-label="Radio alrededor del punto">
+            <button type="button" class="ls-chip zone-radius-chip" data-km="0">Punto</button>
+            <button type="button" class="ls-chip zone-radius-chip active" data-km="15">15 km</button>
+            <button type="button" class="ls-chip zone-radius-chip" data-km="50">50 km</button>
+          </div>
+          <p class="zone-error" id="zoneError" hidden></p>
+          <div class="zone-results" id="zoneResults" hidden>
+            <div class="zone-results-head">
+              <span class="zone-summary" id="zoneSummary"></span>
+              <button type="button" class="zone-activate-all" id="zoneActivateAll">Activar todas</button>
+            </div>
+            <div class="zone-list" id="zoneList"></div>
+          </div>
+        </div>
       </div>
       <div class="panel-heading">
         <span class="eyebrow">Capas del mapa</span>

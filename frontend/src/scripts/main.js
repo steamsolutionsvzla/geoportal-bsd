@@ -48,6 +48,7 @@ import { beginBusy, endBusy } from './busy-overlay.js';
 import { initLocationSearch } from './loc-search.js';
 import { initShareView, applySharedView } from './share.js';
 import { attachLayerAttrTableEvents } from './attr-table.js';
+import { initZoneScan } from './zone-scan.js';
 
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
@@ -282,6 +283,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // la página trae sus controles (geoportal); en showroom u otras
           // páginas quedan como no-op.
           initLocationSearch();
+          initZoneScan();
           initShareView(map);
           applySharedView(map);
         } finally {

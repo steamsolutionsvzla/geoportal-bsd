@@ -145,6 +145,8 @@ _GEOM_BINDING_TO_TYPE = {
 # Caché para mapeo de capas a workspaces
 _LAYER_MAPPING_CACHE = {}
 _LAYER_MAPPING_CACHE_TIME = 0
+_NATIVE_NAMES_CACHE: Dict[str, str] = {}
+_NATIVE_NAMES_CACHE_TIME = 0.0
 
 # Workspaces que solo se consumen desde endpoints dedicados y no deben
 # aparecer en el catálogo general del geoportal.
@@ -257,6 +259,90 @@ class GeoServerService:
         """Devuelve el workspace donde se encuentra la capa, o None si no existe."""
         mapping = await GeoServerService._get_all_feature_types()
         return mapping.get(table_name)
+
+    # --------------------------------------------------------------
+    # Nombre nativo (tabla PostGIS) de cada capa — para consultas SQL
+    # --------------------------------------------------------------
+    @staticmethod
+    async def get_native_table_names(force_refresh: bool = False, ttl: float = 300.0) -> Dict[str, str]:
+        """
+        Mapa "ws:capa" → nombre de tabla nativo del datastore (PostGIS).
+
+        GeoServer permite renombrar la capa al publicarla, por lo que el nombre
+        visible no siempre coincide con la tabla. Se consulta el detalle de
+        cada featuretype (con `nativeName`) y se cachea unos minutos.
+        """
+        global _NATIVE_NAMES_CACHE, _NATIVE_NAMES_CACHE_TIME
+        now = time.time()
+        if not force_refresh and _NATIVE_NAMES_CACHE and (now - _NATIVE_NAMES_CACHE_TIME) < ttl:
+            return _NATIVE_NAMES_CACHE
+
+        base_url = settings.GEOSERVER_URL.rstrip('/')
+        auth = GeoServerService._auth()
+        mapping: Dict[str, str] = {}
+
+        async def _detail(client, ws_name: str, ds_name: str, ft_name: str):
+            try:
+                d = await client.get(
+                    f"{base_url}/rest/workspaces/{ws_name}/datastores/{ds_name}"
+                    f"/featuretypes/{ft_name}.json",
+                    auth=auth,
+                )
+                if d.status_code != 200:
+                    return None
+                ft = d.json().get("featureType") or {}
+                return (f"{ws_name}:{ft_name}", ft.get("nativeName") or ft_name)
+            except Exception:
+                return None
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(f"{base_url}/rest/workspaces.json", auth=auth)
+                if resp.status_code != 200:
+                    return _NATIVE_NAMES_CACHE
+                workspaces = _json_items(resp.json(), "workspaces", "workspace")
+
+                jobs = []
+                for ws in workspaces:
+                    ws_name = ws.get("name")
+                    if not ws_name:
+                        continue
+                    try:
+                        ds_resp = await client.get(
+                            f"{base_url}/rest/workspaces/{ws_name}/datastores.json", auth=auth
+                        )
+                        if ds_resp.status_code != 200:
+                            continue
+                    except Exception:
+                        continue
+                    for ds in _json_items(ds_resp.json(), "dataStores", "dataStore"):
+                        ds_name = ds.get("name")
+                        if not ds_name:
+                            continue
+                        try:
+                            ft_resp = await client.get(
+                                f"{base_url}/rest/workspaces/{ws_name}/datastores/{ds_name}"
+                                f"/featuretypes.json",
+                                auth=auth,
+                            )
+                            if ft_resp.status_code != 200:
+                                continue
+                        except Exception:
+                            continue
+                        for ft in _json_items(ft_resp.json(), "featureTypes", "featureType"):
+                            ft_name = ft.get("name")
+                            if ft_name:
+                                jobs.append(_detail(client, ws_name, ds_name, ft_name))
+
+                got = await asyncio.gather(*jobs) if jobs else []
+                mapping = {item[0]: item[1] for item in got if item}
+        except Exception:
+            return _NATIVE_NAMES_CACHE
+
+        if mapping:
+            _NATIVE_NAMES_CACHE = mapping
+            _NATIVE_NAMES_CACHE_TIME = now
+        return mapping
 
     # --------------------------------------------------------------
     # Obtención de GeoJSON de una capa

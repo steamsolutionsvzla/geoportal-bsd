@@ -11,6 +11,7 @@ from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
 from app.api.organization import router as organization_router
 from app.api.reports import router as reports_router
+from app.api.search import router as search_router
 from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
 from app.config import settings
@@ -87,6 +88,7 @@ app.include_router(auth_router)
 app.include_router(styles_router)
 app.include_router(reports_router)
 app.include_router(organization_router)
+app.include_router(search_router)
 
 @app.get("/")
 def health_check():

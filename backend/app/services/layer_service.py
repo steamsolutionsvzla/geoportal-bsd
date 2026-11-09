@@ -2,19 +2,22 @@
 """
 Servicio de capas y metadatos.
 
-- get_db_layers: lista las tablas geográficas de PostGIS (schema public)
+- get_db_layers: lista las tablas geogrÃ¡ficas de PostGIS (schema public)
                  y las tipifica para MapLibre.
 - get_layer_metadata: obtiene los metadatos de una capa desde el esquema
                       'metadatos' (tablas metadata_capa + hijas).
-- get_table_geojson: devuelve una tabla geográfica como FeatureCollection.
+- get_table_geojson: devuelve una tabla geogrÃ¡fica como FeatureCollection.
+- count_features_in_geometry: cuenta registros que intersectan una geometrÃ­a.
 """
 
+import json
+
 
 # ---------------------------------------------------------------------------
-# 1. LISTADO DE CAPAS GEOGRÁFICAS (para MapLibre)
+# 1. LISTADO DE CAPAS GEOGRÃFICAS (para MapLibre)
 # ---------------------------------------------------------------------------
 async def get_db_layers(pool):
-    """Consulta las tablas geográficas de la BD y las tipifica para MapLibre."""
+    """Consulta las tablas geogrÃ¡ficas de la BD y las tipifica para MapLibre."""
     query = """
         SELECT
             f_table_name AS id,
@@ -60,7 +63,7 @@ async def get_layer_metadata(pool, table_name: str):
         metadatos.metadata_enlace        (1:N)
         metadatos.metadata_palabra_clave (1:N)
 
-    El parámetro `table_name` se compara contra:
+    El parÃ¡metro `table_name` se compara contra:
         - metadata_capa.identificador
         - metadata_capa.nombre_tabla_capa
 
@@ -70,7 +73,7 @@ async def get_layer_metadata(pool, table_name: str):
     """
     async with pool.acquire() as connection:
 
-        # 2.1 ¿Existe el esquema/tabla principal?
+        # 2.1 Â¿Existe el esquema/tabla principal?
         table_exists = await connection.fetchval(
             """
             SELECT EXISTS (
@@ -84,7 +87,7 @@ async def get_layer_metadata(pool, table_name: str):
             return None
 
         # 2.2 Si el nombre incluye workspace ("ws:capa"), quedarse con la capa.
-        #     Se intenta buscar con y sin el prefijo para máxima compatibilidad.
+        #     Se intenta buscar con y sin el prefijo para mÃ¡xima compatibilidad.
         short_name = table_name.split(":", 1)[1] if ":" in table_name else table_name
 
         # 2.3 Cabecera: buscamos por identificador o por nombre de tabla
@@ -160,12 +163,12 @@ async def get_layer_metadata(pool, table_name: str):
 
 
 # ---------------------------------------------------------------------------
-# 3. GEOJSON DE UNA TABLA GEOGRÁFICA
+# 3. GEOJSON DE UNA TABLA GEOGRÃFICA
 # ---------------------------------------------------------------------------
 async def get_table_geojson(pool, table_name: str):
-    """Devuelve todos los registros de una tabla geográfica como GeoJSON FeatureCollection."""
+    """Devuelve todos los registros de una tabla geogrÃ¡fica como GeoJSON FeatureCollection."""
 
-    # Validamos que la tabla exista en geometry_columns para evitar inyección SQL
+    # Validamos que la tabla exista en geometry_columns para evitar inyecciÃ³n SQL
     check_query = """
         SELECT f_geometry_column, f_table_name
         FROM geometry_columns
@@ -176,11 +179,11 @@ async def get_table_geojson(pool, table_name: str):
         table_info = await connection.fetchrow(check_query, table_name)
 
         if table_info is None:
-            return None  # tabla no existe o no es geográfica
+            return None  # tabla no existe o no es geogrÃ¡fica
 
         geom_column = table_info["f_geometry_column"]
 
-        # Traemos todas las columnas de la tabla + la geometría convertida a GeoJSON
+        # Traemos todas las columnas de la tabla + la geometrÃ­a convertida a GeoJSON
         # Usamos json_build_object con ST_AsGeoJSON para armar el FeatureCollection
         # directamente en SQL.
         data_query = f"""
@@ -200,3 +203,46 @@ async def get_table_geojson(pool, table_name: str):
 
         row = await connection.fetchval(data_query)
         return row
+
+
+# ---------------------------------------------------------------------------
+# 4. CONTEO DE REGISTROS DENTRO DE UNA GEOMETRÍA (buscador por zona)
+# ---------------------------------------------------------------------------
+async def count_features_in_geometry(pool, table_name: str, geometry: dict):
+    """
+    Cuenta los registros de `table_name` que intersectan `geometry`
+    (GeoJSON en EPSG:4326). Devuelve int, o None si la tabla no existe o
+    no es geográfica.
+
+    Los identificadores (schema/tabla/columna) salen del catálogo
+    `geometry_columns` —nunca de la entrada del usuario— y se entrecomillan.
+    La geometría viaja como parámetro ($1), sin interpolación en SQL.
+    """
+    async with pool.acquire() as connection:
+        info = await connection.fetchrow(
+            """
+            SELECT f_table_schema, f_table_name, f_geometry_column, srid
+            FROM geometry_columns
+            WHERE f_table_name = $1
+            ORDER BY (f_table_schema = 'public') DESC
+            LIMIT 1;
+            """,
+            table_name,
+        )
+        if info is None:
+            return None
+
+        schema = info["f_table_schema"]
+        table = info["f_table_name"]
+        geom_col = info["f_geometry_column"]
+        srid = int(info["srid"] or 0)
+
+        buscar = "ST_SetSRID(ST_GeomFromGeoJSON($1), 4326)"
+        if srid and srid != 4326:
+            buscar = f"ST_Transform({buscar}, {srid})"
+
+        query = (
+            f'SELECT COUNT(*) FROM "{schema}"."{table}" '
+            f'WHERE ST_Intersects("{geom_col}", {buscar});'
+        )
+        return int(await connection.fetchval(query, json.dumps(geometry)))
