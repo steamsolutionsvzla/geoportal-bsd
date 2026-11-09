@@ -195,10 +195,17 @@ body.login-page::before{
   color:var(--navy-700);
   background:var(--navy-50);
 }
+.toggle-password svg{
+  width:18px;height:18px;
+  display:block;
+}
+.toggle-password svg[hidden]{
+  display:none;
+}
 
 /* ---------- Options row ---------- */
 .options-row{
-  display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:center;justify-content:flex-start;
   margin-bottom:26px;font-size:.8rem;
 }
 .checkbox-label{
@@ -208,15 +215,6 @@ body.login-page::before{
 .checkbox-label input{
   accent-color:var(--navy-600);
   width:15px;height:15px;cursor:pointer;
-}
-.forgot-link{
-  color:var(--navy-600);text-decoration:none;
-  font-weight:500;
-  transition:color .15s ease;
-}
-.forgot-link:hover{
-  color:var(--navy-800);
-  text-decoration:underline;
 }
 
 /* ---------- Botón principal ---------- */

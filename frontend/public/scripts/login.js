@@ -32,10 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---- 4. Mostrar / ocultar contraseña ----
   if (togglePassword) {
+    const eyeShow = togglePassword.querySelector('.eye-icon--show');
+    const eyeHide = togglePassword.querySelector('.eye-icon--hide');
+
     togglePassword.addEventListener('click', () => {
       const isPassword = passwordInput.type === 'password';
       passwordInput.type = isPassword ? 'text' : 'password';
-      togglePassword.textContent = isPassword ? '🙈' : '👁';
+
+      if (eyeShow) eyeShow.hidden = isPassword;
+      if (eyeHide) eyeHide.hidden = !isPassword;
+
       togglePassword.setAttribute(
         'aria-label',
         isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
