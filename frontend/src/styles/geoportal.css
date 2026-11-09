@@ -1302,3 +1302,210 @@ input { font-family: inherit; }
   padding: 10px 0;
   text-align: center;
 }
+
+/* ============================================================
+   BUSCADOR DE UBICACIÓN (topbar) — misma piel que .layer-search
+   ============================================================ */
+.loc-search {
+  position: relative;
+  flex: 1 1 340px;
+  max-width: 420px;
+  min-width: 180px;
+}
+.loc-search svg.loc-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--muted-500);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+  z-index: 1;
+}
+.loc-search input {
+  width: 100%;
+  height: 36px;
+  padding: 0 70px 0 34px;
+  border: 1px solid var(--line-700);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--accent-navy-dim);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.loc-search input::-webkit-search-cancel-button { display: none; }
+.loc-search input::placeholder { color: var(--muted-500); }
+.loc-search input:focus {
+  border-color: var(--accent-navy);
+  background: var(--white);
+  box-shadow: 0 0 0 3px var(--accent-navy-soft);
+}
+.loc-search kbd {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.04em;
+  color: var(--muted-500);
+  background: var(--white);
+  border: 1px solid var(--line-700);
+  border-radius: 4px;
+  padding: 2px 5px;
+  pointer-events: none;
+}
+.loc-search:focus-within kbd { display: none; }
+
+.loc-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  min-width: 300px;
+  z-index: 60;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--line-700);
+  border-radius: var(--radius-m);
+  padding: 6px;
+  box-shadow: var(--shadow-2);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top center;
+  transition: opacity .16s ease, transform .16s cubic-bezier(0.16, 1, 0.3, 1), visibility .16s;
+  pointer-events: none;
+}
+.loc-search.open .loc-search-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+.lsd-group {
+  padding: 8px 10px 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-500);
+}
+.lsd-group + .lsd-group { margin-top: 2px; border-top: 1px solid var(--line-700); }
+.lsd-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  font-size: 0.78rem;
+  color: var(--muted-300);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.lsd-item:hover, .lsd-item.kb-active {
+  background: var(--paper-2);
+  color: var(--accent-navy-dim);
+}
+.lsd-item.kb-active { background: var(--accent-navy-soft); }
+.lsd-icon { width: 13px; height: 13px; stroke: var(--muted-500); flex-shrink: 0; }
+.lsd-item:hover .lsd-icon, .lsd-item.kb-active .lsd-icon { stroke: var(--accent-navy); }
+.lsd-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lsd-sub {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-500);
+  background: var(--paper-2);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.loc-search mark {
+  background: var(--accent-navy-soft);
+  color: var(--accent-navy);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.loc-search-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--muted-500);
+}
+
+/* Fila de capa recién localizada (desde el buscador de ubicación) */
+@keyframes ls-flash-kf {
+  0%   { box-shadow: 0 0 0 2px var(--accent-navy); background: var(--accent-navy-soft); }
+  100% { box-shadow: 0 0 0 2px transparent; background: transparent; }
+}
+.layer-item.ls-flash {
+  border-radius: var(--radius-s);
+  animation: ls-flash-kf 1.6s ease-out;
+}
+
+/* ---------- Botón de tabla de atributos en la fila ---------- */
+.layer-attr {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--muted-500);
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease;
+}
+.layer-attr:hover { color: var(--accent-navy); background: var(--accent-navy-soft); }
+
+/* ---------- Toast de "enlace copiado" ---------- */
+.share-toast {
+  position: fixed;
+  bottom: 52px; left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  z-index: 1300;
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px;
+  background: var(--accent-navy-dim);
+  color: #ffffff;
+  font-size: 0.76rem;
+  border-radius: 999px;
+  box-shadow: var(--shadow-2);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .2s ease, transform .2s cubic-bezier(0.16, 1, 0.3, 1), visibility .2s;
+  pointer-events: none;
+}
+.share-toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- Barra de escala MapLibre (esquina inferior izq.) ---------- */
+#map .maplibregl-ctrl-bottom-left { pointer-events: none; }
+#map .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale {
+  margin: 0 0 68px 10px;
+  border: 1px solid var(--accent-navy-light);
+  border-top: none;
+  border-radius: 0 0 4px 4px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent-navy-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  line-height: 1.35;
+  padding: 1px 6px 2px;
+  box-shadow: var(--shadow-1);
+}
+
+/* ---------- Pantalla completa ---------- */
+.app:fullscreen { height: 100vh; width: 100vw; }
+#fullscreenBtn .fs-out { display: none; }
+#fullscreenBtn.active .fs-in { display: none; }
+#fullscreenBtn.active .fs-out { display: block; }

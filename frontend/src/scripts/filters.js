@@ -39,6 +39,8 @@ let currentBloqueFilterData = null;
 
 export function setEstadosCache(data) { estadosGeoJsonCache = data; }
 export function setBloquesCache(data) { bloquesGeoJsonCache = data; }
+export function getEstadosCache() { return estadosGeoJsonCache; }
+export function getBloquesCache() { return bloquesGeoJsonCache; }
 
 // -------------------------------------------------------------------------
 // DROPDOWNS DE ESTADO Y BLOQUE (comportamiento original)

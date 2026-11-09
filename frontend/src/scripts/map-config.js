@@ -83,6 +83,12 @@ export function initMap(containerId) {
     attributionControl: false
   });
 
+  // Barra de escala visual (arreglada en geoportal.css para la paleta BSD).
+  mapInstance.addControl(
+    new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }),
+    'bottom-left'
+  );
+
   // Acceso global para depuración y pruebas automatizadas
   if (typeof window !== 'undefined') window.geoportalMap = mapInstance;
 

@@ -74,7 +74,7 @@ function isPointType(geomType) {
 // Por defecto pasa por el proxy del dev server ('/geoserver' → :8081),
 // que evita CORS. En producción se puede sobreescribir con
 // PUBLIC_GEOSERVER_URL (p. ej. http://192.168.x.x:8081/geoserver).
-const GEOSERVER_WMS_BASE =
+export const GEOSERVER_WMS_BASE =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_GEOSERVER_URL) ||
   '/geoserver';
 
@@ -243,6 +243,9 @@ function createLayerRow(layerInfo) {
         </div>
       </div>
       ${layerInfo.type !== 'raster' ? `
+      <button type="button" class="layer-attr" data-table="${layerInfo.id}" title="Tabla de atributos" aria-label="Tabla de atributos">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="10" x2="10" y2="20"/></svg>
+      </button>
       <button type="button" class="layer-download" data-table="${layerInfo.id}" title="Descargar Shapefile" aria-label="Descargar Shapefile">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><polyline points="7 13 12 18 17 13"/><path d="M4 20h16"/></svg>
       </button>` : ''}
@@ -312,8 +315,9 @@ export function clearLayerFeatureCount(tableName) {
 export function attachLayerToggleEvents(sidebarElement, onLayerToggle) {
   if (!sidebarElement) return;
   sidebarElement.addEventListener('click', async (e) => {
-    // La descarga de Shapefile se maneja en su propio listener.
-    if (e.target.closest('.layer-download')) return;
+    // La descarga de Shapefile y la tabla de atributos se manejan en sus
+    // propios listeners.
+    if (e.target.closest('.layer-download') || e.target.closest('.layer-attr')) return;
     const rowTarget = e.target.closest('.layer-row');
     if (!rowTarget) return;
     const toggleBtn = rowTarget.querySelector('.toggle[data-table]');

@@ -45,6 +45,9 @@ import {
 } from './org-panel.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 import { beginBusy, endBusy } from './busy-overlay.js';
+import { initLocationSearch } from './loc-search.js';
+import { initShareView, applySharedView } from './share.js';
+import { attachLayerAttrTableEvents } from './attr-table.js';
 
 // =========================================================================
 // WORKER DE MAPLIBRE (obligatorio en v5+)
@@ -273,6 +276,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           attachLayerToggleEvents(sidebar, handleLayerToggle);
           attachLayerOpacityEvents(sidebar);
           attachLayerDownloadEvents(sidebar);
+          attachLayerAttrTableEvents(sidebar);
+
+          // Buscador de ubicación (topbar) + compartir vista. Solo operan si
+          // la página trae sus controles (geoportal); en showroom u otras
+          // páginas quedan como no-op.
+          initLocationSearch();
+          initShareView(map);
+          applySharedView(map);
         } finally {
           endBusy();
         }
