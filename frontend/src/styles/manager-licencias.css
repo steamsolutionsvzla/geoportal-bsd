@@ -634,3 +634,45 @@
 .lic-attr-row span { color: #6b7280; }
 .lic-attr-row strong { color: #0f1e3d; text-align: right; }
 .manager-table tbody tr[data-codigo] { cursor: pointer; }
+
+/* ---------- Buscador de la tabla de licencias ---------- */
+.lic-search-row { align-items: center; }
+.lic-search {
+  position: relative;
+  flex: 1 1 320px;
+  max-width: 560px;
+  min-width: 240px;
+}
+.lic-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #6b7280;
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.lic-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f1e3d;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: .78rem;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.lic-search input::-webkit-search-cancel-button { display: none; }
+.lic-search input::placeholder { color: #6b7280; }
+.lic-search input:focus {
+  border-color: #2d5296;
+  box-shadow: 0 0 0 3px rgba(18, 43, 90, .08);
+}
+.lic-search-row .admin-status { margin: 0; }
