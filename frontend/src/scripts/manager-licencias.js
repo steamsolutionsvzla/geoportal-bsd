@@ -160,7 +160,7 @@ function applyFilters() {
   updateMapData();
   renderKpis();
   renderCharts();
-  renderTable();
+  updateTableLink();
 }
 
 /* ------------------------------------------------------------------ */
@@ -366,11 +366,12 @@ function initDashboardMap() {
         state.mapReady = true;
         updateMapData();
         map.resize();
-        fitVenezuela(0);
+        setupMapZoom();
+        fitLicenses(0);
         setMapLoading(false);
       } catch (error) {
         console.error('No se pudo preparar el mapa gerencial:', error);
-        showMapError('No se pudo preparar el mapa base. La tabla y los gráficos siguen disponibles.');
+        showMapError('No se pudo preparar el mapa base.');
       }
     });
     map.on('error', (event) => {
@@ -406,7 +407,12 @@ function addLicenseLayers(map) {
           'CULMINADA', STATUS.CULMINADA.color,
           '#94a3b8',
         ],
-        'fill-opacity': 0.48,
+        'fill-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          0.72,
+          0.48,
+        ],
       },
     });
   }
@@ -470,6 +476,25 @@ function addLicenseLayers(map) {
   map.on('mouseleave', 'licencias-fill', () => {
     map.getCanvas().style.cursor = '';
   });
+
+  // Resaltado al pasar el ratón (feature-state sobre el promoteId 'codigo').
+  let hoveredCode = null;
+  map.on('mousemove', 'licencias-fill', (event) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+    if (hoveredCode !== null && hoveredCode !== feature.id) {
+      map.setFeatureState({ source: 'licencias-gerencia', id: hoveredCode }, { hover: false });
+    }
+    hoveredCode = feature.id;
+    map.setFeatureState({ source: 'licencias-gerencia', id: hoveredCode }, { hover: true });
+  });
+  map.on('mouseleave', 'licencias-fill', () => {
+    if (hoveredCode !== null) {
+      map.setFeatureState({ source: 'licencias-gerencia', id: hoveredCode }, { hover: false });
+      hoveredCode = null;
+    }
+  });
+
   map.on('click', 'licencias-fill', (event) => {
     const feature = event.features?.[0];
     if (!feature) return;
@@ -565,9 +590,6 @@ function resetMapView() {
   if (map.getSource('licencias-highlight')) {
     map.getSource('licencias-highlight').setData(EMPTY_FC);
   }
-  document.querySelectorAll('.manager-table tbody tr[data-codigo]').forEach((row) => {
-    row.classList.remove('is-selected');
-  });
   map.resize();
   fitVenezuela(650);
 }
@@ -626,118 +648,54 @@ function selectFeature(codigo, lngLat = null) {
       .setHTML(popupHtml(feature))
       .addTo(map);
   }
-
-  document.querySelectorAll('.manager-table tbody tr[data-codigo]').forEach((row) => {
-    row.classList.toggle('is-selected', row.getAttribute('data-codigo') === String(codigo));
-  });
 }
 
 /* ------------------------------------------------------------------ */
-/* Tabla                                                               */
+/* Enlace a la tabla de atributos y controles del mapa                 */
 /* ------------------------------------------------------------------ */
 
-function sortValue(feature, key) {
-  const value = feature.properties?.[key];
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'number') return value;
-  return String(value).toLocaleLowerCase('es');
-}
-
-function tableRows() {
-  const query = ($('lic-search')?.value || '').trim().toLocaleLowerCase('es');
-  let rows = [...state.filtered];
-  if (query) {
-    rows = rows.filter((feature) => {
-      const p = feature.properties || {};
-      return [p.codigo, p.empresa, p.bloque, p.tipo, p.estatus]
-        .some((value) => String(value ?? '').toLocaleLowerCase('es').includes(query));
-    });
-  }
-
-  rows.sort((a, b) => {
-    const av = sortValue(a, state.sortKey);
-    const bv = sortValue(b, state.sortKey);
-    if (av === null && bv === null) return 0;
-    if (av === null) return 1;
-    if (bv === null) return -1;
-    let comparison;
-    if (typeof av === 'number' && typeof bv === 'number') comparison = av - bv;
-    else comparison = String(av).localeCompare(String(bv), 'es', { numeric: true });
-    return state.sortDir === 'asc' ? comparison : -comparison;
+function updateTableLink() {
+  const link = $('lic-table-link');
+  if (!link) return;
+  const params = new URLSearchParams();
+  [['empresa', 'lic-filter-empresa'], ['tipo', 'lic-filter-tipo'],
+   ['estatus', 'lic-filter-estatus'], ['anio', 'lic-filter-anio']].forEach(([key, id]) => {
+    const value = $(id)?.value;
+    if (value) params.set(key, value);
   });
-  return rows;
+  const query = params.toString();
+  link.setAttribute('href', `/admin/licencias${query ? `?${query}` : ''}`);
 }
 
-function badgeFor(value, kind) {
-  const text = String(value ?? '—');
-  let cls = 'gray';
-  if (kind === 'tipo') cls = text === 'GAS' ? 'green' : text === 'CRUDO' ? 'blue' : 'gray';
-  if (kind === 'estatus') cls = text === 'VIGENTE' ? 'green' : text === 'CULMINADA' ? 'red' : 'amber';
-  return `<span class="badge ${cls}">${esc(text)}</span>`;
+function setupMapZoom() {
+  const map = state.map;
+  if (!map) return;
+  $('manager-zoom-in')?.addEventListener('click', () => {
+    map.stop();
+    map.zoomIn({ duration: 260 });
+  });
+  $('manager-zoom-out')?.addEventListener('click', () => {
+    map.stop();
+    map.zoomOut({ duration: 260 });
+  });
+  $('manager-map-reset')?.addEventListener('click', resetMapView);
 }
 
-function renderTable() {
-  const body = $('lic-table-body');
-  if (!body) return;
-  const rows = tableRows();
-  const count = $('lic-table-count');
-  if (count) {
-    count.textContent = `${rows.length} de ${state.all.length} licencias · ${state.filtered.length} visibles en el mapa`;
-  }
-
-  if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="9" class="manager-empty">No hay licencias con los filtros seleccionados.</td></tr>';
+function fitLicenses(duration = 0) {
+  const map = state.map;
+  if (!map) return;
+  const bounds = coordBounds(state.filtered);
+  if (!bounds) {
+    fitVenezuela(duration);
     return;
   }
-
-  body.innerHTML = rows
-    .map((feature) => {
-      const p = feature.properties || {};
-      const selected = state.selectedCode === String(p.codigo) ? ' is-selected' : '';
-      return `
-        <tr data-codigo="${esc(p.codigo)}" class="${selected}">
-          <td><strong>${esc(p.codigo ?? '—')}</strong></td>
-          <td>${esc(p.bloque ?? '—')}</td>
-          <td>${esc(p.empresa ?? '—')}</td>
-          <td>${badgeFor(p.tipo, 'tipo')}</td>
-          <td>${badgeFor(p.estatus, 'estatus')}</td>
-          <td class="year-cell">${esc(p.anio ?? '—')}</td>
-          <td>${esc(p.duracion ?? '—')}</td>
-          <td class="area-cell">${esc(formatArea(p.area_km2))}</td>
-          <td><button type="button" class="btn-map" data-map-codigo="${esc(p.codigo)}">Ver en mapa</button></td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  document.querySelectorAll('.manager-table th[data-sort]').forEach((th) => {
-    const active = th.getAttribute('data-sort') === state.sortKey;
-    th.setAttribute('data-dir', active ? state.sortDir : '');
-  });
-}
-
-function setupTableEvents() {
-  document.querySelectorAll('.manager-table th[data-sort]').forEach((th) => {
-    th.addEventListener('click', () => {
-      const key = th.getAttribute('data-sort');
-      if (!key) return;
-      if (state.sortKey === key) {
-        state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
-      } else {
-        state.sortKey = key;
-        state.sortDir = 'asc';
-      }
-      renderTable();
-    });
-  });
-
-  $('lic-search')?.addEventListener('input', renderTable);
-
-  $('lic-table-body')?.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-map-codigo]');
-    const row = event.target.closest('tr[data-codigo]');
-    const codigo = button?.getAttribute('data-map-codigo') || row?.getAttribute('data-codigo');
-    if (codigo) selectFeature(codigo);
+  map.stop();
+  map.fitBounds(bounds, {
+    padding: { top: 48, bottom: 48, left: 48, right: 48 },
+    maxZoom: 7.4,
+    bearing: 0,
+    pitch: 0,
+    duration,
   });
 }
 
@@ -755,12 +713,8 @@ function setupFilterEvents() {
       const el = $(id);
       if (el) el.value = '';
     });
-    const search = $('lic-search');
-    if (search) search.value = '';
     applyFilters();
   });
-
-  $('manager-map-reset')?.addEventListener('click', resetMapView);
 }
 
 async function loadLicenses() {
@@ -792,7 +746,6 @@ async function init() {
   section.hidden = false;
 
   setupFilterEvents();
-  setupTableEvents();
 
   try {
     await loadLicenses();
@@ -801,15 +754,18 @@ async function init() {
     populateFilters(state.all);
     renderKpis();
     renderCharts();
-    renderTable();
+    updateTableLink();
     initDashboardMap();
     setStatus(`${state.all.length} licencias cargadas`);
+
+    // Llegada desde la tabla de atributos ("Ver en el mapa").
+    const codigo = new URLSearchParams(location.search).get('codigo');
+    if (codigo) {
+      setTimeout(() => selectFeature(codigo), 600);
+    }
   } catch (error) {
     console.error(error);
     setStatus(error.message || 'No se pudieron cargar las licencias.', true);
-    if ($('lic-table-body')) {
-      $('lic-table-body').innerHTML = `<tr><td colspan="9" class="manager-empty">${esc(error.message || 'Error al cargar las licencias.')}</td></tr>`;
-    }
     showMapError(error.message || 'Error al cargar el dashboard gerencial.');
   }
 }

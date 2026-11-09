@@ -17,6 +17,9 @@ import '../../styles/manager-licencias.css';
       <p>Licencias, empresas, vigencia y superficie concesionada.</p>
     </div>
     <div class="manager-head-actions">
+      <a class="manager-table-link" id="lic-table-link" href="/admin/licencias">
+        Ver tabla de atributos →
+      </a>
       <button
         type="button"
         class="manager-layers-btn"
@@ -53,10 +56,6 @@ import '../../styles/manager-licencias.css';
       </select>
     </div>
     <button type="button" class="licencias-clear" id="lic-clear">Limpiar</button>
-    <div class="licencias-search">
-      <label for="lic-search">Buscar en la tabla</label>
-      <input id="lic-search" type="search" placeholder="Código, empresa o licencia" autocomplete="off" />
-    </div>
   </div>
 
   <section class="kpi-grid manager-kpis" aria-label="Indicadores de licencias">
@@ -91,6 +90,10 @@ import '../../styles/manager-licencias.css';
 
     <article class="manager-map-card">
       <div id="manager-map" class="manager-map"></div>
+      <div class="manager-map-zoom" aria-label="Controles de zoom">
+        <button type="button" id="manager-zoom-in" title="Acercar" aria-label="Acercar">+</button>
+        <button type="button" id="manager-zoom-out" title="Alejar" aria-label="Alejar">−</button>
+      </div>
       <button
         type="button"
         class="manager-map-reset"
@@ -134,37 +137,6 @@ import '../../styles/manager-licencias.css';
       <p class="chart-sub">Vigentes y culminadas por año</p>
       <div class="manager-chart-box" id="lic-chart-anio" role="img" aria-label="Licencias por año y estatus"></div>
     </article>
-  </div>
-
-  <div class="admin-table-wrap manager-table-card">
-    <div class="admin-table-head">
-      <div>
-        <h2>Tabla de licencias</h2>
-        <p id="lic-table-count">—</p>
-      </div>
-    </div>
-    <div class="manager-table-scroll">
-      <table class="admin-table manager-table">
-        <thead>
-          <tr>
-            <th data-sort="codigo" data-dir="asc">Código</th>
-            <th data-sort="bloque">Licencia</th>
-            <th data-sort="empresa">Empresa</th>
-            <th data-sort="tipo">Tipo</th>
-            <th data-sort="estatus">Estatus</th>
-            <th data-sort="anio" class="year-cell">Año</th>
-            <th data-sort="duracion_anios">Duración</th>
-            <th data-sort="area_km2" class="area-cell">Área (km²)</th>
-            <th>Mapa</th>
-          </tr>
-        </thead>
-        <tbody id="lic-table-body">
-          <tr>
-            <td colspan="9" class="manager-empty">Cargando licencias…</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
   </div>
 </section>
 
