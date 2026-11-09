@@ -1,13 +1,5 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { bloquesTabla } from '../../lib/adminMockData';
-
-const estadoBadge = (estado: string) => {
-  if (estado === 'Vendido') return 'green';
-  if (estado === 'En construcción') return 'blue';
-  if (estado === 'Por entregar') return 'amber';
-  return 'gray';
-};
 ---
 
 <AdminLayout title="Bloques · Admin BSD">
@@ -15,42 +7,32 @@ const estadoBadge = (estado: string) => {
     <div>
       <span class="admin-eyebrow">Sección</span>
       <h1>Bloques petroleros</h1>
-      <p>Inventario y estado de los bloques de capas petroleras.</p>
+      <p>Inventario real de bloques publicados en el catálogo.</p>
     </div>
   </header>
 
   <div class="admin-table-wrap">
     <div class="admin-table-head">
       <h2>Listado de bloques</h2>
+      <span class="admin-status" id="bloques-count" aria-live="polite">Cargando…</span>
       <input
         type="search"
         class="admin-search"
-        placeholder="Buscar bloque, organismo..."
+        placeholder="Buscar bloque o ID…"
         oninput="filtrarTabla(this.value)"
       />
     </div>
     <table class="admin-table" id="tabla-bloques">
       <thead>
         <tr>
+          <th>Bloque</th>
           <th>ID</th>
-          <th>Nombre</th>
-          <th>Año</th>
-          <th>Organismo</th>
-          <th>Estado</th>
-          <th>Hectáreas</th>
+          <th>Área</th>
+          <th>Centroide (lat, lng)</th>
         </tr>
       </thead>
-      <tbody>
-        {bloquesTabla.map((b) => (
-          <tr>
-            <td>{b.id}</td>
-            <td>{b.nombre}</td>
-            <td>{b.anio}</td>
-            <td>{b.organismo}</td>
-            <td><span class={`badge ${estadoBadge(b.estado)}`}>{b.estado}</span></td>
-            <td>{b.hectareas.toLocaleString('es-VE')}</td>
-          </tr>
-        ))}
+      <tbody id="tabla-bloques-body">
+        <tr><td colspan="4" class="admin-table-empty">Cargando bloques…</td></tr>
       </tbody>
     </table>
   </div>
@@ -64,3 +46,7 @@ const estadoBadge = (estado: string) => {
     };
   </script>
 </AdminLayout>
+
+<script>
+  import '../../scripts/admin-bloques.js';
+</script>

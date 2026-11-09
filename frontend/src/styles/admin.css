@@ -67,6 +67,13 @@
 }
 .admin-status.is-error { color: #b91c1c; text-transform: none; letter-spacing: 0; }
 
+.admin-table-empty {
+  text-align: center;
+  color: var(--ink-400, #6b7280);
+  padding: 18px 12px;
+  font-size: 0.82rem;
+}
+
 .kpi-card {
   background: #fff;
   border: 1px solid var(--line-200, #e5e7eb);

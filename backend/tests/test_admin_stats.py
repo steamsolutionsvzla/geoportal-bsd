@@ -41,8 +41,20 @@ class _Acquire:
 
 
 class FakePool:
+    # asyncpg devuelve jsonb como str: se replica en un caso real.
+    bloques_rows = [
+        {"props": '{"id": 2, "objectid": 455, "bloque": "B-1"}', "area_km2": 210.5, "lat": 9.1, "lng": -64.2},
+        {"props": {"id": 1, "objectid": 454, "bloque": "A-1"}, "area_km2": 120.25, "lat": 10.4, "lng": -71.3},
+    ]
+
     def acquire(self):
         return _Acquire(FakeConn())
+
+    async def fetchrow(self, query, *args):
+        return {"f_table_schema": "gis_petroleo", "f_table_name": "BLOQUES", "f_geometry_column": "geom"}
+
+    async def fetch(self, query, *args):
+        return self.bloques_rows
 
     async def fetchval(self, query, *args):
         if "metadata_capa" in query:
@@ -122,4 +134,20 @@ def test_stats_agrupa_por_workspace(client_stats):
 def test_stats_rechaza_rol_sin_acceso(client_stats):
     app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA, workspaces=(_WS,))
     resp = client_stats.get("/api/v1/admin/stats")
+    assert resp.status_code == 403
+
+
+def test_bloques_devuelve_filas_reales_ordenadas(client_stats):
+    resp = client_stats.get("/api/v1/admin/bloques")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 2
+    assert [b["bloque"] for b in data["bloques"]] == ["A-1", "B-1"]
+    assert data["bloques"][0]["area_km2"] == 120.25
+    assert data["bloques"][1]["lat"] == 9.1
+
+
+def test_bloques_rechaza_rol_sin_acceso(client_stats):
+    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA, workspaces=(_WS,))
+    resp = client_stats.get("/api/v1/admin/bloques")
     assert resp.status_code == 403
