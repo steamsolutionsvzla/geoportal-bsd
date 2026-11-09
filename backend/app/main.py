@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
 from app.api.organization import router as organization_router
@@ -89,6 +90,7 @@ app.include_router(styles_router)
 app.include_router(reports_router)
 app.include_router(organization_router)
 app.include_router(search_router)
+app.include_router(admin_router)
 
 @app.get("/")
 def health_check():

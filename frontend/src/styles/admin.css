@@ -50,9 +50,23 @@
   gap: 18px;
   margin-bottom: 28px;
 }
+.kpi-grid.kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1100px) {
+  .kpi-grid.kpi-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 900px) {
   .kpi-grid { grid-template-columns: 1fr; }
 }
+.admin-status {
+  margin: 0 0 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-400, #6b7280);
+}
+.admin-status.is-error { color: #b91c1c; text-transform: none; letter-spacing: 0; }
+
 .kpi-card {
   background: #fff;
   border: 1px solid var(--line-200, #e5e7eb);
