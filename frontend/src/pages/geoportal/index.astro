@@ -53,7 +53,7 @@ import Footer from '../../components/Footer.astro';
 
   <script is:inline>
     // Pantalla completa sobre la app (deja fuera el footer de la página).
-    (function () {
+    document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('fullscreenBtn');
       const app = document.querySelector('.app');
       if (!btn || !app) return;
@@ -67,7 +67,7 @@ import Footer from '../../components/Footer.astro';
         btn.setAttribute('title', on ? 'Salir de pantalla completa' : 'Pantalla completa');
         btn.setAttribute('aria-label', btn.getAttribute('title'));
       });
-    })();
+    });
   </script>
 
   <script is:inline>
