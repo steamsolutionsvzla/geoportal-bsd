@@ -118,6 +118,94 @@ async function getLogoBase64() {
 }
 
 // ========================================================================
+// CAPTURA DEL MAPA PARA EL PDF
+// Resalta temporalmente el borde del análisis y devuelve un JPEG reducido.
+// Si el canvas está contaminado por teselas sin CORS, devuelve null.
+// ========================================================================
+const PDF_MAP_MAX_WIDTH = 1400;
+const ANALYSIS_LINE_LAYERS = [
+  { layer: 'layer-area-temporal-line', source: 'source-area-temporal', fill: 'pdf-area-highlight' },
+  { layer: 'layer-estados-venezuela-line', source: 'source-estados-venezuela', fill: 'pdf-estado-highlight' },
+  { layer: 'layer-bloques-venezuela-filter-line', source: 'source-bloques-venezuela', fill: 'pdf-bloque-highlight' }
+];
+
+function canvasAJpeg(canvas) {
+  const escala = Math.min(1, PDF_MAP_MAX_WIDTH / canvas.width);
+  const ancho = Math.max(1, Math.round(canvas.width * escala));
+  const alto = Math.max(1, Math.round(canvas.height * escala));
+  const salida = document.createElement('canvas');
+  salida.width = ancho;
+  salida.height = alto;
+  const ctx = salida.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, ancho, alto);
+  ctx.drawImage(canvas, 0, 0, ancho, alto);
+  return salida.toDataURL('image/jpeg', 0.82);
+}
+
+export async function captureMapForPdf() {
+  const map = getMap();
+  if (!map) return null;
+
+  const guardados = [];
+  const rellenosTemporales = [];
+  try {
+    for (const item of ANALYSIS_LINE_LAYERS) {
+      if (!map.getLayer(item.layer)) continue;
+      if (map.getLayoutProperty(item.layer, 'visibility') === 'none') continue;
+      guardados.push({
+        id: item.layer,
+        color: map.getPaintProperty(item.layer, 'line-color'),
+        width: map.getPaintProperty(item.layer, 'line-width')
+      });
+      map.setPaintProperty(item.layer, 'line-color', '#facc15');
+      map.setPaintProperty(item.layer, 'line-width', 4.5);
+
+      // Relleno amarillo tenue sobre la entidad seleccionada por el filtro.
+      if (map.getSource(item.source) && !map.getLayer(item.fill)) {
+        map.addLayer({
+          id: item.fill,
+          type: 'fill',
+          source: item.source,
+          paint: {
+            'fill-color': '#facc15',
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], 0.22,
+              0
+            ]
+          }
+        });
+        rellenosTemporales.push(item.fill);
+      }
+    }
+
+    // Dos frames para que MapLibre repinte con el resaltado aplicado.
+    map.triggerRepaint();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    return canvasAJpeg(map.getCanvas());
+  } catch (error) {
+    console.warn('No se pudo capturar el mapa para el PDF:', error);
+    return null;
+  } finally {
+    for (const id of rellenosTemporales) {
+      try { if (map.getLayer(id)) map.removeLayer(id); } catch (_) { /* ignorar */ }
+    }
+    for (const item of guardados) {
+      try {
+        if (item.color !== undefined && item.color !== null) {
+          map.setPaintProperty(item.id, 'line-color', item.color);
+        }
+        if (item.width !== undefined && item.width !== null) {
+          map.setPaintProperty(item.id, 'line-width', item.width);
+        }
+      } catch (_) { /* capa eliminada */ }
+    }
+  }
+}
+
+// ========================================================================
 // EXPORTACIÓN DE FUNCIONES PARA ACTUALIZAR EL ESTADO DEL PANEL
 // ========================================================================
 export function setInfoPanelData(data) {
@@ -455,12 +543,14 @@ function attachIntersectionFilterDownloadListeners() {
 async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGeneral, capasDetalleMap, tablaResumenEl) {
   try {
     const logoData = await getLogoBase64();
+    const mapaData = await captureMapForPdf();
     const payload = {
       etiqueta,
       nombre: nombreSeleccionado,
       total: totalPuntosGeneral,
       detalle: capasDetalleMap || {},
-      logo_base64: logoData || null
+      logo_base64: logoData || null,
+      mapa_base64: mapaData || null
     };
     const response = await apiFetch('/api/v1/reports/pdf', {
       method: 'POST',

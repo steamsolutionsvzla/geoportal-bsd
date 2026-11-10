@@ -80,6 +80,8 @@ export function initMap(containerId) {
     renderWorldCopies: false,
     maxTileCacheSize: 30,
     fadeDuration: 0,
+    // Necesario para capturar el canvas y adjuntar la imagen al PDF.
+    preserveDrawingBuffer: true,
     attributionControl: false
   });
 
@@ -283,6 +285,24 @@ export function addBaseLayers(map) {
     minzoom: 0,
     maxzoom: 19
   });
+
+  // --- OpenStreetMap (online): fondo vectorial con etiquetas ---
+  map.addSource('osm-source', {
+    type: 'raster',
+    tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    maxzoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+  map.addLayer({
+    id: 'osm-layer',
+    type: 'raster',
+    source: 'osm-source',
+    layout: { visibility: 'none' },
+    minzoom: 0,
+    maxzoom: 19
+  });
+
   // --- Capa de etiquetas personalizadas (placeholder) ---
   map.addSource('custom-labels-source', {
     type: 'geojson',
@@ -373,6 +393,11 @@ export function setupBasemapSwitcher(map) {
     });
   }
 
+  // OSM necesita internet: en el build offline se oculta la opción.
+  if (USE_OFFLINE_TILES) {
+    document.querySelectorAll('[data-basemap="osm"]').forEach((el) => el.remove());
+  }
+
   document.querySelectorAll('[data-basemap]').forEach(option => {
     option.addEventListener('click', () => {
       const targetKey = option.getAttribute('data-basemap');
@@ -392,7 +417,7 @@ export function setupBasemapSwitcher(map) {
 function switchBasemap(targetKey, map, activeBasemap) {
   if (targetKey === activeBasemap) return true;
 
-  const overlayLayers = ['clara-layer', 'clara-deep-layer', 'satelite-layer', 'satelite-labels-layer'];
+  const overlayLayers = ['clara-layer', 'clara-deep-layer', 'satelite-layer', 'satelite-labels-layer', 'osm-layer'];
   overlayLayers.forEach(layerId => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', 'none');
   });
@@ -404,6 +429,8 @@ function switchBasemap(targetKey, map, activeBasemap) {
   } else if (targetKey === 'satelite') {
     if (map.getLayer('satelite-layer')) map.setLayoutProperty('satelite-layer', 'visibility', 'visible');
     if (map.getLayer('satelite-labels-layer')) map.setLayoutProperty('satelite-labels-layer', 'visibility', 'visible');
+  } else if (targetKey === 'osm') {
+    if (map.getLayer('osm-layer')) map.setLayoutProperty('osm-layer', 'visibility', 'visible');
   }
 
   // El contorno vectorial y la línea de borrado se actualizan según el fondo.

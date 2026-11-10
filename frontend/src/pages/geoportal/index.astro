@@ -176,13 +176,13 @@ import Footer from '../../components/Footer.astro';
               <svg class="lf-caret" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <div class="loc-filter-dropdown area-dropdown" id="dropdownArea">
-              <input type="file" id="areaFileInput" accept=".geojson,.json,.zip" hidden>
+              <input type="file" id="areaFileInput" accept=".geojson,.json,.zip,.kml,.rar" hidden>
               <div class="area-action-row">
                 <button type="button" class="area-upload-btn" id="areaUploadBtn">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 16V4"></path><polyline points="7 9 12 4 17 9"></polyline><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path>
                   </svg>
-                  Cargar SHP / GeoJSON…
+                  Cargar SHP / KML / RAR…
                 </button>
                 <button type="button" class="area-draw-btn" id="areaDrawBtn">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -200,7 +200,7 @@ import Footer from '../../components/Footer.astro';
                 <select id="areaLabelSelect"></select>
               </label>
               <div class="area-entity-list" id="areaEntityList"></div>
-              <p class="area-hint" id="areaHint">Carga un Shapefile (.zip) o GeoJSON, o dibuja un polígono.</p>
+              <p class="area-hint" id="areaHint">Carga un Shapefile (.zip), KML, GeoJSON o RAR, o dibuja un polígono.</p>
               <p class="area-error" id="areaError" hidden></p>
             </div>
           </div>
@@ -237,10 +237,16 @@ import Footer from '../../components/Footer.astro';
         <button type="button" class="ls-chip" data-chip="fill" aria-pressed="false">Polígonos</button>
         <button type="button" class="ls-chip" data-chip="raster" aria-pressed="false">Ráster</button>
         <span class="ls-chip-sep" aria-hidden="true"></span>
-        <button type="button" class="ls-chip" data-chip="on" aria-pressed="false">Visibles</button>
-        <button type="button" class="ls-chip" data-chip="off" aria-pressed="false">Ocultas</button>
+        <button type="button" class="ls-chip" data-chip="on" aria-pressed="false">Activas</button>
+        <button type="button" class="ls-chip" data-chip="off" aria-pressed="false">Inactivas</button>
         <span class="ls-chip-sep" aria-hidden="true"></span>
-        <button type="button" class="ls-chip ls-chip-help" id="layerSearchHelp" aria-pressed="false" title="Consejos de búsqueda">Tips <kbd>/</kbd></button>
+        <button type="button" class="ls-chip ls-chip-help" id="layerSearchHelp" aria-pressed="false" title="Consejos de búsqueda" aria-label="Consejos de búsqueda">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 18h6"/>
+            <path d="M10 21h4"/>
+            <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2h5c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/>
+          </svg>
+        </button>
       </div>
       <div class="layer-search-count" id="layerSearchCount" hidden></div>
       <div class="layers-scroll-area">
@@ -313,6 +319,13 @@ import Footer from '../../components/Footer.astro';
             <div class="basemap-info">
               <span class="bm-name">Satélite</span>
               <span class="bm-desc">Imágenes Esri + Híbrido</span>
+            </div>
+          </div>
+          <div class="basemap-option" data-basemap="osm">
+            <div class="basemap-preview bm-osm"></div>
+            <div class="basemap-info">
+              <span class="bm-name">OpenStreetMap</span>
+              <span class="bm-desc">Mapa colaborativo con etiquetas</span>
             </div>
           </div>
         </div>

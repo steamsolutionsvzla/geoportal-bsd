@@ -804,6 +804,7 @@ input { font-family: inherit; }
 .basemap-preview { width: 36px; height: 36px; border-radius: var(--radius-s); border: 1px solid var(--line-700); flex-shrink: 0; }
 .bm-light { background: linear-gradient(135deg, #f7f5f0 0%, #ddd6c8 38%, #c8c0b0 62%, #eeebe4 100%); }
 .bm-sat { background: linear-gradient(135deg, #2a3444, #0e1420); }
+.bm-osm { background: linear-gradient(135deg, #eaf3e6 0%, #d7e8cf 45%, #f4f1e3 70%, #cfe0f0 100%); }
 .basemap-info { display: flex; flex-direction: column; overflow: hidden; }
 .bm-name { font-size: 0.78rem; font-weight: 600; color: var(--accent-navy-dim); }
 .basemap-option.active .bm-name { color: var(--accent-navy); }

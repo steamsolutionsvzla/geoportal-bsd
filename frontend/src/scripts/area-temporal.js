@@ -22,6 +22,9 @@ const AREA_BASE_COLOR = '#2d5296';
 const AREA_SELECTED_COLOR = '#0f766e';
 
 const MAX_FILE_BYTES = 30 * 1024 * 1024;
+// Tope de datos descomprimidos al leer un .rar (evita bombas de compresión).
+const MAX_EXTRACTED_BYTES = 150 * 1024 * 1024;
+const ARCHIVE_SKIP_DIRS = ['__MACOSX', '.DS_Store', 'Thumbs.db'];
 const LABEL_CANDIDATES = ['nombre', 'name', 'entidad', 'bloque', 'titulo', 'title', 'label'];
 
 let areaCollection = null;
@@ -94,6 +97,142 @@ function normalizarEntrada(entrada) {
   return { features, omitidas };
 }
 
+function extensionDe(nombre) {
+  const n = String(nombre || '');
+  const punto = n.lastIndexOf('.');
+  return punto > -1 ? n.slice(punto + 1).toLowerCase() : '';
+}
+
+async function parseKmlText(text) {
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  if (doc.querySelector('parsererror')) {
+    throw new Error('El KML no es válido o está dañado.');
+  }
+  const { kml } = await import('@tmcw/togeojson');
+  return kml(doc);
+}
+
+async function parseGeoJsonText(text) {
+  return JSON.parse(text);
+}
+
+function rutaIgnorada(path) {
+  const partes = String(path || '').split(/[\\/]/);
+  return partes.some((p) => ARCHIVE_SKIP_DIRS.includes(p));
+}
+
+function aplanarArchivo(node, prefijo = '', salida = []) {
+  if (!node || typeof node !== 'object') return salida;
+
+  for (const [clave, valor] of Object.entries(node)) {
+    const ruta = prefijo ? `${prefijo}/${clave}` : clave;
+    if (valor instanceof File) {
+      salida.push({ path: ruta, file: valor });
+    } else if (valor && typeof valor === 'object') {
+      aplanarArchivo(valor, ruta, salida);
+    }
+  }
+  return salida;
+}
+
+/**
+ * Lee un .rar (libarchive.js + WASM) y devuelve una lista de entradas
+ * GeoJSON/Shapefile/KML ya parseadas. Todo ocurre en el navegador.
+ */
+async function parseRarEntries(file) {
+  let Archive;
+  try {
+    ({ Archive } = await import('libarchive.js'));
+  } catch (error) {
+    throw new Error('El lector de archivos .rar no está disponible.');
+  }
+
+  Archive.init({ workerUrl: '/vendor/libarchive/worker-bundle.js' });
+
+  let extraidos;
+  try {
+    const archive = await Archive.open(file);
+
+    // Primero se listan los tamaños (sin descomprimir) para frenar bombas ZIP.
+    const listado = await archive.getFilesArray();
+    const totalDeclarado = listado.reduce((suma, e) => suma + (e.file?.size || 0), 0);
+    if (totalDeclarado > MAX_EXTRACTED_BYTES) {
+      await archive.close();
+      throw new Error('El contenido del .rar supera el límite de 150 MB descomprimidos.');
+    }
+
+    extraidos = await archive.extractFiles();
+  } catch (error) {
+    if (error?.message?.startsWith('El contenido')) throw error;
+    const mensaje = String(error?.message || error || '');
+    if (/pass|encrypt/i.test(mensaje)) {
+      throw new Error('El archivo .rar está protegido con contraseña y no se puede leer.');
+    }
+    throw new Error('No se pudo abrir el archivo .rar. Verifica que no esté dañado.');
+  }
+
+  const entradas = aplanarArchivo(extraidos).filter((e) => !rutaIgnorada(e.path));
+  if (!entradas.length) {
+    throw new Error('El archivo .rar está vacío.');
+  }
+
+  const totalBytes = entradas.reduce((suma, e) => suma + (e.file.size || 0), 0);
+  if (totalBytes > MAX_EXTRACTED_BYTES) {
+    throw new Error('El contenido del .rar supera el límite de 150 MB descomprimidos.');
+  }
+
+  // Agrupa componentes de Shapefile por ruta base (sin extensión).
+  const shapefiles = new Map();
+  const parseados = [];
+
+  for (const entrada of entradas) {
+    const ext = extensionDe(entrada.path || entrada.file.name);
+    if (!ext) continue;
+
+    if (ext === 'shp' || ext === 'dbf' || ext === 'shx' || ext === 'prj' || ext === 'cpg') {
+      const base = (entrada.path || entrada.file.name).replace(/\.[^.]+$/, '');
+      const grupo = shapefiles.get(base) || {};
+      grupo[ext] = entrada.file;
+      shapefiles.set(base, grupo);
+      continue;
+    }
+
+    try {
+      if (ext === 'kml') {
+        parseados.push(await parseKmlText(await entrada.file.text()));
+      } else if (ext === 'geojson' || ext === 'json') {
+        parseados.push(await parseGeoJsonText(await entrada.file.text()));
+      } else if (ext === 'zip') {
+        parseados.push(await shp(await entrada.file.arrayBuffer()));
+      }
+    } catch (error) {
+      console.warn(`No se pudo leer "${entrada.path}" dentro del .rar:`, error);
+    }
+  }
+
+  for (const grupo of shapefiles.values()) {
+    if (!grupo.shp) continue;
+    try {
+      // shpjs acepta directamente el objeto con las piezas del shapefile.
+      const capa = await shp({
+        shp: await grupo.shp.arrayBuffer(),
+        dbf: grupo.dbf ? await grupo.dbf.arrayBuffer() : undefined,
+        prj: grupo.prj ? await grupo.prj.arrayBuffer() : undefined,
+        cpg: grupo.cpg ? await grupo.cpg.arrayBuffer() : undefined
+      });
+      parseados.push(capa);
+    } catch (error) {
+      console.warn('No se pudo leer un Shapefile dentro del .rar:', error);
+    }
+  }
+
+  if (!parseados.length) {
+    throw new Error('El .rar no contiene capas compatibles (SHP, KML, GeoJSON o ZIP).');
+  }
+
+  return parseados;
+}
+
 function obtenerClavesCampos(features) {
   const claves = [];
   const vistas = new Set();
@@ -146,12 +285,18 @@ export async function parseAreaFile(file) {
       entrada = await shp(await file.arrayBuffer());
     } else if (ext === 'geojson' || ext === 'json') {
       entrada = JSON.parse(await file.text());
+    } else if (ext === 'kml') {
+      entrada = await parseKmlText(await file.text());
+    } else if (ext === 'rar') {
+      entrada = await parseRarEntries(file);
     } else {
-      throw new Error('Formato no compatible. Usa GeoJSON o Shapefile comprimido (.zip).');
+      throw new Error('Formato no compatible. Usa KML, GeoJSON, Shapefile (.zip) o RAR.');
     }
   } catch (error) {
     if (error?.message?.startsWith('Formato')) throw error;
-    throw new Error('No se pudo leer el archivo. Verifica que sea un GeoJSON o Shapefile válido.');
+    // Los errores propios (KML/RAR/Shapefile) son más útiles que el genérico.
+    if (error?.message && /^(El |No |Formato)/.test(error.message)) throw error;
+    throw new Error('No se pudo leer el archivo. Verifica que sea KML, GeoJSON, Shapefile o RAR válido.');
   }
 
   const { features, omitidas } = normalizarEntrada(entrada);

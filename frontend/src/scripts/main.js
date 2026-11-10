@@ -157,6 +157,8 @@ let currentFilterData = null;
 let currentBloqueFilterData = null;
 let currentAreaFilterData = null;
 let currentIntersectionFilterData = null;
+let activeBloqueId = null;
+let bloqueSelectionToken = 0;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
@@ -307,17 +309,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderInfoPanel();
     }
 
-    window.handleFeatureClick = (tableName, props, lngLat) => {
+    window.handleFeatureClick = (tableName, props, lngLat, onClose = null) => {
       // Mientras se dibuja o se mide, los clics pertenecen a la herramienta.
-      if (window.__mapToolActive) return;
+      if (window.__mapToolActive) return null;
       const displayName = getLayerDisplayName(tableName);
       showLayerMetadataInPanel(tableName, displayName);
       const style = getStyleCapa(tableName);
-      if (lngLat) openFeaturePopup(
+      if (!lngLat) return null;
+      return openFeaturePopup(
         map, displayName, props, lngLat,
         style?.visible_attributes ?? null,
         tableName,
         style?.attribute_labels ?? null,
+        onClose,
       );
     };
 
@@ -740,7 +744,7 @@ function setupBusquedaChips() {
       if (!tipsEl) {
         tipsEl = document.createElement('p');
         tipsEl.className = 'layer-search-tips';
-        tipsEl.innerHTML = 'Varias palabras («pozos someros») · «puntos», «líneas», «polígonos» o «raster» filtran por tipo · <b>/</b> enfoca la búsqueda · <b>Esc</b> limpia · <b>Enter</b> busca al instante.';
+        tipsEl.innerHTML = 'Varias palabras («pozos someros») · «puntos», «líneas», «polígonos» o «raster» filtran por tipo · <b>Activas</b> e <b>Inactivas</b> filtran por estado · <b>/</b> enfoca la búsqueda · <b>Esc</b> limpia · <b>Enter</b> busca al instante.';
         cont.parentNode.insertBefore(tipsEl, cont.nextSibling);
       }
       tipsEl.hidden = false;
@@ -1151,9 +1155,14 @@ async function cargarCapaBloques() {
         source: BLOQUE_SOURCE_ID,
         layout: { visibility: 'none' },
         paint: {
-          'fill-color': '#8a4baf',
+          'fill-color': [
+            'case',
+            ['boolean', ['feature-state', 'active'], false], '#facc15',
+            '#8a4baf'
+          ],
           'fill-opacity': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], 0.35,
             ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
             0
           ]
@@ -1168,9 +1177,14 @@ async function cargarCapaBloques() {
         source: BLOQUE_SOURCE_ID,
         layout: { visibility: 'none' },
         paint: {
-          'line-color': '#8a4baf',
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'active'], false], '#facc15',
+            '#8a4baf'
+          ],
           'line-width': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], 4,
             ['boolean', ['feature-state', 'selected'], false], 3,
             1
           ]
@@ -1263,8 +1277,25 @@ async function cargarCapaBloques() {
       map.on('click', BLOQUE_LAYER_ID, (ev) => {
         if (!ev.features || ev.features.length === 0) return;
         const props = ev.features[0].properties;
+        const clickedId = ev.features[0].id;
+
+        if (activeBloqueId !== null) {
+          map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: activeBloqueId }, { active: false });
+        }
+        activeBloqueId = clickedId;
+        const token = ++bloqueSelectionToken;
+        map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: activeBloqueId }, { active: true });
+
         if (typeof window.handleFeatureClick === 'function') {
-          window.handleFeatureClick(BLOQUES_LAYER_NAME, props, ev.lngLat);
+          window.handleFeatureClick(BLOQUES_LAYER_NAME, props, ev.lngLat, () => {
+            if (token !== bloqueSelectionToken) return;
+            if (activeBloqueId === clickedId) {
+              try {
+                map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: clickedId }, { active: false });
+              } catch (_) { /* capa eliminada */ }
+              activeBloqueId = null;
+            }
+          });
         }
       });
     }

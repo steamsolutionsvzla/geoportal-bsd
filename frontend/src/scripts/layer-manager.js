@@ -6,6 +6,9 @@ import { downloadLayerShp } from './download.js';
 let availableLayers = [];
 let selectedFeatureId = null;
 let selectedSourceId = null;
+// Identifica la selección vigente: evita que el cierre del popup anterior
+// apague el resaltado de una entidad recién seleccionada.
+let selectionToken = 0;
 
 // Recuerda el % de opacidad elegido por el usuario para cada capa de polígonos
 // (layerId -> factor 0..1), para que se respete si la capa se apaga y se vuelve a encender.
@@ -57,6 +60,7 @@ function buildFillOpacityExpression(factor) {
     factor,
     [
       'case',
+      ['boolean', ['feature-state', 'active'], false], 0.9,
       ['boolean', ['feature-state', 'selected'], false], 0.9,
       ['boolean', ['feature-state', 'hover'], false], 0.8,
       0.4
@@ -472,23 +476,27 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
         paint: {
           'circle-radius': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], 10,
             ['boolean', ['feature-state', 'selected'], false], 10,
             ['boolean', ['feature-state', 'hover'], false], 9,
             6
           ],
           'circle-color': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], '#facc15',
             ['boolean', ['feature-state', 'selected'], false], '#facc15',
             geomColor
           ],
           'circle-stroke-width': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], 4,
             ['boolean', ['feature-state', 'selected'], false], 4,
             ['boolean', ['feature-state', 'hover'], false], 3,
             1
           ],
           'circle-stroke-color': [
             'case',
+            ['boolean', ['feature-state', 'active'], false], '#b45309',
             ['boolean', ['feature-state', 'selected'], false], '#b45309',
             '#000000'
           ]
@@ -538,12 +546,14 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           paint: {
             'fill-color': [
               'case',
+              ['boolean', ['feature-state', 'active'], false], '#facc15',
               ['boolean', ['feature-state', 'selected'], false], '#facc15',
               geomColor
             ],
             'fill-opacity': buildFillOpacityExpression(savedFactor),
             'fill-outline-color': [
               'case',
+              ['boolean', ['feature-state', 'active'], false], '#b45309',
               ['boolean', ['feature-state', 'selected'], false], '#b45309',
               '#000000'
             ]
@@ -564,11 +574,13 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
           paint: {
             'line-color': [
               'case',
+              ['boolean', ['feature-state', 'active'], false], '#facc15',
               ['boolean', ['feature-state', 'selected'], false], '#facc15',
               lineColorExpression
             ],
             'line-width': [
               'case',
+              ['boolean', ['feature-state', 'active'], false], 6,
               ['boolean', ['feature-state', 'selected'], false], 6,
               ['boolean', ['feature-state', 'hover'], false], 5,
               2
@@ -615,15 +627,27 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       const clickedId = clickedFeature.id;
 
       if (selectedFeatureId !== null && selectedSourceId !== null) {
-        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: false });
+        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { active: false });
       }
 
       selectedFeatureId = clickedId;
       selectedSourceId = sourceId;
-      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: true });
+      const token = ++selectionToken;
+      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { active: true });
 
       if (typeof window.handleFeatureClick === 'function') {
-        window.handleFeatureClick(tableName, props, ev.lngLat);
+        // Al cerrar el popup (X, Escape o al abrir otro) la entidad vuelve a
+        // su color original, sin tocar el amarillo de los filtros.
+        window.handleFeatureClick(tableName, props, ev.lngLat, () => {
+          if (token !== selectionToken) return;
+          if (selectedSourceId === sourceId && selectedFeatureId === clickedId) {
+            try {
+              map.setFeatureState({ source: sourceId, id: clickedId }, { active: false });
+            } catch (_) { /* capa ya eliminada */ }
+            selectedSourceId = null;
+            selectedFeatureId = null;
+          }
+        });
       }
     });
   } else {
@@ -659,15 +683,27 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       const clickedId = clickedFeature.id;
 
       if (selectedFeatureId !== null && selectedSourceId !== null) {
-        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: false });
+        map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { active: false });
       }
 
       selectedFeatureId = clickedId;
       selectedSourceId = sourceId;
-      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: true });
+      const token = ++selectionToken;
+      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { active: true });
 
       if (typeof window.handleFeatureClick === 'function') {
-        window.handleFeatureClick(tableName, props, ev.lngLat);
+        // Al cerrar el popup (X, Escape o al abrir otro) la entidad vuelve a
+        // su color original, sin tocar el amarillo de los filtros.
+        window.handleFeatureClick(tableName, props, ev.lngLat, () => {
+          if (token !== selectionToken) return;
+          if (selectedSourceId === sourceId && selectedFeatureId === clickedId) {
+            try {
+              map.setFeatureState({ source: sourceId, id: clickedId }, { active: false });
+            } catch (_) { /* capa ya eliminada */ }
+            selectedSourceId = null;
+            selectedFeatureId = null;
+          }
+        });
       }
     });
   }
@@ -684,7 +720,9 @@ export function setSelectedFeatureId(id) { selectedFeatureId = id; }
 export function clearSelection() {
   const map = getMap();
   if (selectedSourceId !== null && selectedFeatureId !== null) {
-    map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { selected: false });
+    try {
+      map.setFeatureState({ source: selectedSourceId, id: selectedFeatureId }, { active: false });
+    } catch (_) { /* source ya eliminado */ }
   }
   selectedSourceId = null;
   selectedFeatureId = null;

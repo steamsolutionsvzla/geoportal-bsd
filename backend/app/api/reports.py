@@ -7,6 +7,7 @@
 # provocaba jsPDF al generar el binario en el cliente.
 import base64
 import io
+import logging
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -22,6 +23,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas as _canvas
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from starlette.concurrency import run_in_threadpool
@@ -30,6 +32,8 @@ from app.api.deps import auth_guard
 from app.models.user import CurrentUser
 
 router = APIRouter(prefix="/api/v1/reports", tags=["Reports"])
+
+logger = logging.getLogger("app.api.reports")
 
 # Colores corporativos (coinciden con los del reporte anterior en jsPDF).
 PRIMARY = colors.HexColor("#1A365D")
@@ -52,6 +56,8 @@ class ReportRequest(BaseModel):
     total: int = 0
     detalle: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict)
     logo_base64: Optional[str] = None
+    # Captura JPEG (data URL o base64) del mapa con el análisis resaltado.
+    mapa_base64: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -77,6 +83,23 @@ def _decode_logo(logo_base64: Optional[str]) -> Optional[bytes]:
     try:
         data = logo_base64.split(",", 1)[1] if "," in logo_base64 else logo_base64
         return base64.b64decode(data)
+    except Exception:
+        return None
+
+
+def _decode_image(image_base64: Optional[str]) -> Optional[bytes]:
+    """Decodifica una imagen base64/data-URL con un tope de tamaño."""
+    if not image_base64:
+        return None
+    # ~12 MB de base64 equivalen a ~9 MB de imagen: suficiente para un JPEG.
+    if len(image_base64) > 12_000_000:
+        return None
+    try:
+        data = image_base64.split(",", 1)[1] if "," in image_base64 else image_base64
+        raw = base64.b64decode(data, validate=False)
+        if len(raw) > 9 * 1024 * 1024:
+            return None
+        return raw
     except Exception:
         return None
 
@@ -204,7 +227,29 @@ def _build_pdf(req: ReportRequest) -> bytes:
         textColor=PRIMARY, leading=14,
     )
     story.append(Paragraph(f"Total general de elementos: {req.total}", total_style))
-    story.append(Spacer(1, 4 * mm))
+    story.append(Spacer(1, 5 * mm))
+
+    # Imagen del mapa con la capa del análisis y los puntos resaltados.
+    mapa_bytes = _decode_image(req.mapa_base64)
+    if mapa_bytes:
+        try:
+            iw, ih = ImageReader(io.BytesIO(mapa_bytes)).getSize()
+            max_w = PAGE_W - 2 * MARGIN
+            max_h = 105 * mm
+            escala = min(max_w / iw, max_h / ih)
+            caption_style = ParagraphStyle(
+                "MapCaption", fontName="Helvetica-Bold", fontSize=10,
+                textColor=PRIMARY, leading=13,
+            )
+            story.append(Paragraph("Mapa del análisis", caption_style))
+            story.append(Spacer(1, 2 * mm))
+            story.append(Image(
+                io.BytesIO(mapa_bytes),
+                width=iw * escala,
+                height=ih * escala,
+            ))
+        except Exception as e:
+            logger.warning("No se pudo incrustar la imagen del mapa en el PDF: %s", e)
 
     doc.build(story, canvasmaker=NumberedCanvas)
     return buf.getvalue()

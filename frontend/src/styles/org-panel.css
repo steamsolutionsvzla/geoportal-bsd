@@ -329,6 +329,13 @@
 }
 .layer-search-tips b { color: var(--accent-navy); font-weight: 700; }
 .layer-search-tips[hidden] { display: none; }
+.ls-chip.ls-chip-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+}
+.ls-chip.ls-chip-help svg { display: block; }
 .ls-chip kbd {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.58rem;

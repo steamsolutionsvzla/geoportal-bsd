@@ -161,6 +161,7 @@ export function openFeaturePopup(
   visibleAttributes = null,
   layerId = null,
   attributeLabels = null,
+  onClose = null,
 ) {
   if (activePopup) {
     limpiarEscuchaTecla();
@@ -215,6 +216,7 @@ export function openFeaturePopup(
     document.removeEventListener('keydown', onKey);
     if (activeCleanup?.onKey === onKey) activeCleanup = null;
     if (activePopup === popup) activePopup = null;
+    if (typeof onClose === 'function') onClose();
   });
 
   activePopup = popup;
