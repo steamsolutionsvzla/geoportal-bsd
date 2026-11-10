@@ -222,7 +222,7 @@ function renderAreaEntities() {
   entityList.innerHTML = '';
 
   if (!features.length) {
-    setAreaHint('Carga un Shapefile (.zip), KML, GeoJSON o RAR, o dibuja un polígono.');
+    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, o dibuja un polígono.');
     return;
   }
 
@@ -342,7 +342,7 @@ export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
     if (labelSelect) labelSelect.innerHTML = '';
     if (entityList) entityList.innerHTML = '';
     if (error) error.hidden = true;
-    setAreaHint('Carga un Shapefile (.zip), KML, GeoJSON o RAR, o dibuja un polígono.');
+    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, o dibuja un polígono.');
   } else if (!keepUI) {
     marcarEntidadSeleccionada(-1);
   }

@@ -136,15 +136,15 @@ function aplanarArchivo(node, prefijo = '', salida = []) {
 }
 
 /**
- * Lee un .rar (libarchive.js + WASM) y devuelve una lista de entradas
- * GeoJSON/Shapefile/KML ya parseadas. Todo ocurre en el navegador.
+ * Lee un archivo comprimido (RAR/KMZ) con libarchive.js + WASM y devuelve
+ * una lista de entradas GeoJSON/Shapefile/KML ya parseadas.
  */
-async function parseRarEntries(file) {
+async function parseArchiveEntries(file, etiqueta = 'archivo comprimido') {
   let Archive;
   try {
     ({ Archive } = await import('libarchive.js'));
   } catch (error) {
-    throw new Error('El lector de archivos .rar no está disponible.');
+    throw new Error(`El lector de archivos ${etiqueta} no está disponible.`);
   }
 
   Archive.init({ workerUrl: '/vendor/libarchive/worker-bundle.js' });
@@ -158,7 +158,7 @@ async function parseRarEntries(file) {
     const totalDeclarado = listado.reduce((suma, e) => suma + (e.file?.size || 0), 0);
     if (totalDeclarado > MAX_EXTRACTED_BYTES) {
       await archive.close();
-      throw new Error('El contenido del .rar supera el límite de 150 MB descomprimidos.');
+      throw new Error(`El contenido del ${etiqueta} supera el límite de 150 MB descomprimidos.`);
     }
 
     extraidos = await archive.extractFiles();
@@ -166,19 +166,19 @@ async function parseRarEntries(file) {
     if (error?.message?.startsWith('El contenido')) throw error;
     const mensaje = String(error?.message || error || '');
     if (/pass|encrypt/i.test(mensaje)) {
-      throw new Error('El archivo .rar está protegido con contraseña y no se puede leer.');
+      throw new Error(`El archivo ${etiqueta} está protegido con contraseña y no se puede leer.`);
     }
-    throw new Error('No se pudo abrir el archivo .rar. Verifica que no esté dañado.');
+    throw new Error(`No se pudo abrir el archivo ${etiqueta}. Verifica que no esté dañado.`);
   }
 
   const entradas = aplanarArchivo(extraidos).filter((e) => !rutaIgnorada(e.path));
   if (!entradas.length) {
-    throw new Error('El archivo .rar está vacío.');
+    throw new Error(`El archivo ${etiqueta} está vacío.`);
   }
 
   const totalBytes = entradas.reduce((suma, e) => suma + (e.file.size || 0), 0);
   if (totalBytes > MAX_EXTRACTED_BYTES) {
-    throw new Error('El contenido del .rar supera el límite de 150 MB descomprimidos.');
+    throw new Error(`El contenido del ${etiqueta} supera el límite de 150 MB descomprimidos.`);
   }
 
   // Agrupa componentes de Shapefile por ruta base (sin extensión).
@@ -227,7 +227,7 @@ async function parseRarEntries(file) {
   }
 
   if (!parseados.length) {
-    throw new Error('El .rar no contiene capas compatibles (SHP, KML, GeoJSON o ZIP).');
+    throw new Error(`El ${etiqueta} no contiene capas compatibles (SHP, KML, GeoJSON o ZIP).`);
   }
 
   return parseados;
@@ -287,16 +287,16 @@ export async function parseAreaFile(file) {
       entrada = JSON.parse(await file.text());
     } else if (ext === 'kml') {
       entrada = await parseKmlText(await file.text());
-    } else if (ext === 'rar') {
-      entrada = await parseRarEntries(file);
+    } else if (ext === 'rar' || ext === 'kmz') {
+      entrada = await parseArchiveEntries(file, ext === 'kmz' ? 'KMZ' : 'RAR');
     } else {
-      throw new Error('Formato no compatible. Usa KML, GeoJSON, Shapefile (.zip) o RAR.');
+      throw new Error('Formato no compatible. Usa KML, KMZ, GeoJSON, Shapefile (.zip) o RAR.');
     }
   } catch (error) {
     if (error?.message?.startsWith('Formato')) throw error;
-    // Los errores propios (KML/RAR/Shapefile) son más útiles que el genérico.
+    // Los errores propios (KML/KMZ/RAR/Shapefile) son más útiles que el genérico.
     if (error?.message && /^(El |No |Formato)/.test(error.message)) throw error;
-    throw new Error('No se pudo leer el archivo. Verifica que sea KML, GeoJSON, Shapefile o RAR válido.');
+    throw new Error('No se pudo leer el archivo. Verifica que sea KML, KMZ, GeoJSON, Shapefile o RAR válido.');
   }
 
   const { features, omitidas } = normalizarEntrada(entrada);
