@@ -243,11 +243,24 @@ def _build_pdf(req: ReportRequest, stats: Optional[Dict[str, Any]] = None) -> by
             )
             story.append(Paragraph("Mapa del análisis", caption_style))
             story.append(Spacer(1, 2 * mm))
-            story.append(Image(
-                io.BytesIO(mapa_bytes),
-                width=iw * escala,
-                height=ih * escala,
-            ))
+
+            # Marco alrededor de la imagen del mapa.
+            marco = Table(
+                [[Image(
+                    io.BytesIO(mapa_bytes),
+                    width=iw * escala,
+                    height=ih * escala,
+                )]],
+                colWidths=[iw * escala],
+            )
+            marco.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 1.2, PRIMARY),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            story.append(marco)
             if stats is not None:
                 stats["has_map"] = True
         except Exception as e:

@@ -210,6 +210,27 @@ export async function captureMapForPdf() {
       map.setPaintProperty(item.layer, 'line-color', '#facc15');
       map.setPaintProperty(item.layer, 'line-width', 4.5);
 
+      // Contorno oscuro debajo del amarillo para que el polígono se lea
+      // claramente sobre cualquier fondo (mapa claro, satélite u OSM).
+      const casingId = `${item.layer}-pdf-casing`;
+      if (map.getSource(item.source) && !map.getLayer(casingId)) {
+        map.addLayer({
+          id: casingId,
+          type: 'line',
+          source: item.source,
+          paint: {
+            'line-color': '#7c2d12',
+            'line-width': 8,
+            'line-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false], 1,
+              0
+            ]
+          }
+        }, item.layer);
+        rellenosTemporales.push(casingId);
+      }
+
       // Relleno amarillo tenue sobre la entidad seleccionada por el filtro.
       if (map.getSource(item.source) && !map.getLayer(item.fill)) {
         map.addLayer({
