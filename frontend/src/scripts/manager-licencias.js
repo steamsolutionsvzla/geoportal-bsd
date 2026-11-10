@@ -358,7 +358,12 @@ function initDashboardMap() {
     map.setMinZoom(MANAGER_MIN_ZOOM);
     map.setMaxBounds(MANAGER_MAP_BOUNDS);
     state.map = map;
-    map.once('load', () => {
+    map.resize();
+
+    let watchdog = null;
+
+    const setup = () => {
+      if (state.mapReady) return;
       try {
         addBaseLayers(map);
         addLicenseLayers(map);
@@ -368,18 +373,35 @@ function initDashboardMap() {
         map.resize();
         setupMapZoom();
         fitLicenses(0);
-        setMapLoading(false);
+        const errorEl = $('manager-map-error');
+        if (errorEl) errorEl.hidden = true;
       } catch (error) {
         console.error('No se pudo preparar el mapa gerencial:', error);
         showMapError('No se pudo preparar el mapa base.');
+      } finally {
+        clearTimeout(watchdog);
+        setMapLoading(false);
       }
-    });
+    };
+
+    // Si el estilo ya cargó, configurar de inmediato; si no, esperar el load.
+    if (map.isStyleLoaded()) setup();
+    else map.once('load', setup);
+
+    // Red de seguridad: nunca dejar el spinner eternamente.
+    watchdog = setTimeout(() => {
+      if (state.mapReady) return;
+      setMapLoading(false);
+      showMapError('El mapa tardó demasiado en cargar. Verifica la conexión con GeoServer.');
+    }, 12000);
+
     map.on('error', (event) => {
       console.warn('MapLibre:', event?.error?.message || event);
     });
     return map;
   } catch (error) {
     console.error('No se pudo crear el mapa gerencial:', error);
+    setMapLoading(false);
     showMapError('No se pudo inicializar el mapa. La tabla y los gráficos siguen disponibles.');
     return null;
   }
@@ -719,7 +741,19 @@ function setupFilterEvents() {
 
 async function loadLicenses() {
   setStatus('Cargando datos…');
-  const response = await apiFetch(LICENSES_ENDPOINT);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  let response;
+  try {
+    response = await apiFetch(LICENSES_ENDPOINT, { signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('La carga de licencias tardó demasiado. El mapa sigue disponible.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (response.status === 403) {
     throw new Error('Tu rol no tiene acceso al dashboard gerencial.');
   }
@@ -747,6 +781,11 @@ async function init() {
 
   setupFilterEvents();
 
+  // El mapa no debe depender de la carga de licencias. Se inicializa ya y
+  // los datos se pintan cuando estén disponibles.
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  initDashboardMap();
+
   try {
     await loadLicenses();
     // Deja que el navegador calcule el layout antes de inicializar ECharts.
@@ -755,7 +794,10 @@ async function init() {
     renderKpis();
     renderCharts();
     updateTableLink();
-    initDashboardMap();
+    if (state.mapReady) {
+      updateMapData();
+      fitLicenses(0);
+    }
     setStatus(`${state.all.length} licencias cargadas`);
 
     // Llegada desde la tabla de atributos ("Ver en el mapa").
