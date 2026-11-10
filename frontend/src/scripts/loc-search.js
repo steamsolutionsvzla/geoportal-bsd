@@ -10,7 +10,7 @@ import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
 import {
   parseCoordenadas, geometriaDeZona, dibujarZona, limpiarZona,
-  consultarZona, capaActiva, activarCapaEnCatalogo,
+  consultarZona, capaActiva, activarCapaEnCatalogo, alternarCapaEnCatalogo,
 } from './zone-scan.js';
 import { beginBusy, endBusy } from './busy-overlay.js';
 
@@ -164,12 +164,12 @@ function renderZona(dropdown) {
   } else {
     cuerpo = capas.map((c) => {
       const activa = capaActiva(c.id);
-      return `<div class="lsd-item lsd-zone-item${activa ? ' is-active' : ''}" data-table="${escHtml(c.id)}">
+      return `<div class="lsd-item lsd-zone-item${activa ? ' is-active' : ''}" data-table="${escHtml(c.id)}" role="button" aria-pressed="${activa ? 'true' : 'false'}" title="Clic para ${activa ? 'apagar' : 'encender'} la capa">
         <span class="lsd-dot" style="--c:${escHtml(colores.get(c.id) || '#6fa3e0')}"></span>
         <span class="lsd-name">${escHtml(c.name)}</span>
         <span class="lsd-sub">${GEOM_LABEL[String(c.type).toLowerCase()] || ''}</span>
         <span class="lsd-count">${Number(c.count).toLocaleString('es')}</span>
-        <span class="lsd-check">✓</span>
+        <span class="lsd-check">${activa ? '✓' : '○'}</span>
       </div>`;
     }).join('');
   }
@@ -177,10 +177,11 @@ function renderZona(dropdown) {
   const todas = capas.length > 0 && capas.every((c) => capaActiva(c.id));
   dropdown.innerHTML = `
     <div class="lsd-head">
-      <button type="button" class="lsd-back" data-acc="volver" title="Volver a la búsqueda" aria-label="Volver">←</button>
+      <button type="button" class="lsd-cancel" data-acc="cancelar" title="Cerrar la zona" aria-label="Cancelar zona">Cancelar</button>
       <span class="lsd-head-title" title="Capas con datos en la zona">Capas en «${escHtml(zona.titulo)}»</span>
-      <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length || todas) ? 'disabled' : ''}>Activar todas</button>
+      <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length) ? 'disabled' : ''}>${todas ? 'Desactivar todas' : 'Activar todas'}</button>
     </div>
+    <p class="lsd-zone-hint">La zona permanece activa hasta pulsar Cancelar.</p>
     ${chips}
     ${cuerpo}`;
 }
@@ -212,7 +213,12 @@ async function consultarZonaActual(dropdown) {
 
 function abrirModoZona(cfg, dropdown) {
   const map = getMap();
+  const input = document.getElementById('locSearch');
   dropdown.closest('.loc-search')?.classList.add('open');
+  if (input) {
+    input.readOnly = true;
+    input.blur();
+  }
   zona = {
     tipo: cfg.tipo,
     titulo: cfg.titulo,
@@ -236,11 +242,22 @@ function abrirModoZona(cfg, dropdown) {
   consultarZonaActual(dropdown);
 }
 
-function volverDeZona(dropdown, refrescarFn) {
+/**
+ * Cierra el modo zona sin tocar el encendido/apagado de las capas.
+ * Solo se invoca desde el botón Cancelar o con Escape.
+ */
+function cancelarZona(dropdown) {
+  const input = document.getElementById('locSearch');
   zona = null;
   zonaToken++;
   limpiarZona();
-  refrescarFn(dropdown);
+  dropdown.innerHTML = '';
+  dropdown.closest('.loc-search')?.classList.remove('open');
+  if (input) {
+    input.readOnly = false;
+    input.value = '';
+    input.blur();
+  }
 }
 
 // ------------------------------------------------------------------
@@ -322,6 +339,9 @@ export function initLocationSearch() {
   };
 
   function refrescar(dd = dropdown) {
+    // En modo zona la lista es persistente: un debounce pendiente del input
+    // no debe borrar los resultados.
+    if (zona) return;
     const q = input.value.trim();
     zona = null;
     zonaToken++;
@@ -363,6 +383,8 @@ export function initLocationSearch() {
   };
 
   input.addEventListener('input', () => {
+    // En modo zona el input está bloqueado: la lista se mantiene hasta Cancelar.
+    if (zona) return;
     clearTimeout(debounce);
     debounce = setTimeout(() => refrescar(), 120);
   });
@@ -374,7 +396,10 @@ export function initLocationSearch() {
   });
   input.addEventListener('keydown', (e) => {
     if (zona) {
-      if (e.key === 'Escape') { e.preventDefault(); cerrar(); input.blur(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelarZona(dropdown);
+      }
       return;
     }
     const nItems = items.filter((x) => x.tipo === 'item').length;
@@ -402,9 +427,17 @@ export function initLocationSearch() {
     const acc = e.target.closest('[data-acc]');
     if (acc) {
       const accion = acc.getAttribute('data-acc');
-      if (accion === 'volver') volverDeZona(dropdown, refrescar);
+      if (accion === 'cancelar') cancelarZona(dropdown);
       else if (accion === 'todas' && zona) {
-        (zona.capas || []).forEach((c) => { if (!capaActiva(c.id)) activarCapaEnCatalogo(c.id); });
+        const capas = zona.capas || [];
+        const todas = capas.length > 0 && capas.every((c) => capaActiva(c.id));
+        capas.forEach((c) => {
+          if (todas) {
+            if (capaActiva(c.id)) alternarCapaEnCatalogo(c.id);
+          } else if (!capaActiva(c.id)) {
+            activarCapaEnCatalogo(c.id);
+          }
+        });
         renderZona(dropdown);
       }
       return;
@@ -419,7 +452,7 @@ export function initLocationSearch() {
     }
     const fila = e.target.closest('.lsd-zone-item[data-table]');
     if (fila && zona) {
-      activarCapaEnCatalogo(fila.dataset.table);
+      alternarCapaEnCatalogo(fila.dataset.table);
       renderZona(dropdown);
       return;
     }
@@ -433,7 +466,17 @@ export function initLocationSearch() {
   // que cerraba el buscador sin ser una interacción real del usuario.
   document.addEventListener('pointerdown', (e) => {
     if (!e.target.isConnected) return;
+    // En modo zona el panel es persistente: mover el mapa o interactuar con
+    // las capas no lo cierra. Solo Cancelar o Escape salen del modo zona.
+    if (zona) return;
     if (!wrap.contains(e.target)) cerrar();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (zona && e.key === 'Escape') {
+      e.preventDefault();
+      cancelarZona(dropdown);
+    }
   });
 
   // Ctrl+K / Cmd+K: enfoca el buscador de ubicación (el '/' sigue

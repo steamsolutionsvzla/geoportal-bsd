@@ -180,3 +180,16 @@ export function activarCapaEnCatalogo(tableName) {
   revelarFila(tableName);
   return true;
 }
+
+/**
+ * Enciende o apaga una capa desde la lista de resultados de zona, sin
+ * desplazar el catálogo (para no perder la posición de la lista).
+ */
+export function alternarCapaEnCatalogo(tableName) {
+  const toggle = document.querySelector(
+    `#layersGroupsContainer .toggle[data-table="${CSS.escape(tableName)}"]`,
+  );
+  if (!toggle) return false;
+  toggle.click();
+  return true;
+}
