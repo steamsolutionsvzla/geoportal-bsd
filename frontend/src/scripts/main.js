@@ -44,7 +44,7 @@ import {
   obtenerOrganizacion, obtenerOrganizacionShowroom, abrirPanelOrganizacion, construirGruposDesdeCarpetas
 } from './org-panel.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
-import { beginBusy, endBusy } from './busy-overlay.js';
+import { beginBusy, endBusy, resetBusy } from './busy-overlay.js';
 import { initLocationSearch } from './loc-search.js';
 import { initShareView, applySharedView } from './share.js';
 import { attachLayerAttrTableEvents } from './attr-table.js';
@@ -141,6 +141,17 @@ function mostrarCargando(mostrar) {
   else endBusy();
 }
 
+// Evita que una petición inicial deje la interfaz bloqueada para siempre.
+function signalTimeout(ms = 20000) {
+  try {
+    return typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(ms)
+      : undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
 // =========================================================================
 // VARIABLES GLOBALES
 // =========================================================================
@@ -228,6 +239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Un único bloqueo para toda la carga inicial: así el usuario no
         // puede tocar nada entre una petición y la siguiente.
         beginBusy('Cargando datos…');
+        const initWatchdog = setTimeout(() => {
+          console.warn('La carga inicial tardó demasiado; se libera la interfaz.');
+          resetBusy();
+          mostrarError('La carga inicial está tardando demasiado. Revisa la conexión con el servidor.');
+        }, 25000);
         try {
           await loadWorkspaces();
 
@@ -287,6 +303,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           initShareView(map);
           await applySharedView(map);
         } finally {
+          clearTimeout(initWatchdog);
           endBusy();
         }
       })();
@@ -392,7 +409,7 @@ async function loadWorkspaces() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch('/api/v1/layers/workspaces');
+    const response = await apiFetch('/api/v1/layers/workspaces', { signal: signalTimeout() });
 
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -951,7 +968,7 @@ async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch('/api/v1/layers/División Político Territorial');
+    const response = await apiFetch('/api/v1/layers/División Político Territorial', { signal: signalTimeout() });
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -1113,7 +1130,7 @@ async function cargarCapaBloques() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(BLOQUES_LAYER_NAME)}`);
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(BLOQUES_LAYER_NAME)}`, { signal: signalTimeout() });
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }

@@ -138,6 +138,19 @@ export function endBusy() {
   }, HIDE_DELAY);
 }
 
+/**
+ * Fuerza la liberación del bloqueo (p. ej. si una carga inicial quedó
+ * colgada por una petición sin respuesta). No usar en flujos normales.
+ */
+export function resetBusy() {
+  depth = 0;
+  if (hideTimer) {
+    clearTimeout(hideTimer);
+    hideTimer = null;
+  }
+  hide();
+}
+
 export function isBusy() {
   return depth > 0;
 }

@@ -103,7 +103,10 @@ def client_catalog(monkeypatch):
         ]}]
 
     async def fake_details(force_refresh=False, ttl=300.0):
-        return {f"{_WS}:Bloques petroleros": {"native": "BLOQUES", "datastore": "pg_petroleo", "enabled": True}}
+        return {
+            f"{_WS}:Bloques petroleros": {"native": "BLOQUES", "datastore": "pg_petroleo", "enabled": True},
+            "Gerencia:licencias": {"native": "licencias", "datastore": "pg_gerencia", "enabled": True},
+        }
 
     calls = []
 
@@ -172,11 +175,14 @@ def test_settings_lee_y_guarda_capa(client_catalog):
     assert client.get("/api/v1/admin/settings").json()["licenses_layer"] == "Gerencia:licencias"
 
     resp = client.patch("/api/v1/admin/settings",
-                        json={"licenses_layer": "Petróleo_y_gas:Bloques petroleros"})
+                        json={"licenses_layer": "Gerencia:licencias"})
     assert resp.status_code == 200
     assert pool.executed, "debió guardar la configuración"
 
     resp = client.patch("/api/v1/admin/settings", json={"licenses_layer": "Otro:NoExiste"})
+    assert resp.status_code == 422
+
+    resp = client.patch("/api/v1/admin/settings", json={"licenses_layer": "Gerencia:no-existe"})
     assert resp.status_code == 404
 
 
