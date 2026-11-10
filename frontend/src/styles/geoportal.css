@@ -1598,19 +1598,23 @@ input { font-family: inherit; }
   padding: 0 10px 8px;
 }
 .lsd-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
-  border: 1px solid var(--line-700);
+  border: 1px solid var(--accent-navy);
   border-radius: 14px;
   background: var(--white);
   color: var(--accent-navy);
   font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.62rem;
+  font-size: 0.64rem;
   font-weight: 600;
-  padding: 3px 12px;
+  padding: 4px 12px;
   cursor: pointer;
-  transition: background .15s ease, border-color .15s ease;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
 }
-.lsd-export:hover { background: var(--accent-navy-soft); border-color: var(--accent-navy-light); }
+.lsd-export:hover { background: var(--accent-navy); border-color: var(--accent-navy); color: var(--white); }
+.lsd-export svg { width: 11px; height: 11px; flex-shrink: 0; }
 .lsd-head-title {
   flex: 1;
   min-width: 0;
@@ -1618,9 +1622,9 @@ input { font-family: inherit; }
   font-size: 0.62rem;
   letter-spacing: 0.04em;
   color: var(--accent-navy-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 .lsd-activate-all {
   flex-shrink: 0;
@@ -1641,18 +1645,41 @@ input { font-family: inherit; }
   padding: 2px 10px 8px;
 }
 .lsd-radius .ls-chip { padding: 3px 8px; font-size: 0.62rem; }
-.lsd-zone-item { cursor: pointer; align-items: flex-start; }
-.lsd-zone-item .lsd-dot,
-.lsd-zone-item .lsd-count,
-.lsd-zone-item .lsd-check,
-.lsd-zone-item .lsd-sub { margin-top: 2px; }
+.lsd-zone-item {
+  cursor: pointer;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 3px;
+}
+.lsd-zone-item .lsd-dot {
+  order: 1;
+}
 .lsd-zone-item .lsd-name {
+  order: 2;
+  /* base casi completa: los metadatos caen a una segunda línea */
+  flex: 1 1 calc(100% - 26px);
+  min-width: 0;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   line-height: 1.25;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
+.lsd-zone-item .lsd-sub {
+  order: 3;
+  margin-left: 18px;
+}
+.lsd-zone-item .lsd-count {
+  order: 4;
+}
+.lsd-zone-item .lsd-check {
+  order: 5;
+  margin-left: auto;
+}
+.lsd-zone-item .lsd-dot,
+.lsd-zone-item .lsd-count,
+.lsd-zone-item .lsd-check,
+.lsd-zone-item .lsd-sub { margin-top: 0; }
 .lsd-zone-item .lsd-dot {
   width: 9px; height: 9px;
   flex-shrink: 0;

@@ -182,7 +182,12 @@ function renderZona(dropdown) {
     </div>
     <p class="lsd-zone-hint">La zona permanece activa hasta pulsar Cancelar.</p>
     <div class="lsd-zone-tools">
-      <button type="button" class="lsd-export" data-acc="exportar" title="Exportar resultados (próximamente)">Exportar</button>
+      <button type="button" class="lsd-export" data-acc="exportar" aria-label="Exportar resultados de la zona">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 4v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 20h16"/>
+        </svg>
+        Exportar
+      </button>
       <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length) ? 'disabled' : ''}>${todas ? 'Desactivar todas' : 'Activar todas'}</button>
     </div>
     ${chips}
