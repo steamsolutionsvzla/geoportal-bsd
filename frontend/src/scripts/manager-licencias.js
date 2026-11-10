@@ -13,6 +13,21 @@ const STATUS = {
   CULMINADA: { label: 'Culminada', color: '#dc2626', line: '#991b1b', chart: '#93b4e0' },
 };
 const STATUS_KEYS = ['VIGENTE', 'CULMINADA'];
+
+const CHART_STORAGE_KEY = 'manager-licencias:chart-types:v1';
+const CHART_DEFAULTS = {
+  tipo: 'bar-h',
+  empresa: 'bar-h',
+  estatus: 'donut',
+  anio: 'bar-v',
+};
+const CHART_ALLOWED = {
+  tipo: ['bar-h', 'bar-v', 'pie'],
+  empresa: ['bar-h', 'bar-v', 'pie'],
+  estatus: ['donut', 'pie', 'bar-v'],
+  anio: ['bar-v', 'line', 'area'],
+};
+const CHART_PALETTE = ['#2d5296', '#0f766e', '#b45309', '#7c3aed', '#c1584a', '#64748b', '#15803d', '#93b4e0'];
 // Límites que cubren todo el territorio nacional (incluye islas y la
 // plataforma al norte); la vista inicial y el botón «Vista Venezuela»
 // encuadran exactamente estos límites.
@@ -39,6 +54,7 @@ const state = {
   filtered: [],
   charts: {},
   chartObservers: {},
+  chartTypes: { ...CHART_DEFAULTS },
   map: null,
   mapObserver: null,
   mapReady: false,
@@ -79,6 +95,38 @@ function formatArea(value) {
 
 function normalizeStatus(value) {
   return String(value ?? '').trim().toUpperCase();
+}
+
+function cargarPreferenciasGraficos() {
+  try {
+    const raw = localStorage.getItem(CHART_STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    Object.keys(CHART_DEFAULTS).forEach((key) => {
+      if (CHART_ALLOWED[key]?.includes(data?.[key])) state.chartTypes[key] = data[key];
+    });
+  } catch (_) { /* preferencias inválidas: usar valores por defecto */ }
+}
+
+function guardarPreferenciasGraficos() {
+  try {
+    localStorage.setItem(CHART_STORAGE_KEY, JSON.stringify(state.chartTypes));
+  } catch (_) { /* almacenamiento no disponible */ }
+}
+
+function setupChartTypeSelectors() {
+  cargarPreferenciasGraficos();
+  document.querySelectorAll('.manager-chart-type[data-chart]').forEach((select) => {
+    const key = select.getAttribute('data-chart');
+    if (!key || !CHART_ALLOWED[key]) return;
+    select.value = state.chartTypes[key];
+    select.addEventListener('change', () => {
+      if (!CHART_ALLOWED[key].includes(select.value)) return;
+      state.chartTypes[key] = select.value;
+      guardarPreferenciasGraficos();
+      renderCharts();
+    });
+  });
 }
 
 function statusColor(value) {
@@ -215,7 +263,7 @@ function emptyOption(text = 'Sin datos') {
   };
 }
 
-function statusDonutOption() {
+function statusDonutOption(donut = true) {
   const counts = countBy(state.filtered, 'estatus');
   const entries = STATUS_KEYS
     .map((key) => ({
@@ -231,6 +279,7 @@ function statusDonutOption() {
     animationDuration: 350,
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: {
+      type: 'scroll',
       bottom: 0,
       left: 'center',
       icon: 'circle',
@@ -241,8 +290,8 @@ function statusDonutOption() {
     series: [
       {
         type: 'pie',
-        radius: ['46%', '70%'],
-        center: ['50%', '43%'],
+        radius: donut ? ['46%', '70%'] : ['0%', '68%'],
+        center: ['50%', '45%'],
         avoidLabelOverlap: true,
         itemStyle: { borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
@@ -254,6 +303,137 @@ function statusDonutOption() {
         })),
       },
     ],
+  };
+}
+
+function statusBarOption() {
+  const counts = countBy(state.filtered, 'estatus');
+  const entries = STATUS_KEYS
+    .map((key) => ({
+      name: STATUS[key].label,
+      value: counts.get(key) || 0,
+      color: STATUS[key].chart,
+    }))
+    .filter((entry) => entry.value > 0);
+
+  if (!entries.length) return emptyOption();
+
+  return {
+    animationDuration: 350,
+    grid: { left: 34, right: 14, top: 16, bottom: 42, containLabel: true },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: {
+      type: 'category',
+      data: entries.map((entry) => entry.name),
+      axisLabel: { color: '#6b7280', fontSize: 10 },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#6b7280', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#eef2f7' } },
+    },
+    series: [{
+      type: 'bar',
+      barMaxWidth: 46,
+      data: entries.map((entry) => ({ value: entry.value, itemStyle: { color: entry.color } })),
+      label: { show: true, position: 'top', fontSize: 10, fontWeight: 600 },
+    }],
+  };
+}
+
+function pieOption(entries, { donut = false, maxSlices = 8 } = {}) {
+  let items = entries
+    .map((entry) => ({
+      name: entry.name,
+      value: (entry.VIGENTE || 0) + (entry.CULMINADA || 0),
+    }))
+    .filter((entry) => entry.value > 0);
+
+  if (!items.length) return emptyOption();
+
+  if (items.length > maxSlices) {
+    items.sort((a, b) => b.value - a.value);
+    const top = items.slice(0, maxSlices - 1);
+    const resto = items.slice(maxSlices - 1).reduce((suma, item) => suma + item.value, 0);
+    items = [...top, { name: 'Otros', value: resto }];
+  }
+
+  return {
+    animationDuration: 350,
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: {
+      type: 'scroll',
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 7,
+      itemHeight: 7,
+      textStyle: { fontSize: 9, color: '#4b5563' },
+    },
+    series: [{
+      type: 'pie',
+      radius: donut ? ['44%', '68%'] : ['0%', '66%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderColor: '#fff', borderWidth: 2 },
+      label: { show: false },
+      labelLine: { show: false },
+      color: CHART_PALETTE,
+      data: items,
+    }],
+  };
+}
+
+function lineAreaOption(entries, area = false) {
+  if (!entries.length) return emptyOption();
+  const names = entries.map((entry) => entry.name);
+  const manyYears = names.length > 10;
+
+  return {
+    animationDuration: 350,
+    grid: { left: 34, right: 14, top: 16, bottom: manyYears ? 62 : 42 },
+    tooltip: { trigger: 'axis' },
+    legend: {
+      type: 'scroll',
+      bottom: 0,
+      left: 'center',
+      icon: 'circle',
+      itemWidth: 7,
+      itemHeight: 7,
+      textStyle: { fontSize: 9, color: '#4b5563' },
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: names,
+      axisLabel: {
+        color: '#6b7280',
+        fontSize: 10,
+        interval: manyYears ? 'auto' : 0,
+        rotate: manyYears ? 35 : 0,
+      },
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+    },
+    yAxis: {
+      type: 'value',
+      minInterval: 1,
+      axisLabel: { color: '#6b7280', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#eef2f7' } },
+    },
+    series: STATUS_KEYS.map((key) => ({
+      name: STATUS[key].label,
+      type: 'line',
+      smooth: true,
+      symbolSize: 5,
+      lineStyle: { width: 2.5, color: STATUS[key].chart },
+      itemStyle: { color: STATUS[key].chart },
+      areaStyle: area ? { color: STATUS[key].chart, opacity: 0.16 } : undefined,
+      data: entries.map((entry) => entry[key] || 0),
+    })),
   };
 }
 
@@ -351,23 +531,50 @@ function renderCharts() {
   const tipos = groupedStatusCounts(state.filtered, 'tipo');
   const empresas = groupedStatusCounts(state.filtered, 'empresa');
   const anios = groupedStatusCounts(state.filtered, 'anio', 'year');
+  const cfg = state.chartTypes;
 
-  // Adaptar el alto a la cantidad de entidades de cada categoría.
+  const tipoOption = cfg.tipo === 'pie'
+    ? pieOption(tipos)
+    : stackedBarOption(tipos, cfg.tipo === 'bar-h');
+
+  const empresaOption = cfg.empresa === 'pie'
+    ? pieOption(empresas, { maxSlices: 8 })
+    : stackedBarOption(empresas, cfg.empresa === 'bar-h');
+
+  const estatusOption = cfg.estatus === 'donut'
+    ? statusDonutOption(true)
+    : cfg.estatus === 'pie'
+      ? statusDonutOption(false)
+      : statusBarOption();
+
+  const anioOption = cfg.anio === 'line'
+    ? lineAreaOption(anios, false)
+    : cfg.anio === 'area'
+      ? lineAreaOption(anios, true)
+      : stackedBarOption(anios, false);
+
+  // Altura adaptable al tipo y cantidad de entidades.
+  const tipoEl = $('lic-chart-tipo');
+  if (tipoEl) {
+    tipoEl.style.minHeight = cfg.tipo === 'bar-h'
+      ? `${Math.max(220, Math.min(360, tipos.length * 26 + 70))}px`
+      : '240px';
+  }
   const empresaEl = $('lic-chart-empresa');
   if (empresaEl) {
-    empresaEl.style.minHeight = `${Math.max(220, Math.min(420, empresas.length * 24 + 70))}px`;
+    empresaEl.style.minHeight = cfg.empresa === 'bar-h'
+      ? `${Math.max(220, Math.min(420, empresas.length * 24 + 70))}px`
+      : '240px';
   }
   const anioEl = $('lic-chart-anio');
   if (anioEl) {
     anioEl.style.minHeight = `${Math.max(220, Math.min(320, anios.length * 16 + 110))}px`;
   }
-  const tipoEl = $('lic-chart-tipo');
-  if (tipoEl) tipoEl.style.minHeight = '220px';
 
-  chart('lic-chart-tipo')?.setOption(stackedBarOption(tipos), true);
-  chart('lic-chart-estatus')?.setOption(statusDonutOption(), true);
-  chart('lic-chart-empresa')?.setOption(stackedBarOption(empresas), true);
-  chart('lic-chart-anio')?.setOption(stackedBarOption(anios, false), true);
+  chart('lic-chart-tipo')?.setOption(tipoOption, true);
+  chart('lic-chart-estatus')?.setOption(estatusOption, true);
+  chart('lic-chart-empresa')?.setOption(empresaOption, true);
+  chart('lic-chart-anio')?.setOption(anioOption, true);
 
   requestAnimationFrame(() => {
     Object.values(state.charts).forEach((inst) => inst?.resize());
@@ -911,6 +1118,7 @@ async function init() {
 
   setupFilterEvents();
   setupTableToggle();
+  setupChartTypeSelectors();
 
   // Datos y mapa arrancan en paralelo: así la API se solicita de inmediato
   // y el mapa no depende de que las licencias respondan.

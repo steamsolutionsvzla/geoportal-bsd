@@ -192,6 +192,41 @@
   margin: 0 0 4px;
 }
 
+.manager-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.manager-chart-head > div {
+  min-width: 0;
+}
+.manager-chart-type {
+  flex-shrink: 0;
+  max-width: 150px;
+  height: 26px;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--navy-700, #1e3a6e);
+  font-family: 'Inter', sans-serif;
+  font-size: .64rem;
+  padding: 0 6px;
+  cursor: pointer;
+}
+.manager-chart-type:hover { border-color: var(--navy-600, #2d5296); }
+.manager-chart-type:focus {
+  outline: none;
+  border-color: var(--navy-600, #2d5296);
+  box-shadow: 0 0 0 3px rgba(45, 82, 150, .08);
+}
+
+@media (max-width: 720px) {
+  .manager-chart-head { flex-direction: column; align-items: stretch; }
+  .manager-chart-type { max-width: none; width: 100%; }
+}
+
 .manager-chart-box {
   flex: 1;
   min-height: 0;
