@@ -1651,13 +1651,14 @@ input { font-family: inherit; }
   align-items: center;
   row-gap: 3px;
 }
+.lsd-zone-item .layer-icon,
 .lsd-zone-item .lsd-dot {
   order: 1;
 }
 .lsd-zone-item .lsd-name {
   order: 2;
   /* base casi completa: los metadatos caen a una segunda línea */
-  flex: 1 1 calc(100% - 26px);
+  flex: 1 1 calc(100% - 30px);
   min-width: 0;
   white-space: normal;
   overflow: visible;
@@ -1667,7 +1668,7 @@ input { font-family: inherit; }
 }
 .lsd-zone-item .lsd-sub {
   order: 3;
-  margin-left: 18px;
+  margin-left: 32px;
 }
 .lsd-zone-item .lsd-count {
   order: 4;

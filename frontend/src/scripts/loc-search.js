@@ -44,11 +44,6 @@ function marcarCoincidencia(nombre, q) {
   return `${escHtml(n.slice(0, i))}<mark>${escHtml(n.slice(i, i + q.length))}</mark>${escHtml(n.slice(i + q.length))}`;
 }
 
-const GEOM_LABEL = {
-  circle: 'punto', point: 'punto', fill: 'polígono',
-  line: 'línea', raster: 'ráster',
-};
-
 // ------------------------------------------------------------------
 // Recolección de resultados
 // ------------------------------------------------------------------
@@ -116,7 +111,18 @@ function buscar(texto) {
 // Render del dropdown de resultados
 // ------------------------------------------------------------------
 const ICON_PIN = '<svg class="lsd-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>';
-const ICON_LAYERS = '<svg class="lsd-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>';
+// Símbolo de geometría igual que el del catálogo de capas.
+function geomClassDe(geomType) {
+  const g = String(geomType || '').toLowerCase();
+  if (g === 'circle' || g === 'point') return 'geom-point';
+  if (g === 'line') return 'geom-line';
+  return 'geom-fill';
+}
+
+function colorCapa(tableId) {
+  const capa = getAvailableLayers().find((l) => l.id === tableId);
+  return capa?.color || '#6fa3e0';
+}
 
 function render(items, dropdown, query) {
   if (!items.length) {
@@ -127,10 +133,10 @@ function render(items, dropdown, query) {
     if (it.tipo === 'grupo') {
       return `<div class="lsd-group"><span>${escHtml(it.titulo)}</span></div>`;
     }
-    const icono = it.kind === 'capa' ? ICON_LAYERS : ICON_PIN;
-    const sub = it.kind === 'capa'
-      ? `<span class="lsd-sub">${GEOM_LABEL[String(it.geom).toLowerCase()] || ''}</span>`
-      : it.kind === 'coords' ? '<span class="lsd-sub">zona</span>' : '';
+    const icono = it.kind === 'capa'
+      ? `<span class="layer-icon ${geomClassDe(it.geom)}" style="--geom-color:${escHtml(colorCapa(it.table))}"></span>`
+      : ICON_PIN;
+    const sub = it.kind === 'coords' ? '<span class="lsd-sub">zona</span>' : '';
     return `<div class="lsd-item" role="option" data-idx="${idx}">
       ${icono}<span class="lsd-name">${marcarCoincidencia(it.nombre, query)}</span>${sub}
     </div>`;
@@ -145,7 +151,6 @@ let zonaToken = 0;
 
 function renderZona(dropdown) {
   if (!zona) return;
-  const colores = new Map(getAvailableLayers().map((l) => [l.id, l.color]));
   const capas = zona.capas || [];
 
   const chips = zona.tipo === 'coords'
@@ -165,9 +170,8 @@ function renderZona(dropdown) {
     cuerpo = capas.map((c) => {
       const activa = capaActiva(c.id);
       return `<div class="lsd-item lsd-zone-item${activa ? ' is-active' : ''}" data-table="${escHtml(c.id)}" role="button" aria-pressed="${activa ? 'true' : 'false'}" title="Clic para ${activa ? 'apagar' : 'encender'} la capa">
-        <span class="lsd-dot" style="--c:${escHtml(colores.get(c.id) || '#6fa3e0')}"></span>
+        <span class="layer-icon ${geomClassDe(c.type)}" style="--geom-color:${escHtml(colorCapa(c.id))}"></span>
         <span class="lsd-name">${escHtml(c.name)}</span>
-        <span class="lsd-sub">${GEOM_LABEL[String(c.type).toLowerCase()] || ''}</span>
         <span class="lsd-count">${Number(c.count).toLocaleString('es')}</span>
         <span class="lsd-check">${activa ? '✓' : '○'}</span>
       </div>`;
