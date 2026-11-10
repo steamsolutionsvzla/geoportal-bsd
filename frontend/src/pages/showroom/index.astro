@@ -47,6 +47,25 @@ import Footer from '../../components/Footer.astro';
     };
   </script>
 
+  <script is:inline>
+    // Pantalla completa sobre la app (deja fuera el footer de la página).
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('fullscreenBtn');
+      const app = document.querySelector('.app');
+      if (!btn || !app) return;
+      btn.addEventListener('click', () => {
+        if (!document.fullscreenElement) app.requestFullscreen().catch(() => {});
+        else document.exitFullscreen();
+      });
+      document.addEventListener('fullscreenchange', () => {
+        const on = Boolean(document.fullscreenElement);
+        btn.classList.toggle('active', on);
+        btn.setAttribute('title', on ? 'Salir de pantalla completa' : 'Pantalla completa');
+        btn.setAttribute('aria-label', btn.getAttribute('title'));
+      });
+    });
+  </script>
+
   <div class="app">
     <!-- TOPBAR -->
     <header class="topbar">
@@ -83,6 +102,20 @@ import Footer from '../../components/Footer.astro';
       <div class="panel-heading">
         <span class="eyebrow">Capas del mapa</span>
         <span class="count" id="layerCount">0 activas</span>
+      </div>
+      <div class="layer-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input
+          type="search"
+          id="layerSearch"
+          placeholder="Buscar capa…"
+          autocomplete="off"
+          aria-label="Buscar capa por nombre"
+        />
+        <button type="button" class="layer-search-clear" id="layerSearchClear" title="Limpiar búsqueda" aria-label="Limpiar búsqueda" hidden>✕</button>
       </div>
       <div class="layers-scroll-area">
         <div id="layersGroupsContainer"></div>
@@ -185,6 +218,36 @@ import Footer from '../../components/Footer.astro';
             <line x1="12" y1="19.5" x2="21" y2="19.5" />
           </svg>
         </button>
+      </div>
+
+      <div class="map-tools" id="mapTools">
+        <button type="button" class="map-tool-btn" id="measureDistanceBtn" title="Medir distancia" aria-label="Medir distancia">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 17l14-14 4 4L7 21H3z"/><path d="M7 13l2 2"/><path d="M10 10l2 2"/><path d="M13 7l2 2"/>
+          </svg>
+        </button>
+        <button type="button" class="map-tool-btn map-tool-subtle" id="mapToolUndoBtn" title="Deshacer último punto" aria-label="Deshacer último punto" hidden>
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 14 4 9 9 4"></polyline><path d="M4 9h10a6 6 0 0 1 0 12h-3"></path>
+          </svg>
+        </button>
+        <button type="button" class="map-tool-btn map-tool-subtle" id="mapToolCancelBtn" title="Cancelar herramienta" aria-label="Cancelar herramienta" hidden>✕</button>
+        <button type="button" class="map-tool-btn" id="fullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
+          <svg class="fs-in" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg class="fs-out" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1-2-2h-3"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="map-tool-hint" id="mapToolHint" hidden></div>
+
+      <div class="measure-chip" id="measureChip" hidden>
+        <span class="measure-chip-label">Distancia total</span>
+        <b id="measureTotal">0 m</b>
+        <button type="button" id="measureClearBtn" title="Limpiar medición" aria-label="Limpiar medición">✕</button>
       </div>
 
       <div class="zoom-controls">
