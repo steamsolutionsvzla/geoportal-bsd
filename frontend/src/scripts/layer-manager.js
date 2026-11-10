@@ -2,6 +2,7 @@
 import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch } from './utils.js';
 import { getMap } from './map-config.js';
 import { downloadLayerShp } from './download.js';
+import { isInsideActiveZone } from './zone-filter.js';
 
 let availableLayers = [];
 let selectedFeatureId = null;
@@ -622,6 +623,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
 
     map.on('click', layerId, (ev) => {
       if (!ev.features || ev.features.length === 0) return;
+      if (!isInsideActiveZone(ev.lngLat)) return;
       const clickedFeature = ev.features[0];
       const props = clickedFeature.properties;
       const clickedId = clickedFeature.id;
@@ -678,6 +680,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
 
     map.on('click', layerId, (ev) => {
       if (!ev.features || ev.features.length === 0) return;
+      if (!isInsideActiveZone(ev.lngLat)) return;
       const clickedFeature = ev.features[0];
       const props = clickedFeature.properties;
       const clickedId = clickedFeature.id;

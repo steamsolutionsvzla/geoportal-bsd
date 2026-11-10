@@ -441,5 +441,10 @@ function switchBasemap(targetKey, map, activeBasemap) {
     try { map.moveLayer('layer-estados-venezuela-label'); } catch (_) { /* ignorar */ }
   }
 
+  // La máscara de la zona activa cambia de tono según el fondo.
+  if (typeof window !== 'undefined' && typeof window.actualizarColorMascaraZona === 'function') {
+    window.actualizarColorMascaraZona();
+  }
+
   return true;
 }

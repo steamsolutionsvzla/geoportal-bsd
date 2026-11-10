@@ -3,6 +3,8 @@ import { getMap } from './map-config.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
 import { setInfoPanelData, renderInfoPanel } from './info-panel.js';
 import * as turf from '@turf/turf';
+import { parseCoordenadas, geometriaDeZona } from './zone-scan.js';
+import { aplicarZonaActiva, limpiarZonaActiva, getZonaActiva, onZoneChange } from './zone-filter.js';
 import {
   loadAreaFromFile,
   clearAreaLayer,
@@ -469,6 +471,262 @@ export function usarAreaDibujada(meta) {
   if (filter) filter.classList.remove('open');
 }
 
+// -------------------------------------------------------------------------
+// FILTRO POR COORDENADAS (zona persistente hasta Cancelar)
+// -------------------------------------------------------------------------
+let coordRadioKm = 15;
+
+const COORD_HINT = 'Escribe latitud y longitud. La zona quedará activa hasta que pulses Cancelar.';
+
+function coordEls() {
+  return {
+    filter: document.getElementById('filterCoordenadas'),
+    label: document.getElementById('coordLabel'),
+    input: document.getElementById('coordInput'),
+    applyBtn: document.getElementById('coordApplyBtn'),
+    cancelBtn: document.getElementById('coordCancelBtn'),
+    hint: document.getElementById('coordHint'),
+    error: document.getElementById('coordError'),
+    results: document.getElementById('coordResults'),
+    bar: document.getElementById('coordActiveBar'),
+    barText: document.getElementById('coordActiveText'),
+    barCancel: document.getElementById('coordActiveCancel'),
+  };
+}
+
+function escaparHtml(texto) {
+  return String(texto ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function setCoordError(texto) {
+  const { error, hint } = coordEls();
+  if (error) {
+    error.textContent = texto || '';
+    error.hidden = !texto;
+  }
+  if (hint) hint.hidden = Boolean(texto);
+}
+
+function resetCoordUI() {
+  const els = coordEls();
+  if (els.results) {
+    els.results.innerHTML = '';
+    els.results.hidden = true;
+  }
+  if (els.error) els.error.hidden = true;
+  if (els.hint) {
+    els.hint.textContent = COORD_HINT;
+    els.hint.hidden = false;
+  }
+  if (els.cancelBtn) els.cancelBtn.hidden = true;
+  if (els.bar) els.bar.hidden = true;
+  if (els.label) {
+    els.label.textContent = 'Coordenadas';
+    els.label.classList.remove('has-value');
+  }
+  if (els.applyBtn) els.applyBtn.disabled = false;
+}
+
+function renderCoordZone(zone) {
+  const els = coordEls();
+  if (!zone || zone.tipo !== 'coords') {
+    resetCoordUI();
+    return;
+  }
+
+  if (els.label) {
+    els.label.textContent = zone.label || 'Coordenadas';
+    els.label.classList.add('has-value');
+  }
+  if (els.cancelBtn) els.cancelBtn.hidden = false;
+
+  if (els.bar) els.bar.hidden = false;
+  if (els.barText) {
+    const n = (zone.hits || []).length;
+    els.barText.textContent = zone.cargando
+      ? `Buscando capas en ${zone.label}…`
+      : `${zone.label} · ${n} ${n === 1 ? 'capa' : 'capas'}`;
+  }
+
+  if (els.applyBtn) els.applyBtn.disabled = Boolean(zone.cargando);
+
+  if (zone.cargando) {
+    if (els.results) {
+      els.results.innerHTML = '<p class="coord-empty">Buscando capas en la zona…</p>';
+      els.results.hidden = false;
+    }
+    if (els.hint) els.hint.hidden = true;
+    return;
+  }
+
+  if (zone.error) {
+    setCoordError(`No se pudo analizar la zona: ${zone.error}`);
+    if (els.results) {
+      els.results.innerHTML = '';
+      els.results.hidden = true;
+    }
+    return;
+  }
+
+  setCoordError('');
+  if (els.hint) els.hint.hidden = true;
+
+  if (!els.results) return;
+  const capas = zone.hits || [];
+  if (!capas.length) {
+    els.results.innerHTML = '<p class="coord-empty">Sin capas con datos en esta zona.</p>';
+    els.results.hidden = false;
+    return;
+  }
+
+  els.results.innerHTML = capas.map((c) => `
+    <div class="coord-result">
+      <span class="coord-dot" style="background:${escaparHtml(c.color || '#6fa3e0')}"></span>
+      <span class="coord-name" title="${escaparHtml(c.name)}">${escaparHtml(c.name)}</span>
+      <span class="coord-count">${Number(c.count || 0).toLocaleString('es')}</span>
+    </div>`).join('');
+  els.results.hidden = false;
+}
+
+export async function aplicarFiltroCoordenadas({ lat, lng, radioKm = 15 } = {}) {
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+    setCoordError('Coordenadas no válidas. Usa el formato 10.65, -71.62.');
+    return;
+  }
+  if (Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
+    setCoordError('Latitud fuera de rango (máx. 90) o longitud fuera de rango (máx. 180).');
+    return;
+  }
+
+  coordRadioKm = Number(radioKm) || 0;
+  const els = coordEls();
+  if (els.input) els.input.value = `${latNum.toFixed(5)}, ${lngNum.toFixed(5)}`;
+  document.querySelectorAll('#filterCoordenadas .coord-chip[data-km]').forEach((chip) => {
+    chip.classList.toggle('active', Number(chip.dataset.km) === coordRadioKm);
+  });
+
+  // Estado y Coordenadas comparten el recorte: se evita tener dos máscaras.
+  if (isFilterActive || estadoSeleccionado) limpiarFiltroEstado();
+
+  const etiquetaRadio = coordRadioKm > 0 ? `${coordRadioKm} km` : 'Punto';
+  const label = `${latNum.toFixed(5)}, ${lngNum.toFixed(5)} · ${etiquetaRadio}`;
+  const geometry = geometriaDeZona(latNum, lngNum, coordRadioKm);
+
+  setCoordError('');
+  if (els.hint) {
+    els.hint.textContent = 'Buscando capas en la zona…';
+    els.hint.hidden = false;
+  }
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar?.classList.contains('collapsed')) {
+    document.getElementById('sidebarToggleBtn')?.click();
+  }
+  document.querySelectorAll('.loc-filter.open').forEach((f) => {
+    if (f !== els.filter) f.classList.remove('open');
+  });
+  if (els.filter) {
+    els.filter.classList.add('open');
+    try { els.filter.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) { /* ignorar */ }
+  }
+
+  try {
+    await aplicarZonaActiva({
+      tipo: 'coords',
+      geometry,
+      label,
+      lat: latNum,
+      lng: lngNum,
+      radioKm: coordRadioKm,
+    });
+  } catch (error) {
+    setCoordError(error?.message || 'No se pudo aplicar el filtro por coordenadas.');
+  }
+}
+
+export function limpiarFiltroCoordenadas() {
+  limpiarZonaActiva('coords');
+  resetCoordUI();
+  const { filter } = coordEls();
+  if (filter) filter.classList.remove('open');
+}
+
+function normalizarOpcion(texto) {
+  return String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+export function seleccionarFiltroEstado(nombre) {
+  const dropdown = document.getElementById('dropdownEstado');
+  const objetivo = normalizarOpcion(nombre);
+  const option = [...(dropdown?.querySelectorAll('.loc-option') || [])]
+    .find((o) => normalizarOpcion(o.getAttribute('data-value')) === objetivo);
+  if (option) option.click();
+}
+
+export function seleccionarFiltroBloque(nombre) {
+  const dropdown = document.getElementById('dropdownBloque');
+  const objetivo = normalizarOpcion(nombre);
+  const option = [...(dropdown?.querySelectorAll('.loc-option') || [])]
+    .find((o) => normalizarOpcion(o.getAttribute('data-value')) === objetivo);
+  if (option) option.click();
+}
+
+export function setupCoordenadasFilter() {
+  const els = coordEls();
+  if (!els.filter) return;
+  els.filter.hidden = false;
+
+  if (els.filter.dataset.bound !== 'true') {
+    els.filter.dataset.bound = 'true';
+
+    document.querySelectorAll('#filterCoordenadas .coord-chip[data-km]').forEach((chip) => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        coordRadioKm = Number(chip.dataset.km) || 0;
+        document.querySelectorAll('#filterCoordenadas .coord-chip[data-km]').forEach((c) => {
+          c.classList.toggle('active', c === chip);
+        });
+      });
+    });
+
+    els.applyBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const coords = parseCoordenadas(els.input?.value || '');
+      if (!coords) {
+        setCoordError('Coordenadas no válidas. Usa el formato 10.65, -71.62.');
+        return;
+      }
+      aplicarFiltroCoordenadas({ ...coords, radioKm: coordRadioKm });
+    });
+
+    els.input?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      els.applyBtn?.click();
+    });
+
+    els.cancelBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      limpiarFiltroCoordenadas();
+    });
+    els.barCancel?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      limpiarFiltroCoordenadas();
+    });
+
+    onZoneChange((zone) => renderCoordZone(zone));
+  }
+
+  resetCoordUI();
+}
+
 export function getAreaFilterState() {
   return {
     active: isAreaFilterActive,
@@ -517,6 +775,7 @@ export function limpiarFiltroEstado() {
 
   // Limpia el resaltado amarillo y re-sincroniza los filtros que sigan activos.
   if (typeof window.limpiarResaltadoFiltro === 'function') window.limpiarResaltadoFiltro();
+  limpiarZonaActiva('estado');
   recalcularFiltrosActivos();
 }
 
@@ -609,6 +868,15 @@ function aplicarFiltroEstado(nombreEstado) {
   if (window.calcularPuntosEnEstado) {
     window.calcularPuntosEnEstado(estadoFeature, nombreEstado);
   }
+
+  // El estado define la zona de recorte; coordenadas y estado son excluyentes.
+  if (getZonaActiva()?.tipo === 'coords') limpiarFiltroCoordenadas();
+  aplicarZonaActiva({
+    tipo: 'estado',
+    geometry: estadoFeature.geometry,
+    label: nombreEstado,
+  });
+
   sincronizarInterseccion();
 }
 
