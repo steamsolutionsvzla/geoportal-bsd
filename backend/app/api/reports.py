@@ -170,8 +170,17 @@ def _build_pdf(req: ReportRequest, stats: Optional[Dict[str, Any]] = None) -> by
     # Logo (opcional).
     logo_bytes = _decode_logo(req.logo_base64)
     if logo_bytes is not None:
-        story.append(Image(io.BytesIO(logo_bytes), width=35 * mm, height=12 * mm))
-        story.append(Spacer(1, 4 * mm))
+        try:
+            lw, lh = ImageReader(io.BytesIO(logo_bytes)).getSize()
+            logo_width = 38 * mm
+            logo_height = logo_width * lh / lw
+        except Exception:
+            logo_width = 35 * mm
+            logo_height = 12 * mm
+        logo_img = Image(io.BytesIO(logo_bytes), width=logo_width, height=logo_height)
+        logo_img.hAlign = "CENTER"
+        story.append(logo_img)
+        story.append(Spacer(1, 5 * mm))
 
     # Banda de cabecera: título + subtítulo.
     title_style = ParagraphStyle(
@@ -198,63 +207,94 @@ def _build_pdf(req: ReportRequest, stats: Optional[Dict[str, Any]] = None) -> by
         ("LINEBELOW", (0, -1), (-1, -1), 1.5, SECONDARY),
     ]))
     story.append(band)
-    story.append(Spacer(1, 6 * mm))
+    story.append(Spacer(1, 8 * mm))
+
+    # Encabezado de sección.
+    section_style = ParagraphStyle(
+        "SectionTitle", fontName="Helvetica-Bold", fontSize=11.5,
+        textColor=PRIMARY, leading=14, spaceAfter=3 * mm,
+    )
 
     # Tabla resumen: capa -> cantidad.
     filas = [[capa, str(len(lista or []))] for capa, lista in (req.detalle or {}).items()]
     table_data = [["Capa / Elemento", "Cantidad"]] + filas
-    summary = Table(table_data, colWidths=[PAGE_W - 2 * MARGIN - 30 * mm, 30 * mm])
+    content_width = PAGE_W - 2 * MARGIN
+    summary = Table(table_data, colWidths=[content_width - 32 * mm, 32 * mm])
     summary.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), SECONDARY),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("GRID", (0, 0), (-1, -1), 0.2, GREY_BORDER),
+        ("GRID", (0, 0), (-1, -1), 0.25, GREY_BORDER),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.8, PRIMARY),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_GREY]),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("BOX", (0, 0), (-1, -1), 0.5, GREY_BORDER),
     ]))
+    story.append(Paragraph("Resumen del análisis", section_style))
     story.append(summary)
     story.append(Spacer(1, 6 * mm))
 
-    # Total general.
-    total_style = ParagraphStyle(
-        "Total", fontName="Helvetica-Bold", fontSize=11,
-        textColor=PRIMARY, leading=14,
+    # Total general en una tarjeta destacada.
+    total_left_style = ParagraphStyle(
+        "TotalLeft", fontName="Helvetica-Bold", fontSize=10,
+        textColor=colors.white, leading=13,
     )
-    story.append(Paragraph(f"Total general de elementos: {req.total}", total_style))
-    story.append(Spacer(1, 5 * mm))
+    total_right_style = ParagraphStyle(
+        "TotalRight", fontName="Helvetica-Bold", fontSize=13,
+        textColor=colors.white, alignment=TA_CENTER, leading=15,
+    )
+    total_card = Table(
+        [[Paragraph("Total general de elementos", total_left_style),
+          Paragraph(f"{req.total}", total_right_style)]],
+        colWidths=[content_width - 45 * mm, 45 * mm],
+    )
+    total_card.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), PRIMARY),
+        ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("ALIGN", (1, 0), (1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("LINEAFTER", (0, 0), (-1, -1), 0.8, SECONDARY),
+    ]))
+    story.append(total_card)
+    story.append(Spacer(1, 8 * mm))
 
-    # Imagen del mapa con la capa del análisis y los puntos resaltados.
+    # Imagen del mapa con la poligonal y los puntos resaltados.
     mapa_bytes = _decode_image(req.mapa_base64)
     if mapa_bytes:
         try:
             iw, ih = ImageReader(io.BytesIO(mapa_bytes)).getSize()
-            max_w = PAGE_W - 2 * MARGIN
+            max_w = content_width
             max_h = 105 * mm
             escala = min(max_w / iw, max_h / ih)
-            caption_style = ParagraphStyle(
-                "MapCaption", fontName="Helvetica-Bold", fontSize=10,
-                textColor=PRIMARY, leading=13,
-            )
-            story.append(Paragraph("Mapa del análisis", caption_style))
-            story.append(Spacer(1, 2 * mm))
+            ancho_imagen = iw * escala
+            alto_imagen = ih * escala
+
+            story.append(Paragraph("Poligonal", section_style))
 
             # Marco alrededor de la imagen del mapa.
             marco = Table(
                 [[Image(
                     io.BytesIO(mapa_bytes),
-                    width=iw * escala,
-                    height=ih * escala,
+                    width=ancho_imagen,
+                    height=alto_imagen,
                 )]],
-                colWidths=[iw * escala],
+                colWidths=[ancho_imagen],
             )
+            marco.hAlign = "CENTER"
             marco.setStyle(TableStyle([
-                ("BOX", (0, 0), (-1, -1), 1.2, PRIMARY),
+                ("BOX", (0, 0), (-1, -1), 1.3, PRIMARY),
+                ("INNERGRID", (0, 0), (-1, -1), 0, colors.white),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ("TOPPADDING", (0, 0), (-1, -1), 0),

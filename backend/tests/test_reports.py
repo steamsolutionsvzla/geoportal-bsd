@@ -68,6 +68,29 @@ def test_build_pdf_con_logo():
     assert len(pdf) > 500
 
 
+def test_build_pdf_con_mapa():
+    payload = _payload()
+    payload["mapa_base64"] = _PNG_1X1
+    stats = {}
+    pdf = _build_pdf(ReportRequest(**payload), stats)
+    assert pdf[:5] == b"%PDF-"
+    assert stats.get("has_map") is True
+
+
+def test_pdf_endpoint_mapa_header(client):
+    # Con imagen del mapa: la cabecera reporta que se incrustó.
+    payload = _payload()
+    payload["mapa_base64"] = _PNG_1X1
+    resp = client.post("/api/v1/reports/pdf", json=payload)
+    assert resp.status_code == 200
+    assert resp.headers["x-report-has-map"] == "1"
+
+    # Sin imagen del mapa: cabecera en 0.
+    resp = client.post("/api/v1/reports/pdf", json=_payload())
+    assert resp.status_code == 200
+    assert resp.headers["x-report-has-map"] == "0"
+
+
 def test_build_excel_produces_xlsx():
     data = _build_excel(ReportRequest(**_payload()))
     assert data[:2] == b"PK"
