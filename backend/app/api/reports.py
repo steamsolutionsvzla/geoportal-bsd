@@ -150,7 +150,7 @@ class NumberedCanvas(_canvas.Canvas):
         self.restoreState()
 
 
-def _build_pdf(req: ReportRequest) -> bytes:
+def _build_pdf(req: ReportRequest, stats: Optional[Dict[str, Any]] = None) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -248,6 +248,8 @@ def _build_pdf(req: ReportRequest) -> bytes:
                 width=iw * escala,
                 height=ih * escala,
             ))
+            if stats is not None:
+                stats["has_map"] = True
         except Exception as e:
             logger.warning("No se pudo incrustar la imagen del mapa en el PDF: %s", e)
 
@@ -319,8 +321,9 @@ def _build_excel(req: ReportRequest) -> bytes:
 # ---------------------------------------------------------------------------
 @router.post("/pdf")
 async def generate_pdf_report(req: ReportRequest, user: CurrentUser = Depends(auth_guard)):
+    stats: Dict[str, Any] = {}
     try:
-        pdf = await run_in_threadpool(_build_pdf, req)
+        pdf = await run_in_threadpool(_build_pdf, req, stats)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al generar el PDF: {e}")
 
@@ -331,6 +334,7 @@ async def generate_pdf_report(req: ReportRequest, user: CurrentUser = Depends(au
         headers={
             "Content-Disposition": _content_disposition(filename),
             "X-Content-Type-Options": "nosniff",
+            "X-Report-Has-Map": "1" if stats.get("has_map") else "0",
         },
     )
 

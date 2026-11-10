@@ -125,9 +125,9 @@ async function getLogoBase64() {
 // Tamaños probados de mayor a menor: se usa el primero cuyo base64 quede
 // por debajo de ~900 KB (evita límites de nginx/proxies en el POST).
 const PDF_MAP_PRESETS = [
-  { width: 1200, quality: 0.78, maxBase64: 900_000 },
-  { width: 1000, quality: 0.70, maxBase64: 700_000 },
-  { width: 820, quality: 0.62, maxBase64: 550_000 },
+  { width: 1200, quality: 0.78, maxBase64: 450_000 },
+  { width: 950, quality: 0.68, maxBase64: 320_000 },
+  { width: 760, quality: 0.58, maxBase64: 220_000 },
 ];
 const ANALYSIS_LINE_LAYERS = [
   { layer: 'layer-area-temporal-line', source: 'source-area-temporal', fill: 'pdf-area-highlight' },
@@ -135,20 +135,56 @@ const ANALYSIS_LINE_LAYERS = [
   { layer: 'layer-bloques-venezuela-filter-line', source: 'source-bloques-venezuela', fill: 'pdf-bloque-highlight' }
 ];
 
+/**
+ * Copia el contenido del WebGL a un canvas 2D usando readPixels. Así se evita
+ * el error de "canvas contaminado" que impide exportar teselas externas con
+ * toDataURL aunque el proveedor sí envíe CORS.
+ */
+function canvasDesdeWebGL(canvas) {
+  try {
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    if (!gl || typeof gl.readPixels !== 'function' || gl.isContextLost()) return canvas;
+
+    const ancho = canvas.width;
+    const alto = canvas.height;
+    const pixeles = new Uint8Array(ancho * alto * 4);
+    gl.readPixels(0, 0, ancho, alto, gl.RGBA, gl.UNSIGNED_BYTE, pixeles);
+
+    const salida = document.createElement('canvas');
+    salida.width = ancho;
+    salida.height = alto;
+    const ctx = salida.getContext('2d');
+    const imagen = ctx.createImageData(ancho, alto);
+    const fila = ancho * 4;
+
+    // WebGL entrega la imagen de abajo hacia arriba.
+    for (let y = 0; y < alto; y++) {
+      const origen = (alto - 1 - y) * fila;
+      imagen.data.set(pixeles.subarray(origen, origen + fila), y * fila);
+    }
+    ctx.putImageData(imagen, 0, 0);
+    return salida;
+  } catch (error) {
+    console.warn('No se pudo leer el WebGL; se intentará con toDataURL:', error);
+    return canvas;
+  }
+}
+
 function canvasAJpeg(canvas) {
   let ultimo = null;
+  const origen = canvasDesdeWebGL(canvas);
 
   for (const preset of PDF_MAP_PRESETS) {
-    const escala = Math.min(1, preset.width / canvas.width);
-    const ancho = Math.max(1, Math.round(canvas.width * escala));
-    const alto = Math.max(1, Math.round(canvas.height * escala));
+    const escala = Math.min(1, preset.width / origen.width);
+    const ancho = Math.max(1, Math.round(origen.width * escala));
+    const alto = Math.max(1, Math.round(origen.height * escala));
     const salida = document.createElement('canvas');
     salida.width = ancho;
     salida.height = alto;
     const ctx = salida.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, ancho, alto);
-    ctx.drawImage(canvas, 0, 0, ancho, alto);
+    ctx.drawImage(origen, 0, 0, ancho, alto);
     ultimo = salida.toDataURL('image/jpeg', preset.quality);
     if (ultimo.length <= preset.maxBase64) return ultimo;
   }
@@ -598,6 +634,14 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
     if (!response.ok) {
       throw new Error(await leerErrorReporte(response));
     }
+
+    const hasMapHeader = response.headers.get('X-Report-Has-Map');
+    if (mapaData && hasMapHeader === null) {
+      console.warn('[PDF] El backend no está actualizado: no reporta soporte para la imagen del mapa.');
+    } else if (mapaData && hasMapHeader === '0') {
+      console.warn('[PDF] El backend recibió el mapa pero no pudo incrustarlo en el PDF.');
+    }
+
     const blob = await response.blob();
     descargarBlobReporte(blob, `Reporte_Datos_${nombreSeleccionado.replace(/\s+/g, '_')}.pdf`);
   } catch (e) {
