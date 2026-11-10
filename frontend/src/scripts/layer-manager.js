@@ -72,6 +72,10 @@ function isPointType(geomType) {
   return geomType === 'circle' || geomType === 'point';
 }
 
+function isShowroomPage() {
+  return document.body?.dataset.showroom === 'true';
+}
+
 // ================================================================
 // CAPAS RASTER (imágenes vía WMS de GeoServer local)
 // ================================================================
@@ -250,9 +254,10 @@ function createLayerRow(layerInfo) {
       <button type="button" class="layer-attr" data-table="${layerInfo.id}" title="Tabla de atributos" aria-label="Tabla de atributos">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="10" x2="10" y2="20"/></svg>
       </button>
+      ${isShowroomPage() ? '' : `
       <button type="button" class="layer-download" data-table="${layerInfo.id}" title="Descargar Shapefile" aria-label="Descargar Shapefile">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><polyline points="7 13 12 18 17 13"/><path d="M4 20h16"/></svg>
-      </button>` : ''}
+      </button>`}` : ''}
       <div class="toggle" data-table="${layerInfo.id}"></div>
     </div>
     ${isFill ? `

@@ -5,6 +5,9 @@
 import { apiFetch } from './utils.js';
 
 export async function downloadLayerShp(tableName) {
+  // La descarga de capas no está habilitada en Showroom.
+  if (document.body?.dataset.showroom === 'true') return;
+
   const short = tableName.includes(':') ? tableName.split(':').pop() : tableName;
   try {
     const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}/download`);
