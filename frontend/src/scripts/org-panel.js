@@ -25,7 +25,11 @@ export async function obtenerOrganizacionShowroom() {
   const resp = await apiFetch('/api/v1/organization/showroom');
   if (!resp.ok) throw new Error(`Error ${resp.status}`);
   const data = await resp.json();
-  return Array.isArray(data?.folders) && data.folders.length ? data.folders : null;
+  return {
+    folders: Array.isArray(data?.folders) && data.folders.length ? data.folders : null,
+    updated_at: data?.updated_at || null,
+    updated_by: data?.updated_by || null,
+  };
 }
 
 export async function guardarOrganizacion(folders) {
@@ -121,7 +125,7 @@ function capasarDueltas(folders) {
  *   folders:  carpetas guardadas del usuario o null (primera vez: se parte de workspaces)
  *   onGuardado: callback(folders|null) tras guardar con éxito
  */
-export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuardado = null, showroom = false } = {}) {
+export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuardado = null, showroom = false, lastEdit = null } = {}) {
   if (overlayEl) return;
 
   const capasPorId = new Map();
@@ -157,6 +161,11 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
           <p>${showroom
             ? 'Vista general de Showroom: los cambios se aplican a todos los usuarios. Arrastra las capas entre carpetas o usa el botón «mover».'
             : 'Arrastra las capas entre carpetas o usa el botón «mover». Es una vista personal: no afecta a los demás usuarios.'}</p>
+          ${showroom ? `<p class="org-last-edit">${
+            lastEdit?.updated_by
+              ? `Última edición: <b>${escHtml(lastEdit.updated_by)}</b>`
+              : 'Aún sin ediciones registradas.'
+          }${lastEdit?.updated_at ? ` · ${escHtml(formatearFecha(lastEdit.updated_at))}` : ''}</p>` : ''}
         </div>
         <button type="button" class="org-close" data-action="close" title="Cerrar" aria-label="Cerrar">${SVG_CLOSE}</button>
       </header>
@@ -314,8 +323,8 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
     if (saveBtn) saveBtn.disabled = true;
     try {
       const persistir = showroom ? guardarOrganizacionShowroom : guardarOrganizacion;
-      await persistir(foldersAPersistir);
-      if (typeof onGuardado === 'function') onGuardado(foldersAPersistir?.length ? foldersAPersistir : (showroom ? [] : null));
+      const resultado = await persistir(foldersAPersistir);
+      if (typeof onGuardado === 'function') onGuardado(foldersAPersistir?.length ? foldersAPersistir : (showroom ? [] : null), resultado);
       toast('Organización guardada ✓');
       cerrar(true);
     } catch (err) {
@@ -399,4 +408,16 @@ function escHtml(s) {
 }
 function escAttr(s) {
   return escHtml(s).replace(/"/g, '&quot;');
+}
+
+function formatearFecha(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleString('es-VE', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch (_) {
+    return String(iso);
+  }
 }

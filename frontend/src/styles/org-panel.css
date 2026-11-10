@@ -60,6 +60,13 @@
   font-size: 0.74rem; line-height: 1.45;
   color: var(--muted-500);
 }
+.org-header-titles .org-last-edit {
+  margin-top: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  color: var(--accent-navy-dim);
+}
+.org-header-titles .org-last-edit b { color: var(--accent-navy); }
 .org-close {
   flex-shrink: 0;
   width: 30px; height: 30px;

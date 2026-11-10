@@ -150,6 +150,7 @@ let stylesMap = new Map();
 // Organización de capas en carpetas (personal del usuario) y estado de render.
 let wsGroupsBase = [];        // grupos originales por workspace (fuente de capas)
 let organizacionActual = null; // carpetas guardadas del usuario; null = por workspaces
+let orgShowroomInfo = null;   // {folders, updated_at, updated_by} de Showroom
 let gruposRenderizados = [];   // grupos tal como se muestran (para buscador/índice)
 let estadosGeoJsonCache = null;
 let bloquesGeoJsonCache = null;
@@ -343,9 +344,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         wsGroups: wsGroupsBase,
         folders: organizacionActual,
         showroom: IS_SHOWROOM,
-        onGuardado: (folders) => {
+        lastEdit: IS_SHOWROOM ? orgShowroomInfo : null,
+        onGuardado: (folders, resultado) => {
           if (IS_SHOWROOM) {
             organizacionActual = folders && folders.length ? folders : [];
+            orgShowroomInfo = {
+              folders: organizacionActual,
+              updated_by: resultado?.updated_by || orgShowroomInfo?.updated_by || null,
+              updated_at: resultado?.updated_at || new Date().toISOString(),
+            };
           } else {
             organizacionActual = folders && folders.length ? folders : null;
           }
@@ -424,11 +431,13 @@ async function loadWorkspaces() {
     // Organización en carpetas: personal en geoportal, general en Showroom.
     if (IS_SHOWROOM) {
       try {
-        const folders = await obtenerOrganizacionShowroom();
-        organizacionActual = folders && folders.length ? folders : [];
+        const info = await obtenerOrganizacionShowroom();
+        organizacionActual = info?.folders?.length ? info.folders : [];
+        orgShowroomInfo = info || null;
       } catch (e) {
         console.warn('No se pudo cargar la organización de Showroom (se usa "Sin organización"):', e);
         organizacionActual = [];
+        orgShowroomInfo = null;
       }
     } else {
       try {

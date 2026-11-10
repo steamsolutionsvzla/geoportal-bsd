@@ -8,6 +8,7 @@ Organización de capas en carpetas.
 Se guarda en Postgres (tabla user_layer_folders) y se aplica en el sidebar.
 """
 import json
+from datetime import datetime, timezone
 from typing import List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -179,17 +180,24 @@ def _folders_de_fila(row) -> Optional[List[dict]]:
     return folders if isinstance(folders, list) else []
 
 
+def _nombre_editor(user: CurrentUser) -> str:
+    nombre = f"{user.nombre or ''} {user.apellido or ''}".strip()
+    return nombre or user.usuario_id or "Usuario"
+
+
 @router.get("/showroom")
 async def get_organization_showroom(user: CurrentUser = Depends(auth_guard)):
     """Carpetas generales de Showroom; folders=None si nunca se organizó."""
     pool = get_pool()
     row = await pool.fetchrow(
-        "SELECT folders, updated_at FROM user_layer_folders WHERE usuario_id = $1;",
+        "SELECT folders, updated_at, updated_by FROM user_layer_folders WHERE usuario_id = $1;",
         SHOWROOM_KEY,
     )
+    data = dict(row) if row is not None else {}
     return {
         "folders": _folders_de_fila(row),
         "updated_at": row["updated_at"].isoformat() if row and row["updated_at"] else None,
+        "updated_by": data.get("updated_by"),
     }
 
 
@@ -201,17 +209,25 @@ async def save_organization_showroom(
     """Guarda la organización general de Showroom. folders=[] ⇒ todo en Sin organización."""
     await validar_capas_showroom(payload.folders)
 
+    editor = _nombre_editor(user)
     data = json.dumps([f.model_dump() for f in payload.folders], ensure_ascii=False)
     pool = get_pool()
     await pool.execute(
         """
-        INSERT INTO user_layer_folders (usuario_id, folders, updated_at)
-        VALUES ($1, $2::jsonb, NOW())
+        INSERT INTO user_layer_folders (usuario_id, folders, updated_at, updated_by)
+        VALUES ($1, $2::jsonb, NOW(), $3)
         ON CONFLICT (usuario_id) DO UPDATE SET
             folders    = EXCLUDED.folders,
-            updated_at = NOW();
+            updated_at = NOW(),
+            updated_by = EXCLUDED.updated_by;
         """,
         SHOWROOM_KEY,
         data,
+        editor,
     )
-    return {"ok": True, "folders": [f.model_dump() for f in payload.folders]}
+    return {
+        "ok": True,
+        "folders": [f.model_dump() for f in payload.folders],
+        "updated_by": editor,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }

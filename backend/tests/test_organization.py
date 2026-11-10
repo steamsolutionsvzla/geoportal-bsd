@@ -152,7 +152,21 @@ def test_get_showroom_sin_config(client_pool):
     client, _pool = client_pool
     resp = client.get("/api/v1/organization/showroom")
     assert resp.status_code == 200
-    assert resp.json() == {"folders": None, "updated_at": None}
+    assert resp.json() == {"folders": None, "updated_at": None, "updated_by": None}
+
+
+def test_get_showroom_devuelve_ultimo_editor(client_pool):
+    client, pool = client_pool
+    pool.fetchrow_result = {
+        "folders": [{"nombre": "Pozos", "capas": ["Showroom:pozos"]}],
+        "updated_at": datetime.datetime(2026, 11, 10, tzinfo=datetime.timezone.utc),
+        "updated_by": "Ana Admin",
+    }
+    resp = client.get("/api/v1/organization/showroom")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["updated_by"] == "Ana Admin"
+    assert data["folders"][0]["nombre"] == "Pozos"
 
 
 def test_put_showroom_guarda_con_clave_global(client_pool, monkeypatch):
@@ -165,6 +179,7 @@ def test_put_showroom_guarda_con_clave_global(client_pool, monkeypatch):
     assert pool.executed
     _query, args = pool.executed[0]
     assert args[0] == organization.SHOWROOM_KEY
+    assert args[2] == "Ari Analista"
 
 
 def test_put_showroom_rechaza_capa_fuera_del_catalogo(client_pool, monkeypatch):
