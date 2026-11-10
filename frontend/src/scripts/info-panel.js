@@ -122,7 +122,13 @@ async function getLogoBase64() {
 // Resalta temporalmente el borde del análisis y devuelve un JPEG reducido.
 // Si el canvas está contaminado por teselas sin CORS, devuelve null.
 // ========================================================================
-const PDF_MAP_MAX_WIDTH = 1400;
+// Tamaños probados de mayor a menor: se usa el primero cuyo base64 quede
+// por debajo de ~900 KB (evita límites de nginx/proxies en el POST).
+const PDF_MAP_PRESETS = [
+  { width: 1200, quality: 0.78, maxBase64: 900_000 },
+  { width: 1000, quality: 0.70, maxBase64: 700_000 },
+  { width: 820, quality: 0.62, maxBase64: 550_000 },
+];
 const ANALYSIS_LINE_LAYERS = [
   { layer: 'layer-area-temporal-line', source: 'source-area-temporal', fill: 'pdf-area-highlight' },
   { layer: 'layer-estados-venezuela-line', source: 'source-estados-venezuela', fill: 'pdf-estado-highlight' },
@@ -130,17 +136,24 @@ const ANALYSIS_LINE_LAYERS = [
 ];
 
 function canvasAJpeg(canvas) {
-  const escala = Math.min(1, PDF_MAP_MAX_WIDTH / canvas.width);
-  const ancho = Math.max(1, Math.round(canvas.width * escala));
-  const alto = Math.max(1, Math.round(canvas.height * escala));
-  const salida = document.createElement('canvas');
-  salida.width = ancho;
-  salida.height = alto;
-  const ctx = salida.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, ancho, alto);
-  ctx.drawImage(canvas, 0, 0, ancho, alto);
-  return salida.toDataURL('image/jpeg', 0.82);
+  let ultimo = null;
+
+  for (const preset of PDF_MAP_PRESETS) {
+    const escala = Math.min(1, preset.width / canvas.width);
+    const ancho = Math.max(1, Math.round(canvas.width * escala));
+    const alto = Math.max(1, Math.round(canvas.height * escala));
+    const salida = document.createElement('canvas');
+    salida.width = ancho;
+    salida.height = alto;
+    const ctx = salida.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ancho, alto);
+    ctx.drawImage(canvas, 0, 0, ancho, alto);
+    ultimo = salida.toDataURL('image/jpeg', preset.quality);
+    if (ultimo.length <= preset.maxBase64) return ultimo;
+  }
+
+  return ultimo;
 }
 
 export async function captureMapForPdf() {
@@ -180,11 +193,24 @@ export async function captureMapForPdf() {
       }
     }
 
-    // Dos frames para que MapLibre repinte con el resaltado aplicado.
-    map.triggerRepaint();
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    // Espera a que el mapa termine de pintar el resaltado (con tope de tiempo).
+    await new Promise((resolve) => {
+      let hecho = false;
+      const fin = () => {
+        if (hecho) return;
+        hecho = true;
+        clearTimeout(t);
+        map.off('idle', fin);
+        resolve();
+      };
+      const t = setTimeout(fin, 1200);
+      map.once('idle', fin);
+      map.triggerRepaint();
+    });
 
-    return canvasAJpeg(map.getCanvas());
+    const dataUrl = canvasAJpeg(map.getCanvas());
+    console.info(`[PDF] Mapa capturado (${Math.round((dataUrl.length * 3) / 4 / 1024)} KB aprox.)`);
+    return dataUrl;
   } catch (error) {
     console.warn('No se pudo capturar el mapa para el PDF:', error);
     return null;
@@ -552,11 +578,23 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
       logo_base64: logoData || null,
       mapa_base64: mapaData || null
     };
-    const response = await apiFetch('/api/v1/reports/pdf', {
+    const enviar = () => apiFetch('/api/v1/reports/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
+    let response = await enviar();
+
+    // Si el servidor/proxy rechaza el payload con imagen, se reintenta sin
+    // imagen para que el PDF siempre se pueda descargar.
+    if (!response.ok && payload.mapa_base64) {
+      const primerError = await leerErrorReporte(response);
+      console.warn('[PDF] Falló con imagen, reintentando sin imagen:', primerError);
+      payload.mapa_base64 = null;
+      response = await enviar();
+    }
+
     if (!response.ok) {
       throw new Error(await leerErrorReporte(response));
     }
