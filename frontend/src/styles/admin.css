@@ -436,3 +436,41 @@
 .badge.amber  { background: #fef3c7; color: #92400e; }
 .badge.blue   { background: #dbeafe; color: #1e40af; }
 .badge.gray   { background: #e5e7eb; color: #374151; }
+
+/* ---------- Accesos rápidos del dashboard ---------- */
+.admin-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 28px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-200, #e5e7eb);
+}
+.admin-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-200, #e5e7eb);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--navy-600, #2d5296);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease, transform .1s ease;
+}
+.admin-shortcut svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.admin-shortcut:hover {
+  border-color: var(--navy-600, #2d5296);
+  background: #f1f5f9;
+  color: var(--navy-700, #1e3a6e);
+  transform: translateY(-1px);
+}
+.admin-shortcut[hidden] { display: none !important; }
