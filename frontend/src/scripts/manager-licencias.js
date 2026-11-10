@@ -40,6 +40,7 @@ const state = {
   charts: {},
   chartObservers: {},
   map: null,
+  mapObserver: null,
   mapReady: false,
   popup: null,
   selectedCode: null,
@@ -354,11 +355,11 @@ function renderCharts() {
   // Adaptar el alto a la cantidad de entidades de cada categoría.
   const empresaEl = $('lic-chart-empresa');
   if (empresaEl) {
-    empresaEl.style.minHeight = `${Math.max(220, Math.min(720, empresas.length * 28 + 70))}px`;
+    empresaEl.style.minHeight = `${Math.max(220, Math.min(420, empresas.length * 24 + 70))}px`;
   }
   const anioEl = $('lic-chart-anio');
   if (anioEl) {
-    anioEl.style.minHeight = `${Math.max(220, Math.min(360, anios.length * 18 + 110))}px`;
+    anioEl.style.minHeight = `${Math.max(220, Math.min(320, anios.length * 16 + 110))}px`;
   }
   const tipoEl = $('lic-chart-tipo');
   if (tipoEl) tipoEl.style.minHeight = '220px';
@@ -389,6 +390,11 @@ function initDashboardMap() {
     map.setMaxBounds(MANAGER_MAP_BOUNDS);
     state.map = map;
     map.resize();
+
+    if (typeof ResizeObserver !== 'undefined' && !state.mapObserver) {
+      state.mapObserver = new ResizeObserver(() => map.resize());
+      state.mapObserver.observe(map.getContainer());
+    }
 
     let watchdog = null;
 
