@@ -154,14 +154,17 @@
 
 /* ---------- Mapa + gráficos ---------- */
 .manager-viz {
-  display: grid;
-  grid-template-columns: minmax(190px, .78fr) minmax(0, 1.75fr) minmax(190px, .78fr);
-  grid-template-rows: 260px 260px;
-  grid-template-areas:
-    "tipo mapa empresa"
-    "estatus mapa anio";
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.manager-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 
 .manager-chart-card {
@@ -170,6 +173,7 @@
   border-radius: 14px;
   padding: 14px 16px 8px;
   min-width: 0;
+  min-height: 270px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -201,9 +205,10 @@
 .manager-viz-area-anio { grid-area: anio; }
 
 .manager-map-card {
-  grid-area: mapa;
   position: relative;
-  min-height: 536px;
+  width: 100%;
+  height: clamp(380px, 52vh, 560px);
+  min-height: 380px;
   background: #e8eef5;
   border: 1px solid var(--line-200, #e5e7eb);
   border-radius: 14px;
@@ -427,15 +432,8 @@
 
 @media (max-width: 1080px) {
   .manager-kpis.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .manager-viz {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: 420px 250px 250px;
-    grid-template-areas:
-      "mapa mapa"
-      "tipo empresa"
-      "estatus anio";
-  }
-  .manager-map-card { min-height: 420px; }
+  .manager-charts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-map-card { height: clamp(340px, 48vh, 460px); min-height: 340px; }
 }
 
 @media (max-width: 720px) {
@@ -444,17 +442,9 @@
   .licencias-search { min-width: 100%; width: 100%; margin-left: 0; }
   .licencias-search input { min-width: 0; }
   .manager-kpis.kpi-grid { grid-template-columns: 1fr; }
-  .manager-viz {
-    grid-template-columns: 1fr;
-    grid-template-rows: 360px 235px 235px 235px 235px;
-    grid-template-areas:
-      "mapa"
-      "tipo"
-      "estatus"
-      "empresa"
-      "anio";
-  }
-  .manager-map-card { min-height: 360px; }
+  .manager-charts-grid { grid-template-columns: 1fr; }
+  .manager-map-card { height: 340px; min-height: 340px; }
+  .manager-chart-card { min-height: 250px; }
 }
 
 /* ---------- Selector de capa del dashboard ---------- */

@@ -86,12 +86,6 @@ import '../../styles/manager-licencias.css';
   </section>
 
   <div class="manager-viz">
-    <article class="manager-chart-card manager-viz-area-tipo">
-      <h3>Tipo de licencia</h3>
-      <p class="chart-sub">GAS y CRUDO por estatus</p>
-      <div class="manager-chart-box" id="lic-chart-tipo" role="img" aria-label="Distribución por tipo de licencia y estatus"></div>
-    </article>
-
     <article class="manager-map-card">
       <div id="manager-map" class="manager-map"></div>
       <div class="manager-map-zoom" aria-label="Controles de zoom">
@@ -124,23 +118,31 @@ import '../../styles/manager-licencias.css';
       <div class="manager-map-error" id="manager-map-error" hidden></div>
     </article>
 
-    <article class="manager-chart-card manager-viz-area-empresa">
-      <h3>Licencias por empresa</h3>
-      <p class="chart-sub">Vigentes y culminadas</p>
-      <div class="manager-chart-box" id="lic-chart-empresa" role="img" aria-label="Licencias por empresa y estatus"></div>
-    </article>
+    <div class="manager-charts-grid">
+      <article class="manager-chart-card manager-viz-area-tipo">
+        <h3>Tipo de licencia</h3>
+        <p class="chart-sub">GAS y CRUDO por estatus</p>
+        <div class="manager-chart-box" id="lic-chart-tipo" role="img" aria-label="Distribución por tipo de licencia y estatus"></div>
+      </article>
 
-    <article class="manager-chart-card manager-viz-area-estatus">
-      <h3>Estatus de licencias</h3>
-      <p class="chart-sub">Vigencia de las licencias</p>
-      <div class="manager-chart-box" id="lic-chart-estatus" role="img" aria-label="Distribución por estatus"></div>
-    </article>
+      <article class="manager-chart-card manager-viz-area-empresa">
+        <h3>Licencias por empresa</h3>
+        <p class="chart-sub">Vigentes y culminadas</p>
+        <div class="manager-chart-box" id="lic-chart-empresa" role="img" aria-label="Licencias por empresa y estatus"></div>
+      </article>
 
-    <article class="manager-chart-card manager-viz-area-anio">
-      <h3>Licencias por año</h3>
-      <p class="chart-sub">Vigentes y culminadas por año</p>
-      <div class="manager-chart-box" id="lic-chart-anio" role="img" aria-label="Licencias por año y estatus"></div>
-    </article>
+      <article class="manager-chart-card manager-viz-area-estatus">
+        <h3>Estatus de licencias</h3>
+        <p class="chart-sub">Vigencia de las licencias</p>
+        <div class="manager-chart-box" id="lic-chart-estatus" role="img" aria-label="Distribución por estatus"></div>
+      </article>
+
+      <article class="manager-chart-card manager-viz-area-anio">
+        <h3>Licencias por año</h3>
+        <p class="chart-sub">Vigentes y culminadas por año</p>
+        <div class="manager-chart-box" id="lic-chart-anio" role="img" aria-label="Licencias por año y estatus"></div>
+      </article>
+    </div>
   </div>
 
   <section class="manager-table-panel" id="lic-table-panel" hidden>

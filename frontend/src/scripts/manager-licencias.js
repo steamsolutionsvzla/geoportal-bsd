@@ -38,6 +38,7 @@ const state = {
   all: [],
   filtered: [],
   charts: {},
+  chartObservers: {},
   map: null,
   mapReady: false,
   popup: null,
@@ -191,7 +192,12 @@ function chart(id) {
   const el = $(id);
   if (!el) return null;
   if (!state.charts[id]) {
-    state.charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+    const inst = echarts.init(el, null, { renderer: 'canvas' });
+    state.charts[id] = inst;
+    if (typeof ResizeObserver !== 'undefined') {
+      state.chartObservers[id] = new ResizeObserver(() => inst.resize());
+      state.chartObservers[id].observe(el);
+    }
   }
   return state.charts[id];
 }
@@ -279,14 +285,16 @@ function stackedBarOption(entries, horizontal = false) {
   const names = entries.map((entry) => entry.name);
   const axisLabel = { color: '#6b7280', fontSize: 10 };
   const splitLine = { lineStyle: { color: '#eef2f7' } };
+  const manyYears = !horizontal && names.length > 10;
 
   return {
     animationDuration: 350,
     grid: horizontal
-      ? { left: 88, right: 16, top: 8, bottom: 30 }
-      : { left: 34, right: 12, top: 12, bottom: 42 },
+      ? { left: 8, right: 16, top: 8, bottom: 30, containLabel: true }
+      : { left: 34, right: 12, top: 12, bottom: manyYears ? 62 : 42 },
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: {
+      type: 'scroll',
       bottom: 0,
       left: 'center',
       icon: 'circle',
@@ -299,12 +307,23 @@ function stackedBarOption(entries, horizontal = false) {
       : {
           type: 'category',
           data: names,
-          axisLabel: { ...axisLabel, interval: 0 },
+          axisLabel: {
+            ...axisLabel,
+            interval: manyYears ? 'auto' : 0,
+            rotate: manyYears ? 35 : 0,
+          },
           axisTick: { show: false },
           axisLine: { lineStyle: { color: '#e5e7eb' } },
         },
     yAxis: horizontal
-      ? { type: 'category', data: names, inverse: true, axisLabel, axisTick: { show: false }, axisLine: { show: false } }
+      ? {
+          type: 'category',
+          data: names,
+          inverse: true,
+          axisLabel: { ...axisLabel, width: 118, overflow: 'truncate' },
+          axisTick: { show: false },
+          axisLine: { show: false },
+        }
       : { type: 'value', axisLabel, splitLine, minInterval: 1 },
     series: STATUS_KEYS.map((key) => ({
       name: STATUS[key].label,
@@ -328,19 +347,30 @@ function stackedBarOption(entries, horizontal = false) {
 }
 
 function renderCharts() {
-  chart('lic-chart-tipo')?.setOption(
-    stackedBarOption(groupedStatusCounts(state.filtered, 'tipo')),
-    true,
-  );
+  const tipos = groupedStatusCounts(state.filtered, 'tipo');
+  const empresas = groupedStatusCounts(state.filtered, 'empresa');
+  const anios = groupedStatusCounts(state.filtered, 'anio', 'year');
+
+  // Adaptar el alto a la cantidad de entidades de cada categoría.
+  const empresaEl = $('lic-chart-empresa');
+  if (empresaEl) {
+    empresaEl.style.minHeight = `${Math.max(220, Math.min(720, empresas.length * 28 + 70))}px`;
+  }
+  const anioEl = $('lic-chart-anio');
+  if (anioEl) {
+    anioEl.style.minHeight = `${Math.max(220, Math.min(360, anios.length * 18 + 110))}px`;
+  }
+  const tipoEl = $('lic-chart-tipo');
+  if (tipoEl) tipoEl.style.minHeight = '220px';
+
+  chart('lic-chart-tipo')?.setOption(stackedBarOption(tipos), true);
   chart('lic-chart-estatus')?.setOption(statusDonutOption(), true);
-  chart('lic-chart-empresa')?.setOption(
-    stackedBarOption(groupedStatusCounts(state.filtered, 'empresa'), true),
-    true,
-  );
-  chart('lic-chart-anio')?.setOption(
-    stackedBarOption(groupedStatusCounts(state.filtered, 'anio', 'year')),
-    true,
-  );
+  chart('lic-chart-empresa')?.setOption(stackedBarOption(empresas), true);
+  chart('lic-chart-anio')?.setOption(stackedBarOption(anios, false), true);
+
+  requestAnimationFrame(() => {
+    Object.values(state.charts).forEach((inst) => inst?.resize());
+  });
 }
 
 /* ------------------------------------------------------------------ */
