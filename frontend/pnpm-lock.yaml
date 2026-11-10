@@ -32,6 +32,9 @@ importers:
       astro:
         specifier: 7.3.3
         version: 7.3.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(jiti@2.7.0)
+      but-unzip:
+        specifier: ^0.1.10
+        version: 0.1.10
       echarts:
         specifier: 6.1.0
         version: 6.1.0

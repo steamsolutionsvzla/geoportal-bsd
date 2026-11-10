@@ -10,6 +10,7 @@
 // seleccionada para el filtro se resalta con otro color y mayor grosor.
 // ---------------------------------------------------------------------------
 import shp from 'shpjs';
+import { Archive } from 'libarchive.js';
 import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
 
@@ -116,6 +117,35 @@ async function parseGeoJsonText(text) {
   return JSON.parse(text);
 }
 
+/**
+ * Lee un KMZ (ZIP con uno o varios KML) usando la API nativa del navegador
+ * para descomprimir, sin depender del worker WASM.
+ */
+async function parseKmzFile(file) {
+  const { unzip } = await import('but-unzip');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let entradas;
+
+  try {
+    entradas = unzip(bytes);
+  } catch (_) {
+    throw new Error('El archivo KMZ no es un ZIP válido o está dañado.');
+  }
+
+  const capas = [];
+  for (const entrada of entradas) {
+    if (!String(entrada.filename || '').toLowerCase().endsWith('.kml')) continue;
+    const datos = await entrada.read();
+    const texto = new TextDecoder('utf-8').decode(datos);
+    capas.push(await parseKmlText(texto));
+  }
+
+  if (!capas.length) {
+    throw new Error('El KMZ no contiene ningún archivo KML.');
+  }
+  return capas;
+}
+
 function rutaIgnorada(path) {
   const partes = String(path || '').split(/[\\/]/);
   return partes.some((p) => ARCHIVE_SKIP_DIRS.includes(p));
@@ -140,13 +170,6 @@ function aplanarArchivo(node, prefijo = '', salida = []) {
  * una lista de entradas GeoJSON/Shapefile/KML ya parseadas.
  */
 async function parseArchiveEntries(file, etiqueta = 'archivo comprimido') {
-  let Archive;
-  try {
-    ({ Archive } = await import('libarchive.js'));
-  } catch (error) {
-    throw new Error(`El lector de archivos ${etiqueta} no está disponible.`);
-  }
-
   Archive.init({ workerUrl: '/vendor/libarchive/worker-bundle.js' });
 
   let extraidos;
@@ -287,8 +310,10 @@ export async function parseAreaFile(file) {
       entrada = JSON.parse(await file.text());
     } else if (ext === 'kml') {
       entrada = await parseKmlText(await file.text());
-    } else if (ext === 'rar' || ext === 'kmz') {
-      entrada = await parseArchiveEntries(file, ext === 'kmz' ? 'KMZ' : 'RAR');
+    } else if (ext === 'kmz') {
+      entrada = await parseKmzFile(file);
+    } else if (ext === 'rar') {
+      entrada = await parseArchiveEntries(file, 'RAR');
     } else {
       throw new Error('Formato no compatible. Usa KML, KMZ, GeoJSON, Shapefile (.zip) o RAR.');
     }
