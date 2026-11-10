@@ -17,9 +17,13 @@ import '../../styles/manager-licencias.css';
       <p>Licencias, empresas, vigencia y superficie concesionada.</p>
     </div>
     <div class="manager-head-actions">
-      <a class="manager-table-link" id="lic-table-link" href="/admin/licencias">
-        Ver tabla de atributos →
-      </a>
+      <button
+        type="button"
+        class="manager-table-link"
+        id="lic-table-toggle"
+        aria-expanded="false"
+        aria-controls="lic-table-panel"
+      >Ver tabla de licencias</button>
       <button
         type="button"
         class="manager-layers-btn"
@@ -138,6 +142,36 @@ import '../../styles/manager-licencias.css';
       <div class="manager-chart-box" id="lic-chart-anio" role="img" aria-label="Licencias por año y estatus"></div>
     </article>
   </div>
+
+  <section class="manager-table-panel" id="lic-table-panel" hidden>
+    <div class="admin-table-wrap manager-table-card">
+      <div class="admin-table-head">
+        <div>
+          <h2>Tabla de licencias</h2>
+          <p id="lic-table-count">—</p>
+        </div>
+      </div>
+      <div class="manager-table-scroll">
+        <table class="admin-table manager-table" id="lic-table">
+          <thead>
+            <tr>
+              <th data-sort="codigo" data-dir="asc">Código</th>
+              <th data-sort="bloque">Licencia</th>
+              <th data-sort="empresa">Empresa</th>
+              <th data-sort="tipo">Tipo</th>
+              <th data-sort="estatus">Estatus</th>
+              <th data-sort="anio" class="year-cell">Año</th>
+              <th data-sort="duracion_anios">Duración</th>
+              <th data-sort="area_km2" class="area-cell">Área (km²)</th>
+            </tr>
+          </thead>
+          <tbody id="lic-table-body">
+            <tr><td colspan="8" class="manager-empty">Cargando licencias…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 </section>
 
 <!-- Selector de la capa que alimenta el panel gerencial -->

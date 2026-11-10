@@ -341,6 +341,16 @@
   margin-top: 4px;
 }
 
+.manager-table-panel {
+  margin-top: 20px;
+}
+.manager-table-panel[hidden] {
+  display: none !important;
+}
+.manager-table-panel .manager-table-card {
+  margin-top: 0;
+}
+
 .manager-table-head p {
   margin: 3px 0 0;
   font-size: .75rem;
@@ -581,8 +591,10 @@
   border-radius: 999px;
   background: #fff;
   color: #2d5296;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
   font-size: .74rem;
   font-weight: 600;
+  cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
   transition: border-color .15s ease, background .15s ease;

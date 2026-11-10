@@ -160,7 +160,7 @@ function applyFilters() {
   updateMapData();
   renderKpis();
   renderCharts();
-  updateTableLink();
+  renderLicenseTable();
 }
 
 /* ------------------------------------------------------------------ */
@@ -676,17 +676,111 @@ function selectFeature(codigo, lngLat = null) {
 /* Enlace a la tabla de atributos y controles del mapa                 */
 /* ------------------------------------------------------------------ */
 
-function updateTableLink() {
-  const link = $('lic-table-link');
-  if (!link) return;
-  const params = new URLSearchParams();
-  [['empresa', 'lic-filter-empresa'], ['tipo', 'lic-filter-tipo'],
-   ['estatus', 'lic-filter-estatus'], ['anio', 'lic-filter-anio']].forEach(([key, id]) => {
-    const value = $(id)?.value;
-    if (value) params.set(key, value);
+function tableBadge(value, kind) {
+  const text = String(value ?? '—');
+  let cls = 'gray';
+  if (kind === 'tipo') cls = text === 'GAS' ? 'green' : text === 'CRUDO' ? 'blue' : 'gray';
+  if (kind === 'estatus') cls = text === 'VIGENTE' ? 'green' : text === 'CULMINADA' ? 'red' : 'amber';
+  return `<span class="badge ${cls}">${esc(text)}</span>`;
+}
+
+function formatAreaTable(value) {
+  const n = num(value);
+  if (n === null) return '—';
+  return n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function sortValue(feature, key) {
+  const value = feature.properties?.[key];
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number') return value;
+  return String(value).toLocaleLowerCase('es');
+}
+
+function renderLicenseTable() {
+  const body = $('lic-table-body');
+  if (!body) return;
+
+  const count = $('lic-table-count');
+  if (count) count.textContent = `${state.filtered.length} de ${state.all.length} licencias`;
+
+  const rows = [...state.filtered];
+  rows.sort((a, b) => {
+    const av = sortValue(a, state.sortKey);
+    const bv = sortValue(b, state.sortKey);
+    if (av === null && bv === null) return 0;
+    if (av === null) return 1;
+    if (bv === null) return -1;
+    const comparison = (typeof av === 'number' && typeof bv === 'number')
+      ? av - bv
+      : String(av).localeCompare(String(bv), 'es', { numeric: true });
+    return state.sortDir === 'asc' ? comparison : -comparison;
   });
-  const query = params.toString();
-  link.setAttribute('href', `/admin/licencias${query ? `?${query}` : ''}`);
+
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="8" class="manager-empty">No hay licencias con los filtros seleccionados.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map((feature) => {
+    const p = feature.properties || {};
+    return `<tr data-codigo="${esc(p.codigo)}" title="Ver en el mapa">
+      <td><strong>${esc(p.codigo ?? '—')}</strong></td>
+      <td>${esc(p.bloque ?? '—')}</td>
+      <td>${esc(p.empresa ?? '—')}</td>
+      <td>${tableBadge(p.tipo, 'tipo')}</td>
+      <td>${tableBadge(p.estatus, 'estatus')}</td>
+      <td class="year-cell">${esc(p.anio ?? '—')}</td>
+      <td>${esc(p.duracion ?? p.duracion_anios ?? '—')}</td>
+      <td class="area-cell">${esc(formatAreaTable(p.area_km2))}</td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('#lic-table th[data-sort]').forEach((th) => {
+    const active = th.getAttribute('data-sort') === state.sortKey;
+    th.setAttribute('data-dir', active ? state.sortDir : '');
+  });
+}
+
+function updateTableToggleLabel() {
+  const btn = $('lic-table-toggle');
+  const panel = $('lic-table-panel');
+  if (!btn || !panel) return;
+  const open = !panel.hidden;
+  btn.textContent = open ? 'Ocultar tabla' : 'Ver tabla de licencias';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function setupTableToggle() {
+  const btn = $('lic-table-toggle');
+  const panel = $('lic-table-panel');
+  if (!btn || !panel) return;
+
+  btn.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    updateTableToggleLabel();
+    if (!panel.hidden) renderLicenseTable();
+  });
+
+  document.querySelectorAll('#lic-table th[data-sort]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const key = th.getAttribute('data-sort');
+      if (!key) return;
+      if (state.sortKey === key) state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        state.sortKey = key;
+        state.sortDir = 'asc';
+      }
+      renderLicenseTable();
+    });
+  });
+
+  $('lic-table-body')?.addEventListener('click', (e) => {
+    const row = e.target.closest('tr[data-codigo]');
+    if (row) selectFeature(row.getAttribute('data-codigo'));
+  });
+
+  updateTableToggleLabel();
 }
 
 function setupMapZoom() {
@@ -780,6 +874,7 @@ async function init() {
   section.hidden = false;
 
   setupFilterEvents();
+  setupTableToggle();
 
   // Datos y mapa arrancan en paralelo: así la API se solicita de inmediato
   // y el mapa no depende de que las licencias respondan.
@@ -797,7 +892,7 @@ async function init() {
     populateFilters(state.all);
     renderKpis();
     renderCharts();
-    updateTableLink();
+    renderLicenseTable();
     if (state.mapReady) {
       updateMapData();
       fitLicenses(0);
