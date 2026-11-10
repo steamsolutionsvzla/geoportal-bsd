@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         lastEdit: IS_SHOWROOM ? orgShowroomInfo : null,
         onGuardado: (folders, resultado) => {
           if (IS_SHOWROOM) {
-            organizacionActual = folders && folders.length ? folders : [];
+            organizacionActual = folders && folders.length ? folders : null;
             orgShowroomInfo = {
               folders: organizacionActual,
               updated_by: resultado?.updated_by || orgShowroomInfo?.updated_by || null,
@@ -432,11 +432,11 @@ async function loadWorkspaces() {
     if (IS_SHOWROOM) {
       try {
         const info = await obtenerOrganizacionShowroom();
-        organizacionActual = info?.folders?.length ? info.folders : [];
+        organizacionActual = info?.folders?.length ? info.folders : null;
         orgShowroomInfo = info || null;
       } catch (e) {
         console.warn('No se pudo cargar la organización de Showroom (se usa "Sin organización"):', e);
-        organizacionActual = [];
+        organizacionActual = null;
         orgShowroomInfo = null;
       }
     } else {
@@ -772,7 +772,10 @@ function setupBusquedaChips() {
 // =========================================================================
 function gruposParaRender() {
   if (IS_SHOWROOM) {
-    return construirGruposDesdeCarpetas(organizacionActual || [], wsGroupsBase, 'Sin organización');
+    if (organizacionActual && organizacionActual.length) {
+      return construirGruposDesdeCarpetas(organizacionActual, wsGroupsBase, 'Sin organización');
+    }
+    return wsGroupsBase;
   }
   if (organizacionActual) return construirGruposDesdeCarpetas(organizacionActual, wsGroupsBase);
   return wsGroupsBase;

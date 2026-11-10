@@ -134,10 +134,11 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
   }));
 
   // Estado de trabajo: carpetas locales + pool "Sin organizar / Sin organización".
+  // Sin organización previa, se parte de la agrupación por workspaces.
   const state = {
     folders: folders?.length
       ? capasarDueltas(folders)
-      : (showroom ? [] : wsGroups.map(g => ({ nombre: g.title || g.name, capas: (g.layers || []).map(l => l.id) }))),
+      : wsGroups.map(g => ({ nombre: g.title || g.name, capas: (g.layers || []).map(l => l.id) })),
   };
   const baseJson = JSON.stringify(state.folders);
   const estaSucio = () => JSON.stringify(state.folders) !== baseJson;
@@ -183,7 +184,7 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
       </div>
 
       <footer class="org-footer">
-        <button type="button" class="org-btn org-btn-ghost" data-action="reset" title="${showroom ? 'Restablecer toda la organización a Sin organización' : 'Dejar de usar carpetas personales y agrupar otra vez por workspace'}">${showroom ? 'Restablecer a Sin organización' : 'Volver a workspaces'}</button>
+        <button type="button" class="org-btn org-btn-ghost" data-action="reset" title="${showroom ? 'Restablecer la organización por defecto agrupada por workspaces' : 'Dejar de usar carpetas personales y agrupar otra vez por workspace'}">${showroom ? 'Restablecer a workspaces' : 'Volver a workspaces'}</button>
         <button type="button" class="org-btn org-btn-ghost" data-action="close">Cancelar</button>
         <span class="org-footer-spacer"></span>
         <button type="button" class="org-btn org-btn-primary" data-action="save">Guardar cambios</button>
