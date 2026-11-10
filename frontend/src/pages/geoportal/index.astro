@@ -91,21 +91,6 @@ import Footer from '../../components/Footer.astro';
       <div class="brand-text">
         <span class="name">Geoportal</span>
       </div>
-      <div class="loc-search">
-        <svg class="loc-search-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="11" cy="11" r="7"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input
-          type="search"
-          id="locSearch"
-          placeholder="Buscar estado, bloque o capa…"
-          autocomplete="off"
-          aria-label="Buscar ubicación o capa"
-        />
-        <kbd>Ctrl K</kbd>
-        <div class="loc-search-dropdown" id="locSearchDropdown" role="listbox" aria-label="Resultados de búsqueda"></div>
-      </div>
       <div class="topbar-actions">
         <a href="/hub" class="icon-btn" id="homeBtn" title="Volver al hub" aria-label="Volver al hub">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -149,6 +134,20 @@ import Footer from '../../components/Footer.astro';
           <span class="eyebrow">Filtrar por ubicación</span>
         </div>
         <div class="filter-group">
+          <div class="loc-search loc-search-panel">
+            <svg class="loc-search-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="search"
+              id="locSearch"
+              placeholder="Buscar estado, bloque o coordenadas…"
+              autocomplete="off"
+              aria-label="Buscar estado, bloque o coordenadas"
+            />
+            <div class="loc-search-dropdown" id="locSearchDropdown" role="listbox" aria-label="Resultados de búsqueda"></div>
+          </div>
           <div class="loc-filter" id="filterEstado">
             <button type="button" class="loc-filter-btn" data-placeholder="Estado">
               <svg class="lf-icon" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>

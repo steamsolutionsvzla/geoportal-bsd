@@ -1379,6 +1379,23 @@ input { font-family: inherit; }
 }
 .loc-search:focus-within kbd { display: none; }
 
+/* Variante dentro del panel "Filtrar por ubicación" */
+.filter-panel .loc-search-panel {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.filter-panel .loc-search-panel input {
+  padding: 0 14px 0 34px;
+  border-radius: var(--radius-s);
+}
+.filter-panel .loc-search-panel .loc-search-dropdown {
+  width: 100%;
+  min-width: 0;
+  max-height: 300px;
+}
+
 .loc-search-dropdown {
   position: absolute;
   top: calc(100% + 8px);
