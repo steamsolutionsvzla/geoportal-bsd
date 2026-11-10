@@ -9,10 +9,8 @@ import { initMap, setupCompass, setupStatusBar, addBaseLayers, setupZoomControls
 import {
   setupFilterDropdowns,
   setupAreaFilter,
-  setupCoordenadasFilter,
   usarAreaDibujada,
   limpiarFiltroArea,
-  limpiarFiltroCoordenadas,
   limpiarFiltroEstado as filtroEstadoOriginal,
   limpiarFiltroBloque as filtroBloqueOriginal,
   setEstadosCache,
@@ -23,7 +21,6 @@ import { setDrawnArea } from './area-temporal.js';
 import { initDrawTools, startPolygonTool } from './draw-tools.js';
 import { bringVenezuelaBoundaryToFront } from './venezuela-boundary.js';
 import { bringCountryLabelsToFront } from './map-labels.js';
-import { refrescarOrdenMascara, actualizarColorMascara, isInsideActiveZone } from './zone-filter.js';
 import {
   renderInfoPanel,
   setInfoPanelData,
@@ -273,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           }
 
-          setupCoordenadasFilter();
+          // Mantener el contorno nacional y las etiquetas por encima de las capas.
           bringVenezuelaBoundaryToFront(map);
           bringMapLabelsToFront(map);
 
@@ -337,9 +334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.limpiarFiltroEstado = limpiarFiltroEstado;
     window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: false });
-    window.limpiarFiltroCoordenadas = limpiarFiltroCoordenadas;
     window.limpiarResaltadoFiltro = limpiarResaltadoFiltro;
-    window.actualizarColorMascaraZona = actualizarColorMascara;
     window.cerrarSesion = cerrarSesion;
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
@@ -1281,7 +1276,6 @@ async function cargarCapaBloques() {
 
       map.on('click', BLOQUE_LAYER_ID, (ev) => {
         if (!ev.features || ev.features.length === 0) return;
-        if (!isInsideActiveZone(ev.lngLat)) return;
         const props = ev.features[0].properties;
         const clickedId = ev.features[0].id;
 
@@ -1575,7 +1569,6 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     refreshCount();
     updateLegendUI(getAvailableLayers());
   } finally {
-    refrescarOrdenMascara();
     cargandoCapas.delete(tableName);
     rowTarget?.classList.remove('is-loading');
   }

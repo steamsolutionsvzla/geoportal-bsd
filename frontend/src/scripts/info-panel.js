@@ -10,12 +10,10 @@ let currentFilterData = null;
 let currentBloqueFilterData = null;
 let currentAreaFilterData = null;
 let currentIntersectionFilterData = null;
-let currentZonaFilterData = null;
 let isFilterActive = false;
 let isBloqueFilterActive = false;
 let isAreaFilterActive = false;
 let isIntersectionFilterActive = false;
-let isZonaFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
 let areaSeleccionada = '';
@@ -298,12 +296,10 @@ export function setInfoPanelData(data) {
   if (data.currentBloqueFilterData !== undefined) currentBloqueFilterData = data.currentBloqueFilterData;
   if (data.currentAreaFilterData !== undefined) currentAreaFilterData = data.currentAreaFilterData;
   if (data.currentIntersectionFilterData !== undefined) currentIntersectionFilterData = data.currentIntersectionFilterData;
-  if (data.currentZonaFilterData !== undefined) currentZonaFilterData = data.currentZonaFilterData;
   if (data.isFilterActive !== undefined) isFilterActive = data.isFilterActive;
   if (data.isBloqueFilterActive !== undefined) isBloqueFilterActive = data.isBloqueFilterActive;
   if (data.isAreaFilterActive !== undefined) isAreaFilterActive = data.isAreaFilterActive;
   if (data.isIntersectionFilterActive !== undefined) isIntersectionFilterActive = data.isIntersectionFilterActive;
-  if (data.isZonaFilterActive !== undefined) isZonaFilterActive = data.isZonaFilterActive;
   if (data.estadoSeleccionado !== undefined) estadoSeleccionado = data.estadoSeleccionado;
   if (data.bloqueSeleccionado !== undefined) bloqueSeleccionado = data.bloqueSeleccionado;
   if (data.areaSeleccionada !== undefined) areaSeleccionada = data.areaSeleccionada;
@@ -363,7 +359,6 @@ export function renderInfoPanel() {
   const bloqueFilterHtml = (isBloqueFilterActive && currentBloqueFilterData) ? buildBloqueFilterSummaryHtml() : '';
   const areaFilterHtml = (isAreaFilterActive && currentAreaFilterData) ? buildAreaFilterSummaryHtml() : '';
   const intersectionFilterHtml = (isIntersectionFilterActive && currentIntersectionFilterData) ? buildIntersectionFilterSummaryHtml() : '';
-  const zonaFilterHtml = (isZonaFilterActive && currentZonaFilterData) ? buildZonaFilterSummaryHtml() : '';
 
   let html = '';
   let bloques = [];
@@ -372,7 +367,6 @@ export function renderInfoPanel() {
   if (bloqueFilterHtml) bloques.push(bloqueFilterHtml);
   if (areaFilterHtml) bloques.push(areaFilterHtml);
   if (intersectionFilterHtml) bloques.push(intersectionFilterHtml);
-  if (zonaFilterHtml) bloques.push(zonaFilterHtml);
 
   if (bloques.length > 0) {
     html = bloques.join('');
@@ -394,7 +388,6 @@ export function renderInfoPanel() {
   if (bloqueFilterHtml) attachBloqueFilterDownloadListeners();
   if (areaFilterHtml) attachAreaFilterDownloadListeners();
   if (intersectionFilterHtml) attachIntersectionFilterDownloadListeners();
-  if (zonaFilterHtml) attachZonaFilterListeners();
 
   const infoPanel = document.getElementById('infoPanel');
   if (infoPanel && infoPanel.classList.contains('collapsed')) {
@@ -427,39 +420,6 @@ function buildFilterSummaryHtml() {
   html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
   html += `</div>`;
   return html;
-}
-
-function escaparInfo(texto) {
-  return String(texto ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function buildZonaFilterSummaryHtml() {
-  if (!currentZonaFilterData) return '';
-  const { zonaLabel, total, capas } = currentZonaFilterData;
-  const rows = (capas || []).map((c) => `
-    <tr>
-      <td style="padding:4px;">${escaparInfo(c.name)}</td>
-      <td style="text-align:right; padding:4px; font-weight:bold;">${Number(c.count || 0).toLocaleString('es')}</td>
-    </tr>`).join('');
-  let html = `<div class="info-card filter-card" data-filter="zona"><div class="ic-label">Zona por coordenadas: ${escaparInfo(zonaLabel)}</div><hr class="info-divider">`;
-  html += `<div class="info-table-wrap"><table class="info-table">`;
-  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
-  html += rows || `<tr><td colspan="2" class="info-table-empty">Sin capas con datos en la zona.</td></tr>`;
-  html += `</tbody></table></div>`;
-  html += `<div class="info-total"><span>Total de elementos en la zona</span><b>${Number(total || 0).toLocaleString('es')}</b></div>`;
-  html += `<button type="button" id="clearZonaFilterBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Cancelar filtro de zona</button>`;
-  html += `</div>`;
-  return html;
-}
-
-function attachZonaFilterListeners() {
-  const btn = document.getElementById('clearZonaFilterBtn');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    if (typeof window.limpiarFiltroCoordenadas === 'function') window.limpiarFiltroCoordenadas();
-  });
 }
 
 function buildBloqueFilterSummaryHtml() {

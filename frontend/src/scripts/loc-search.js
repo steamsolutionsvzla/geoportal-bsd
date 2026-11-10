@@ -5,7 +5,7 @@
 // - Capa             → la enciende en el catálogo y ajusta el mapa a ella.
 import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
-import { getEstadosCache, getBloquesCache, seleccionarFiltroEstado, seleccionarFiltroBloque, aplicarFiltroCoordenadas } from './filters.js';
+import { getEstadosCache, getBloquesCache } from './filters.js';
 import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
 import {
@@ -305,6 +305,7 @@ export function initLocationSearch() {
     if (zona) {
       zona = null;
       zonaToken++;
+      limpiarZona();
     }
   };
 
@@ -338,19 +339,19 @@ export function initLocationSearch() {
     if (!it || it.tipo === 'grupo') return;
 
     if (it.kind === 'estado' || it.kind === 'bloque') {
-      // Aplica el filtro lateral (incluye la zona de recorte persistente).
-      if (it.kind === 'estado') seleccionarFiltroEstado(it.nombre);
-      else seleccionarFiltroBloque(it.nombre);
-      cerrar();
-      input.blur();
+      const esEstado = it.kind === 'estado';
+      const cache = esEstado ? getEstadosCache() : getBloquesCache();
+      const getter = esEstado ? obtenerNombreEstado : obtenerNombreBloque;
+      const feature = (cache?.features || []).find((f) => {
+        const n = getter(f.properties);
+        return n && norm(n) === norm(it.nombre);
+      });
+      if (feature) abrirModoZona({ tipo: it.kind, titulo: it.nombre, geometry: feature.geometry }, dropdown);
       return;
     }
 
     if (it.kind === 'coords') {
-      // Lleva las coordenadas al filtro persistente del panel lateral.
-      cerrar();
-      aplicarFiltroCoordenadas({ lat: it.lat, lng: it.lng, radioKm: 15 });
-      input.blur();
+      abrirModoZona({ tipo: 'coords', titulo: `${it.lat}, ${it.lng}`, lat: it.lat, lng: it.lng }, dropdown);
       return;
     }
 
