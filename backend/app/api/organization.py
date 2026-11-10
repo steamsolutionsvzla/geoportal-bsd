@@ -1,10 +1,11 @@
 # app/api/organization.py
 """
-Organización de capas en carpetas, personal por usuario.
+Organización de capas en carpetas.
 
-El usuario del geoportal decide qué capas agrupa en cada carpeta del sidebar.
-Se guarda en Postgres (tabla user_layer_folders, una fila por usuario) y se
-aplica solo en el geoportal (no en showroom ni en analista).
+- Geoportal: personal por usuario (clave = usuario_id de Odoo).
+- Showroom: general/compartida para todos (clave fija __showroom__).
+
+Se guarda en Postgres (tabla user_layer_folders) y se aplica en el sidebar.
 """
 import json
 from typing import List, Optional, Set
@@ -18,6 +19,8 @@ from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
 
 router = APIRouter(prefix="/api/v1/organization", tags=["Organization"])
+
+SHOWROOM_KEY = "__showroom__"
 
 MAX_FOLDERS = 30
 MAX_LAYERS_TOTAL = 500
@@ -127,6 +130,88 @@ async def save_organization(payload: OrganizationIn, user: CurrentUser = Depends
             updated_at = NOW();
         """,
         user.usuario_id,
+        data,
+    )
+    return {"ok": True, "folders": [f.model_dump() for f in payload.folders]}
+
+
+# ---------------------------------------------------------------------------
+# Showroom: organización general (compartida por todos los usuarios)
+# ---------------------------------------------------------------------------
+async def validar_capas_showroom(folders: List[FolderIn]) -> None:
+    """Valida que las capas existan en el catálogo completo visible de GeoServer."""
+    vistos: Set[str] = set()
+    try:
+        groups = await GeoServerService.get_workspaces_with_layers()
+    except Exception as e:
+        raise HTTPException(502, f"No se pudo consultar el catálogo de Showroom: {e}")
+
+    permitidas = {
+        layer.get("id")
+        for group in (groups or [])
+        for layer in (group.get("layers") or [])
+        if layer.get("id")
+    }
+
+    for f in folders:
+        for capa in f.capas:
+            capa = (capa or "").strip()
+            if not capa:
+                raise HTTPException(422, "Hay un identificador de capa vacío.")
+            if len(capa) > MAX_LAYER_ID_LEN:
+                raise HTTPException(422, f"Identificador de capa demasiado largo: '{capa[:40]}…'")
+            if capa in vistos:
+                raise HTTPException(422, f"La capa '{capa}' está asignada a más de una carpeta.")
+            vistos.add(capa)
+            if capa not in permitidas:
+                raise HTTPException(403, f"La capa '{capa}' no está disponible en Showroom.")
+
+
+def _folders_de_fila(row) -> Optional[List[dict]]:
+    if row is None:
+        return None
+    folders = row["folders"]
+    if isinstance(folders, str):
+        try:
+            folders = json.loads(folders)
+        except json.JSONDecodeError:
+            folders = []
+    return folders if isinstance(folders, list) else []
+
+
+@router.get("/showroom")
+async def get_organization_showroom(user: CurrentUser = Depends(auth_guard)):
+    """Carpetas generales de Showroom; folders=None si nunca se organizó."""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        "SELECT folders, updated_at FROM user_layer_folders WHERE usuario_id = $1;",
+        SHOWROOM_KEY,
+    )
+    return {
+        "folders": _folders_de_fila(row),
+        "updated_at": row["updated_at"].isoformat() if row and row["updated_at"] else None,
+    }
+
+
+@router.put("/showroom")
+async def save_organization_showroom(
+    payload: OrganizationIn,
+    user: CurrentUser = Depends(auth_guard),
+):
+    """Guarda la organización general de Showroom. folders=[] ⇒ todo en Sin organización."""
+    await validar_capas_showroom(payload.folders)
+
+    data = json.dumps([f.model_dump() for f in payload.folders], ensure_ascii=False)
+    pool = get_pool()
+    await pool.execute(
+        """
+        INSERT INTO user_layer_folders (usuario_id, folders, updated_at)
+        VALUES ($1, $2::jsonb, NOW())
+        ON CONFLICT (usuario_id) DO UPDATE SET
+            folders    = EXCLUDED.folders,
+            updated_at = NOW();
+        """,
+        SHOWROOM_KEY,
         data,
     )
     return {"ok": True, "folders": [f.model_dump() for f in payload.folders]}

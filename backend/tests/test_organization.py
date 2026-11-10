@@ -137,3 +137,39 @@ def test_put_sin_usuario_id_rechazado(client_pool, monkeypatch):
     client, _pool = client_pool
     resp = client.put("/api/v1/organization", json={"folders": []})
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Showroom: organización general compartida
+# ---------------------------------------------------------------------------
+def _catalogo_showroom(monkeypatch, capas):
+    async def fake_workspaces(only=None, include_hidden=False):
+        return [{"name": "Showroom", "layers": [{"id": c} for c in capas]}]
+    monkeypatch.setattr(organization.GeoServerService, "get_workspaces_with_layers", fake_workspaces)
+
+
+def test_get_showroom_sin_config(client_pool):
+    client, _pool = client_pool
+    resp = client.get("/api/v1/organization/showroom")
+    assert resp.status_code == 200
+    assert resp.json() == {"folders": None, "updated_at": None}
+
+
+def test_put_showroom_guarda_con_clave_global(client_pool, monkeypatch):
+    _catalogo_showroom(monkeypatch, ["Showroom:pozos", "Otro:cuencas"])
+    client, pool = client_pool
+    payload = {"folders": [{"nombre": "Pozos", "capas": ["Showroom:pozos", "Otro:cuencas"]}]}
+    resp = client.put("/api/v1/organization/showroom", json=payload)
+    assert resp.status_code == 200
+    assert resp.json()["ok"] is True
+    assert pool.executed
+    _query, args = pool.executed[0]
+    assert args[0] == organization.SHOWROOM_KEY
+
+
+def test_put_showroom_rechaza_capa_fuera_del_catalogo(client_pool, monkeypatch):
+    _catalogo_showroom(monkeypatch, ["Showroom:pozos"])
+    client, _pool = client_pool
+    payload = {"folders": [{"nombre": "Otra", "capas": ["Gerencia:licencias"]}]}
+    resp = client.put("/api/v1/organization/showroom", json=payload)
+    assert resp.status_code == 403

@@ -41,7 +41,7 @@ import {
   setLayerFillOpacity
 } from './layer-manager.js';
 import {
-  obtenerOrganizacion, abrirPanelOrganizacion, construirGruposDesdeCarpetas
+  obtenerOrganizacion, obtenerOrganizacionShowroom, abrirPanelOrganizacion, construirGruposDesdeCarpetas
 } from './org-panel.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 import { beginBusy, endBusy } from './busy-overlay.js';
@@ -164,7 +164,6 @@ let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
 let bloqueSeleccionado = '';
 const IS_SHOWROOM = document.body.dataset.showroom === 'true';
-const SHOWROOM_WORKSPACE = 'Showroom';
 
 // =========================================================================
 // INICIALIZACIÓN
@@ -338,13 +337,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.cerrarSesion = cerrarSesion;
 
     document.querySelector('.logout-btn')?.addEventListener('click', cerrarSesion);
-    // Engranaje: organizar capas en carpetas personales (solo geoportal).
+    // Engranaje: organizar capas (personal en geoportal; general en Showroom).
     document.getElementById('organizeBtn')?.addEventListener('click', () => {
       abrirPanelOrganizacion({
         wsGroups: wsGroupsBase,
         folders: organizacionActual,
+        showroom: IS_SHOWROOM,
         onGuardado: (folders) => {
-          organizacionActual = folders && folders.length ? folders : null;
+          if (IS_SHOWROOM) {
+            organizacionActual = folders && folders.length ? folders : [];
+          } else {
+            organizacionActual = folders && folders.length ? folders : null;
+          }
           renderizarListaCapas(gruposParaRender());
         }
       });
@@ -388,12 +392,6 @@ async function loadWorkspaces() {
     }
     let groups = await response.json();
 
-     if (IS_SHOWROOM) {
-      groups = groups.filter(
-        g => (g.name || '').toLowerCase() === SHOWROOM_WORKSPACE.toLowerCase()
-      );
-    }
-
     groups.forEach(group => {
       group.layers.forEach(layer => {
         const id = layer.id.split(':').pop();
@@ -423,9 +421,15 @@ async function loadWorkspaces() {
     setAvailableLayers(availableLayers);
     wsGroupsBase = groups;
 
-    // Organización en carpetas: solo en el geoportal (no showroom).
+    // Organización en carpetas: personal en geoportal, general en Showroom.
     if (IS_SHOWROOM) {
-      organizacionActual = null;
+      try {
+        const folders = await obtenerOrganizacionShowroom();
+        organizacionActual = folders && folders.length ? folders : [];
+      } catch (e) {
+        console.warn('No se pudo cargar la organización de Showroom (se usa "Sin organización"):', e);
+        organizacionActual = [];
+      }
     } else {
       try {
         organizacionActual = await obtenerOrganizacion();
@@ -758,6 +762,9 @@ function setupBusquedaChips() {
 // RENDER DE LA LISTA DE CAPAS (conserva estado al reagrupar)
 // =========================================================================
 function gruposParaRender() {
+  if (IS_SHOWROOM) {
+    return construirGruposDesdeCarpetas(organizacionActual || [], wsGroupsBase, 'Sin organización');
+  }
   if (organizacionActual) return construirGruposDesdeCarpetas(organizacionActual, wsGroupsBase);
   return wsGroupsBase;
 }

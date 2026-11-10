@@ -21,8 +21,23 @@ export async function obtenerOrganizacion() {
   return Array.isArray(data?.folders) && data.folders.length ? data.folders : null;
 }
 
+export async function obtenerOrganizacionShowroom() {
+  const resp = await apiFetch('/api/v1/organization/showroom');
+  if (!resp.ok) throw new Error(`Error ${resp.status}`);
+  const data = await resp.json();
+  return Array.isArray(data?.folders) && data.folders.length ? data.folders : null;
+}
+
 export async function guardarOrganizacion(folders) {
-  const resp = await apiFetch('/api/v1/organization', {
+  return guardarOrganizacionEn('/api/v1/organization', folders);
+}
+
+export async function guardarOrganizacionShowroom(folders) {
+  return guardarOrganizacionEn('/api/v1/organization/showroom', folders);
+}
+
+async function guardarOrganizacionEn(path, folders) {
+  const resp = await apiFetch(path, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ folders })
@@ -46,9 +61,9 @@ export async function guardarOrganizacion(folders) {
 /**
  * Convierte las carpetas guardadas en grupos aptos para renderLayerGroups.
  * Las capas desconocidas (borradas de GeoServer) se ignoran y las no
- * asignadas caen en "Sin clasificar".
+ * asignadas caen en "Sin clasificar" (o en la etiqueta indicada).
  */
-export function construirGruposDesdeCarpetas(folders, wsGroups) {
+export function construirGruposDesdeCarpetas(folders, wsGroups, sinClasificar = SIN_CLASIFICAR) {
   const porId = new Map();
   (wsGroups || []).forEach(g => (g.layers || []).forEach(l => {
     if (!porId.has(l.id)) porId.set(l.id, l);
@@ -68,7 +83,7 @@ export function construirGruposDesdeCarpetas(folders, wsGroups) {
   });
 
   const resto = [...porId.values()].filter(l => !usados.has(l.id));
-  if (resto.length) grupos.push({ name: SIN_CLASIFICAR, title: SIN_CLASIFICAR, layers: resto });
+  if (resto.length) grupos.push({ name: sinClasificar, title: sinClasificar, layers: resto });
   return grupos;
 }
 
@@ -106,7 +121,7 @@ function capasarDueltas(folders) {
  *   folders:  carpetas guardadas del usuario o null (primera vez: se parte de workspaces)
  *   onGuardado: callback(folders|null) tras guardar con éxito
  */
-export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuardado = null } = {}) {
+export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuardado = null, showroom = false } = {}) {
   if (overlayEl) return;
 
   const capasPorId = new Map();
@@ -114,11 +129,11 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
     if (!capasPorId.has(l.id)) capasPorId.set(l.id, l);
   }));
 
-  // Estado de trabajo: carpetas locales + pool "Sin organizar".
+  // Estado de trabajo: carpetas locales + pool "Sin organizar / Sin organización".
   const state = {
     folders: folders?.length
       ? capasarDueltas(folders)
-      : wsGroups.map(g => ({ nombre: g.title || g.name, capas: (g.layers || []).map(l => l.id) })),
+      : (showroom ? [] : wsGroups.map(g => ({ nombre: g.title || g.name, capas: (g.layers || []).map(l => l.id) }))),
   };
   const baseJson = JSON.stringify(state.folders);
   const estaSucio = () => JSON.stringify(state.folders) !== baseJson;
@@ -138,8 +153,10 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
           </svg>
         </span>
         <div class="org-header-titles">
-          <h2 id="orgTitulo">Organizar capas en carpetas</h2>
-          <p>Arrastra las capas entre carpetas o usa el botón «mover». Es una vista personal: no afecta a los demás usuarios.</p>
+          <h2 id="orgTitulo">${showroom ? 'Organizar capas de Showroom' : 'Organizar capas en carpetas'}</h2>
+          <p>${showroom
+            ? 'Vista general de Showroom: los cambios se aplican a todos los usuarios. Arrastra las capas entre carpetas o usa el botón «mover».'
+            : 'Arrastra las capas entre carpetas o usa el botón «mover». Es una vista personal: no afecta a los demás usuarios.'}</p>
         </div>
         <button type="button" class="org-close" data-action="close" title="Cerrar" aria-label="Cerrar">${SVG_CLOSE}</button>
       </header>
@@ -151,13 +168,13 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
           Nueva carpeta
         </button>
         <section class="org-pool" data-drop="__pool">
-          <h3>Sin organizar</h3>
+          <h3>${showroom ? 'Sin organización' : 'Sin organizar'}</h3>
           <div class="org-pool-list" id="orgPool"></div>
         </section>
       </div>
 
       <footer class="org-footer">
-        <button type="button" class="org-btn org-btn-ghost" data-action="reset" title="Dejar de usar carpetas personales y agrupar otra vez por workspace">Volver a workspaces</button>
+        <button type="button" class="org-btn org-btn-ghost" data-action="reset" title="${showroom ? 'Restablecer toda la organización a Sin organización' : 'Dejar de usar carpetas personales y agrupar otra vez por workspace'}">${showroom ? 'Restablecer a Sin organización' : 'Volver a workspaces'}</button>
         <button type="button" class="org-btn org-btn-ghost" data-action="close">Cancelar</button>
         <span class="org-footer-spacer"></span>
         <button type="button" class="org-btn org-btn-primary" data-action="save">Guardar cambios</button>
@@ -296,8 +313,9 @@ export function abrirPanelOrganizacion({ wsGroups = [], folders = null, onGuarda
     const saveBtn = overlayEl.querySelector('[data-action="save"]');
     if (saveBtn) saveBtn.disabled = true;
     try {
-      await guardarOrganizacion(foldersAPersistir);
-      if (typeof onGuardado === 'function') onGuardado(foldersAPersistir?.length ? foldersAPersistir : null);
+      const persistir = showroom ? guardarOrganizacionShowroom : guardarOrganizacion;
+      await persistir(foldersAPersistir);
+      if (typeof onGuardado === 'function') onGuardado(foldersAPersistir?.length ? foldersAPersistir : (showroom ? [] : null));
       toast('Organización guardada ✓');
       cerrar(true);
     } catch (err) {
