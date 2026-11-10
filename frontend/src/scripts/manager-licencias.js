@@ -781,13 +781,17 @@ async function init() {
 
   setupFilterEvents();
 
-  // El mapa no debe depender de la carga de licencias. Se inicializa ya y
-  // los datos se pintan cuando estén disponibles.
-  await new Promise((resolve) => requestAnimationFrame(resolve));
+  // Datos y mapa arrancan en paralelo: así la API se solicita de inmediato
+  // y el mapa no depende de que las licencias respondan.
+  const datosPromise = loadLicenses()
+    .then(() => null)
+    .catch((error) => error);
   initDashboardMap();
 
   try {
-    await loadLicenses();
+    const errorDatos = await datosPromise;
+    if (errorDatos) throw errorDatos;
+
     // Deja que el navegador calcule el layout antes de inicializar ECharts.
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     populateFilters(state.all);
@@ -813,12 +817,32 @@ async function init() {
 }
 
 function boot() {
-  if (document.documentElement.dataset.role === 'Rol_gerente') {
+  const esGerente = () => document.documentElement.dataset.role === 'Rol_gerente';
+  const seccionVisible = () => {
+    const section = $('licencias');
+    return Boolean(section && !section.hidden && section.style.display !== 'none');
+  };
+  const intentar = () => {
+    // Rol gerente o, como respaldo, la sección ya visible por el layout de rol.
+    if (!esGerente() && !seccionVisible()) return false;
     init();
-  } else {
+    return true;
+  };
+
+  if (!intentar()) {
     document.addEventListener('session:ready', (event) => {
       if (event.detail?.rol === 'Rol_gerente') init();
     });
+    // Respaldo: si el evento ya pasó o el rol se aplica después, observar
+    // el atributo data-role del <html>.
+    const observer = new MutationObserver(() => {
+      if (intentar()) observer.disconnect();
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-role'] });
+    let intentos = 0;
+    const timer = setInterval(() => {
+      if (intentar() || ++intentos > 60) clearInterval(timer);
+    }, 250);
   }
   initLayerPicker();
 }
