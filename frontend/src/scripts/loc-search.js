@@ -179,9 +179,12 @@ function renderZona(dropdown) {
     <div class="lsd-head">
       <button type="button" class="lsd-cancel" data-acc="cancelar" title="Cerrar la zona" aria-label="Cancelar zona">Cancelar</button>
       <span class="lsd-head-title" title="Capas con datos en la zona">Capas en «${escHtml(zona.titulo)}»</span>
-      <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length) ? 'disabled' : ''}>${todas ? 'Desactivar todas' : 'Activar todas'}</button>
     </div>
     <p class="lsd-zone-hint">La zona permanece activa hasta pulsar Cancelar.</p>
+    <div class="lsd-zone-tools">
+      <button type="button" class="lsd-export" data-acc="exportar" title="Exportar resultados (próximamente)">Exportar</button>
+      <button type="button" class="lsd-activate-all" data-acc="todas" ${(!capas.length) ? 'disabled' : ''}>${todas ? 'Desactivar todas' : 'Activar todas'}</button>
+    </div>
     ${chips}
     ${cuerpo}`;
 }
@@ -428,7 +431,9 @@ export function initLocationSearch() {
     if (acc) {
       const accion = acc.getAttribute('data-acc');
       if (accion === 'cancelar') cancelarZona(dropdown);
-      else if (accion === 'todas' && zona) {
+      else if (accion === 'exportar') {
+        // Botón reservado: la exportación se implementará más adelante.
+      } else if (accion === 'todas' && zona) {
         const capas = zona.capas || [];
         const todas = capas.length > 0 && capas.every((c) => capaActiva(c.id));
         capas.forEach((c) => {
