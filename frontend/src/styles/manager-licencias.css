@@ -259,7 +259,8 @@
 .manager-map-legend {
   position: absolute;
   left: 14px;
-  bottom: 14px;
+  /* Deja libre la esquina inferior izquierda para el control de escala. */
+  bottom: 48px;
   z-index: 2;
   display: flex;
   flex-direction: column;
