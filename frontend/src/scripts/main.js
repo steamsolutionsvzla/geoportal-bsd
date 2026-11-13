@@ -984,7 +984,7 @@ async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(ESTADOS_LAYER_NAME)}`, { signal: signalTimeout() });
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(ESTADOS_LAYER_NAME)}`, { signal: signalTimeout(180000) });
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }

@@ -487,7 +487,7 @@ class GeoServerService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.get(url, params=params, auth=GeoServerService._auth())
         except httpx.RequestError as e:
             raise HTTPException(502, f"No se pudo conectar con GeoServer ({url}): {e}")
