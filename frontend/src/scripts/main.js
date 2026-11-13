@@ -992,21 +992,29 @@ async function cargarCapaEstadosVenezuela() {
 
     const featuresByName = {};
     data.features.forEach(f => {
-      const nombre = obtenerNombreEstado(f.properties);
-      if (!nombre) return;
-      if (!featuresByName[nombre]) {
-        featuresByName[nombre] = {
-          type: 'Feature',
-          properties: { ...f.properties },
-          geometry: { type: 'MultiPolygon', coordinates: [] }
-        };
-      }
-      if (f.geometry.type === 'Polygon') {
-        featuresByName[nombre].geometry.coordinates.push(f.geometry.coordinates);
-      } else if (f.geometry.type === 'MultiPolygon') {
-        f.geometry.coordinates.forEach(coords => {
-          featuresByName[nombre].geometry.coordinates.push(coords);
-        });
+      try {
+        const nombre = obtenerNombreEstado(f.properties);
+        if (!nombre) return;
+        const geometry = f.geometry;
+        // Algunas tablas traen filas sin geometría o con coordinates nulo.
+        // Sin esta guarda se rompe toda la carga y el filtro queda vacío.
+        if (!geometry || !Array.isArray(geometry.coordinates)) return;
+        if (!featuresByName[nombre]) {
+          featuresByName[nombre] = {
+            type: 'Feature',
+            properties: { ...f.properties },
+            geometry: { type: 'MultiPolygon', coordinates: [] }
+          };
+        }
+        if (geometry.type === 'Polygon') {
+          featuresByName[nombre].geometry.coordinates.push(geometry.coordinates);
+        } else if (geometry.type === 'MultiPolygon') {
+          geometry.coordinates.forEach(coords => {
+            featuresByName[nombre].geometry.coordinates.push(coords);
+          });
+        }
+      } catch (error) {
+        console.warn('Entidad de estados inválida; se omite:', error, f);
       }
     });
     data.features = Object.values(featuresByName);
@@ -1015,16 +1023,20 @@ async function cargarCapaEstadosVenezuela() {
     // de la reclamación viene como "Zona en Reclamación" y debe mostrarse
     // como "Guayana Esequiba" en el filtro y en la etiqueta del mapa.
     data.features.forEach(f => {
-      const nombre = obtenerNombreEstado(f.properties);
-      if (!nombre) return;
+      try {
+        const nombre = obtenerNombreEstado(f.properties);
+        if (!nombre) return;
 
-      const nombreNormalizado = normalizarNombreEstado(nombre);
-      f.properties._estado_nombre = nombreNormalizado;
+        const nombreNormalizado = normalizarNombreEstado(nombre);
+        f.properties._estado_nombre = nombreNormalizado;
 
-      const claveNombre = Object.keys(f.properties).find(k =>
-        ['entidad', 'estado', 'nombre', 'name'].includes(k.toLowerCase())
-      );
-      if (claveNombre) f.properties[claveNombre] = nombreNormalizado;
+        const claveNombre = Object.keys(f.properties).find(k =>
+          ['entidad', 'estado', 'nombre', 'name'].includes(k.toLowerCase())
+        );
+        if (claveNombre) f.properties[claveNombre] = nombreNormalizado;
+      } catch (error) {
+        console.warn('No se pudo normalizar el estado; se omite:', error, f);
+      }
     });
 
     estadosGeoJsonCache = data;
