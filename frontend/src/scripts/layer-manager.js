@@ -1,5 +1,5 @@
 // layer-manager.js
-import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch } from './utils.js';
+import { getPaletteForType, hashCode, refreshCount, updateLegendUI, apiFetch, esCapa } from './utils.js';
 import { getMap } from './map-config.js';
 import { downloadLayerShp } from './download.js';
 
@@ -32,17 +32,17 @@ export function clearLayerRawData(tableName) {
 
 // IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
 // Para estas no mostramos el slider de opacidad.
-const NO_OPACITY_IDS = new Set([
+const NO_OPACITY_IDS = [
   'Bloques petroleros',
   'División Político Territorial'
-]);
+];
 
 function layerHasOpacityControl(layerInfo) {
   if (layerInfo.type === 'raster') return true;
   if (layerInfo.type !== 'fill') return false;
   if (layerInfo.noOpacity) return false;
   const shortId = layerInfo.id ? layerInfo.id.split(':').pop() : '';
-  if (NO_OPACITY_IDS.has(shortId)) return false;
+  if (NO_OPACITY_IDS.some(base => esCapa(shortId, base))) return false;
   return true;
 }
 
@@ -155,8 +155,9 @@ export function getAvailableLayers() {
 // los popups de atributos sobre el mapa)
 // ================================================================
 export function getLayerDisplayName(tableName) {
-  if (tableName === 'dpt_estadal_venezuela') return 'Entidades Federales (Estados)';
-  if (tableName === 'Bloques petroleros') return 'Bloques petroleros';
+  const shortName = tableName ? tableName.split(':').pop() : '';
+  if (esCapa(shortName, 'dpt_estadal_venezuela')) return 'Entidades Federales (Estados)';
+  if (esCapa(shortName, 'Bloques petroleros')) return 'Bloques petroleros';
   const layerConfig = availableLayers.find(l => l.id === tableName);
   return layerConfig ? layerConfig.name : tableName;
 }

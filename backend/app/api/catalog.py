@@ -3,6 +3,8 @@
 import asyncio
 import json
 import logging
+import re
+import unicodedata
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -26,6 +28,18 @@ def _norm(text: Any) -> str:
     return str(text or "").strip().casefold()
 
 
+def _base_table_key(name: Any) -> str:
+    """Clave de tabla sin sufijo de geometría (_pl/_p/_l) ni acentos."""
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = text.encode("ascii", "ignore").decode("ascii").strip().casefold()
+    text = re.sub(r"[\s\-]+", "_", text)
+    previous = None
+    while previous != text:
+        previous = text
+        text = re.sub(r"_(?:pl|p|l)$", "", text).rstrip()
+    return text
+
+
 async def _geom_tables(pool) -> List[Dict[str, Any]]:
     return await pool.fetch(
         """
@@ -40,6 +54,12 @@ def _find_table(rows: List[Dict[str, Any]], native: Optional[str]):
         return None
     key = _norm(native)
     matches = [r for r in rows if _norm(r["f_table_name"]) == key]
+    if not matches:
+        base = _base_table_key(native)
+        matches = [
+            r for r in rows
+            if _base_table_key(r["f_table_name"]) == base
+        ]
     if not matches:
         return None
     matches.sort(key=lambda r: 0 if r["f_table_schema"] == "public" else 1)
@@ -103,7 +123,10 @@ async def _catalog(pool) -> List[Dict[str, Any]]:
 
 async def _states(pool) -> List[str]:
     rows = await _geom_tables(pool)
-    states = [r for r in rows if _norm(r["f_table_name"]) == _norm(STATES_TABLE)]
+    states = [
+        r for r in rows
+        if _base_table_key(r["f_table_name"]) == _base_table_key(STATES_TABLE)
+    ]
     if not states:
         return []
     info = states[0]
@@ -147,7 +170,7 @@ async def catalog(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GERENTE)
         ws = workspaces.setdefault(capa["workspace"], {"name": capa["workspace"], "layers": []})
         ws["layers"].append(capa)
     for ws in workspaces.values():
-        ws["layers"].sort(key=lambda l: _norm(l["name"]))
+        ws["layers"].sort(key=lambda layer: _norm(layer["name"]))
 
     states = await _states(pool)
     return {
@@ -180,7 +203,10 @@ async def catalog_zone(
 
     if payload.estado:
         rows = await _geom_tables(pool)
-        states = [r for r in rows if _norm(r["f_table_name"]) == _norm(STATES_TABLE)]
+        states = [
+        r for r in rows
+        if _base_table_key(r["f_table_name"]) == _base_table_key(STATES_TABLE)
+    ]
         if not states:
             raise HTTPException(404, "No se encontró la capa de estados.")
         info = states[0]

@@ -25,6 +25,25 @@ export function formatearCoordenada(lng, lat) {
   return `${Math.abs(lat).toFixed(5)}° ${latDir} ${Math.abs(lng).toFixed(5)}° ${lonDir}`;
 }
 
+/**
+ * Clave de comparación de capas sin sufijo de geometría (_PL/_P/_L).
+ * Tolera mayúsculas, acentos, espacios, guiones y el sufijo técnico _pl.
+ */
+export function claveNombreCapa(nombre) {
+  return String(nombre || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+    .replace(/(?:_(?:pl|p|l))+$/, '');
+}
+
+/** ¿El nombre de capa corresponde a la capa base, con o sin sufijo? */
+export function esCapa(nombre, base) {
+  return claveNombreCapa(nombre) === claveNombreCapa(base);
+}
+
 export function normalizarNombreEstado(nombre) {
   if (nombre === null || nombre === undefined) return nombre;
   const original = String(nombre).trim();

@@ -29,7 +29,7 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo, revokeSession } from './utils.js';
+import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo, revokeSession, esCapa, claveNombreCapa } from './utils.js';
 import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
@@ -57,7 +57,10 @@ setWorkerUrl(maplibreWorkerUrl);
 // =========================================================================
 // CONSTANTES DE CAPAS ESPECIALES
 // =========================================================================
-const BLOQUES_LAYER_NAME = 'Bloques petroleros';
+const BLOQUES_LAYER_BASE = 'Bloques petroleros';
+const ESTADOS_LAYER_BASE = 'División Político Territorial';
+let BLOQUES_LAYER_NAME = BLOQUES_LAYER_BASE;
+let ESTADOS_LAYER_NAME = ESTADOS_LAYER_BASE;
 const ROL_ANALISTA = 'Rol_analista';
 
 // La sesión se valida de forma asíncrona en session.js. Esperamos a que
@@ -91,8 +94,9 @@ function esperarSesion(timeoutMs = 4000) {
 function getStyleCapa(name) {
   if (!name) return undefined;
   if (stylesMap.has(name)) return stylesMap.get(name);
+  const keyBuscada = claveNombreCapa(name);
   for (const [key, value] of stylesMap) {
-    if (key.split(':').pop() === name) return value;
+    if (claveNombreCapa(key.split(':').pop()) === keyBuscada) return value;
   }
   return undefined;
 }
@@ -419,12 +423,12 @@ async function loadWorkspaces() {
     groups.forEach(group => {
       group.layers.forEach(layer => {
         const id = layer.id.split(':').pop();
-        if (id === 'División Político Territorial' || id === BLOQUES_LAYER_NAME) {
+        if (esCapa(id, ESTADOS_LAYER_BASE) || esCapa(id, BLOQUES_LAYER_BASE)) {
           layer.type = 'fill';
           layer.noOpacity = true;   // 👈 NUEVO: sin slider de opacidad
-          if (id === 'División Político Territorial') {
+          if (esCapa(id, ESTADOS_LAYER_BASE)) {
             layer.color = '#1a365d';
-          } else if (id === BLOQUES_LAYER_NAME) {
+          } else if (esCapa(id, BLOQUES_LAYER_BASE)) {
             layer.color = '#8a4baf';
           }
         }
@@ -443,6 +447,18 @@ async function loadWorkspaces() {
 
     availableLayers = allLayers;
     setAvailableLayers(availableLayers);
+
+    // Las capas especiales pueden venir con sufijo de geometría (_PL/_P/_L).
+    // Se resuelve el nombre real para usar el mismo id que el catálogo.
+    const resolverCapaEspecial = (base) => {
+      const encontrada = availableLayers.find(
+        l => esCapa((l.id || '').split(':').pop(), base)
+      );
+      return encontrada ? encontrada.id.split(':').pop() : base;
+    };
+    BLOQUES_LAYER_NAME = resolverCapaEspecial(BLOQUES_LAYER_BASE);
+    ESTADOS_LAYER_NAME = resolverCapaEspecial(ESTADOS_LAYER_BASE);
+
     wsGroupsBase = groups;
 
     // Organización en carpetas: personal en geoportal, general en Showroom.
@@ -968,7 +984,7 @@ async function cargarCapaEstadosVenezuela() {
   try {
     ocultarError();
     mostrarCargando(true);
-    const response = await apiFetch('/api/v1/layers/División Político Territorial', { signal: signalTimeout() });
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(ESTADOS_LAYER_NAME)}`, { signal: signalTimeout() });
     if (!response.ok) {
       throw new Error(`Error ${response.status}: ${response.statusText}`);
     }
@@ -1079,7 +1095,7 @@ async function cargarCapaEstadosVenezuela() {
       });
     }
 
-    const styleEstados = getStyleCapa('División Político Territorial');
+    const styleEstados = getStyleCapa(ESTADOS_LAYER_NAME);
     const attrEstados = styleEstados?.label_attribute || 'entidad';
     const claveEstados =
       resolverClaveProp(puntosEtiquetas.features[0]?.properties, attrEstados) || attrEstados;
@@ -1117,7 +1133,7 @@ async function cargarCapaEstadosVenezuela() {
 
     bringMapLabelsToFront(map);
 
-    updateLayerFeatureCount('División Político Territorial', data.features.length);
+    updateLayerFeatureCount(ESTADOS_LAYER_NAME, data.features.length);
   } catch (error) {
     console.error('Error al cargar la capa de estados:', error);
     mostrarError('No se pudo cargar la capa de estados. Verifica que el backend esté funcionando.');
@@ -1466,7 +1482,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
     const map = getMap();
     const shortName = tableName.split(':').pop();
 
-    if (shortName === 'División Político Territorial') {
+    if (esCapa(shortName, ESTADOS_LAYER_BASE)) {
       const vis = isVisible ? 'visible' : 'none';
       if (map.getLayer('layer-estados-venezuela-line')) {
         map.setLayoutProperty('layer-estados-venezuela-line', 'visibility', vis);
@@ -1481,7 +1497,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       return;
     }
 
-    if (shortName === BLOQUES_LAYER_NAME) {
+    if (esCapa(shortName, BLOQUES_LAYER_BASE)) {
       const vis = isVisible ? 'visible' : 'none';
       const styleBloques = getStyleCapa(BLOQUES_LAYER_NAME);
       const visLabels = (isVisible && styleBloques?.show_labels) ? 'visible' : 'none';

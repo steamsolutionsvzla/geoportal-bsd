@@ -4,6 +4,7 @@ import os
 import re
 import tempfile
 import time
+import unicodedata
 import zipfile
 from typing import Dict, List, Optional, Set
 
@@ -31,6 +32,22 @@ def _sanitize_field_name(name: str) -> str:
     if cleaned[0].isdigit():
         cleaned = "_" + cleaned
     return cleaned[:10]
+
+
+def _layer_base_key(name: str) -> str:
+    """Clave de comparación de capas sin sufijo de geometría (_PL/_P/_L).
+
+    Acepta las variantes que genera el catálogo: mayúsculas/minúsculas,
+    acentos, espacios o guiones y el sufijo técnico en minúsculas (_pl).
+    """
+    text = unicodedata.normalize("NFKD", str(name or ""))
+    text = text.encode("ascii", "ignore").decode("ascii").strip().casefold()
+    text = re.sub(r"[\s\-]+", "_", text)
+    previous = None
+    while previous != text:
+        previous = text
+        text = re.sub(r"_(?:pl|p|l)$", "", text).rstrip()
+    return text
 
 
 def _geojson_to_shapefile_zip(feature_collection: dict, inner_name: str = "capa",
@@ -256,9 +273,43 @@ class GeoServerService:
 
     @staticmethod
     async def _find_workspace_for_layer(table_name: str) -> Optional[str]:
-        """Devuelve el workspace donde se encuentra la capa, o None si no existe."""
+        """Devuelve el workspace donde se encuentra la capa, o None si no existe.
+
+        Acepta el nombre exacto y también el nombre sin sufijo de geometría,
+        para que las URLs históricas sigan funcionando cuando la capa se
+        renombra a ``..._PL``/``..._P``/``..._L``.
+        """
         mapping = await GeoServerService._get_all_feature_types()
-        return mapping.get(table_name)
+        if table_name in mapping:
+            return mapping[table_name]
+        key = _layer_base_key(table_name)
+        candidates = [
+            name for name in mapping
+            if _layer_base_key(name) == key
+        ]
+        if len(candidates) == 1:
+            return mapping[candidates[0]]
+        return None
+
+    @staticmethod
+    async def _resolve_layer_name(workspace: str, table_name: str) -> Optional[str]:
+        """Nombre real de la capa dentro de un workspace, tolerando sufijos."""
+        mapping = await GeoServerService._get_all_feature_types()
+        exact = [
+            name for name, ws in mapping.items()
+            if ws == workspace and name == table_name
+        ]
+        if exact:
+            return exact[0]
+        key = _layer_base_key(table_name)
+        candidates = sorted(
+            name for name, ws in mapping.items()
+            if ws == workspace and _layer_base_key(name) == key
+        )
+        if not candidates:
+            return None
+        # Si convive la versión normal con una sufijada, preferir la normal.
+        return candidates[0]
 
     # --------------------------------------------------------------
     # Detalle de cada capa (tabla nativa, datastore y estado) — cacheado
@@ -417,6 +468,12 @@ class GeoServerService:
                     404,
                     f"No se encontró la capa '{table_name}' en ningún workspace."
                 )
+
+        # 3. Resolver el nombre real de la capa (puede llevar sufijo _PL/_P/_L
+        #    aunque la URL use el nombre histórico sin sufijo).
+        resolved = await GeoServerService._resolve_layer_name(workspace, table_name)
+        if resolved:
+            table_name = resolved
 
         type_name = f"{workspace}:{table_name}"
         url = f"{settings.GEOSERVER_URL.rstrip('/')}/wfs"

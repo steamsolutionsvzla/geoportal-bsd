@@ -10,7 +10,7 @@ from app.api import settings as settings_mod
 from app.api.deps import auth_guard
 from app.main import app
 from app.models.user import CurrentUser, Rol
-from app.services.geoserver_service import GeoServerService
+from app.services.geoserver_service import GeoServerService, _layer_base_key
 
 _WS = "Petróleo_y_gas"
 GEOM_ROWS = [
@@ -191,3 +191,31 @@ def test_catalog_rechaza_rol_sin_acceso(client_catalog):
     client, _pool, _calls = client_catalog
     assert client.get("/api/v1/admin/catalog").status_code == 403
     assert client.patch("/api/v1/admin/catalog/a:b/enabled", json={"enabled": False}).status_code == 403
+
+
+def test_layer_base_key_ignora_sufijo_de_geometria():
+    assert _layer_base_key("Bloques petroleros_PL") == "bloques_petroleros"
+    assert _layer_base_key("bloques_pl") == "bloques"
+    assert _layer_base_key("Division_Politico_Territorial_PL") == "division_politico_territorial"
+
+
+def test_find_table_acepta_tabla_con_sufijo():
+    filas = [
+        {"f_table_schema": "gis_petroleo", "f_table_name": "bloques_pl",
+         "f_geometry_column": "geom", "srid": 4189},
+    ]
+    assert catalog_mod._find_table(filas, "BLOQUES")["f_table_name"] == "bloques_pl"
+
+
+def test_find_workspace_acepta_nombre_sin_sufijo(monkeypatch):
+    async def fake_feature_types(force_refresh=False):
+        return {"Bloques petroleros_PL": _WS}
+
+    monkeypatch.setattr(
+        GeoServerService, "_get_all_feature_types", fake_feature_types)
+    import asyncio
+    assert asyncio.run(
+        GeoServerService._find_workspace_for_layer("Bloques petroleros")) == _WS
+    assert asyncio.run(
+        GeoServerService._resolve_layer_name(
+            _WS, "Bloques petroleros")) == "Bloques petroleros_PL"

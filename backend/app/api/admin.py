@@ -134,8 +134,10 @@ async def admin_bloques(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GE
         """
         SELECT f_table_schema, f_table_name, f_geometry_column
         FROM geometry_columns
-        WHERE lower(f_table_name) = 'bloques'
-        ORDER BY (f_table_schema = 'public') DESC
+        WHERE regexp_replace(lower(f_table_name),
+                             '[_[:space:]-]+(pl|p|l)$', '') = 'bloques'
+        ORDER BY (lower(f_table_name) = 'bloques') DESC,
+                 (f_table_schema = 'public') DESC
         LIMIT 1;
         """
     )
