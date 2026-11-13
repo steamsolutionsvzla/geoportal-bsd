@@ -193,6 +193,23 @@ def test_catalog_rechaza_rol_sin_acceso(client_catalog):
     assert client.patch("/api/v1/admin/catalog/a:b/enabled", json={"enabled": False}).status_code == 403
 
 
+def test_settings_refresca_cache_tras_renombrar_capa(client_catalog, monkeypatch):
+    client, _pool, _calls = client_catalog
+    llamadas = []
+
+    async def fake_details(force_refresh=False, ttl=300.0):
+        llamadas.append(force_refresh)
+        if force_refresh:
+            return {"Gerencia:licencias": {"native": "licencias_pl"}}
+        return {"Gerencia:licencias_pl": {"native": "licencias_pl"}}
+
+    monkeypatch.setattr(GeoServerService, "get_featuretype_details", fake_details)
+    resp = client.patch(
+        "/api/v1/admin/settings", json={"licenses_layer": "Gerencia:licencias"})
+    assert resp.status_code == 200
+    assert llamadas == [False, True]
+
+
 def test_layer_base_key_ignora_sufijo_de_geometria():
     assert _layer_base_key("Bloques petroleros_PL") == "bloques_petroleros"
     assert _layer_base_key("bloques_pl") == "bloques"

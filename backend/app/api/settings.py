@@ -41,9 +41,10 @@ async def licenses_candidates(user: CurrentUser = Depends(role_guard(Rol.ADMIN, 
             {
                 "name": g.get("name"),
                 "layers": [
-                    {"id": l.get("id"), "name": l.get("name"), "type": l.get("type")}
-                    for l in (g.get("layers") or [])
-                    if l.get("type") != "raster"
+                    {"id": layer.get("id"), "name": layer.get("name"),
+                     "type": layer.get("type")}
+                    for layer in (g.get("layers") or [])
+                    if layer.get("type") != "raster"
                 ],
             }
             for g in groups
@@ -63,6 +64,11 @@ async def update_settings(
         raise HTTPException(422, "Solo se permiten capas del workspace Gerencia.")
 
     details = await GeoServerService.get_featuretype_details()
+    if layer_id not in details:
+        # La caché de featuretypes puede conservar el nombre anterior tras
+        # renombrar una capa en GeoServer. Reintenta con datos frescos antes
+        # de rechazar una capa que el selector acaba de mostrar.
+        details = await GeoServerService.get_featuretype_details(force_refresh=True)
     if layer_id not in details:
         raise HTTPException(404, f"La capa '{layer_id}' no existe en GeoServer.")
 
