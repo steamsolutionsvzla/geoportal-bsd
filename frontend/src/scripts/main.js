@@ -45,7 +45,6 @@ import {
 } from './org-panel.js';
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 import { beginBusy, endBusy, resetBusy } from './busy-overlay.js';
-import { initLocationSearch } from './loc-search.js';
 import { initCoordinateFilter } from './coord-filter.js';
 import { initShareView, applySharedView } from './share.js';
 import { attachLayerAttrTableEvents } from './attr-table.js';
@@ -304,7 +303,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           // Buscador de ubicación (topbar) + compartir vista. Solo operan si
           // la página trae sus controles (geoportal); en showroom u otras
           // páginas quedan como no-op.
-          initLocationSearch();
           initCoordinateFilter();
           initShareView(map);
           await applySharedView(map);

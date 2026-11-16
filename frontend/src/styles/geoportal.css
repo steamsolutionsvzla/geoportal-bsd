@@ -1322,66 +1322,6 @@ input { font-family: inherit; }
 }
 
 /* ============================================================
-   BUSCADOR DE UBICACIÓN (topbar) — misma piel que .layer-search
-   ============================================================ */
-.loc-search {
-  position: relative;
-  flex: 1 1 340px;
-  max-width: 420px;
-  min-width: 180px;
-}
-.loc-search svg.loc-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: var(--muted-500);
-  stroke-width: 2;
-  stroke-linecap: round;
-  pointer-events: none;
-  z-index: 1;
-}
-.loc-search input {
-  width: 100%;
-  height: 36px;
-  padding: 0 70px 0 34px;
-  border: 1px solid var(--line-700);
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--accent-navy-dim);
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 0.78rem;
-  outline: none;
-  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
-}
-.loc-search input::-webkit-search-cancel-button { display: none; }
-.loc-search input::placeholder { color: var(--muted-500); }
-.loc-search input:focus {
-  border-color: var(--accent-navy);
-  background: var(--white);
-  box-shadow: 0 0 0 3px var(--accent-navy-soft);
-}
-.loc-search kbd {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.04em;
-  color: var(--muted-500);
-  background: var(--white);
-  border: 1px solid var(--line-700);
-  border-radius: 4px;
-  padding: 2px 5px;
-  pointer-events: none;
-}
-.loc-search:focus-within kbd { display: none; }
-
-/* ============================================================
    FILTRO POR COORDENADAS (topbar)
    ============================================================ */
 .coord-filter {
@@ -1523,50 +1463,6 @@ input { font-family: inherit; }
 .coord-result.is-active { background: var(--accent-navy-soft); }
 .coord-result .lsd-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Variante dentro del panel "Filtrar por ubicación" */
-.filter-panel .loc-search-panel {
-  flex: 0 0 auto;
-  width: 100%;
-  max-width: none;
-  min-width: 0;
-}
-.filter-panel .loc-search-panel input {
-  padding: 0 14px 0 34px;
-  border-radius: var(--radius-s);
-}
-.filter-panel .loc-search-panel .loc-search-dropdown {
-  width: 100%;
-  min-width: 0;
-  max-height: 300px;
-}
-
-.loc-search-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  min-width: 300px;
-  z-index: 60;
-  max-height: 340px;
-  overflow-y: auto;
-  background: var(--white);
-  border: 1px solid var(--line-700);
-  border-radius: var(--radius-m);
-  padding: 6px;
-  box-shadow: var(--shadow-2);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px) scale(0.98);
-  transform-origin: top center;
-  transition: opacity .16s ease, transform .16s cubic-bezier(0.16, 1, 0.3, 1), visibility .16s;
-  pointer-events: none;
-}
-.loc-search.open .loc-search-dropdown {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
-  pointer-events: all;
-}
 .lsd-group {
   padding: 8px 10px 4px;
   font-family: 'JetBrains Mono', monospace;
@@ -1606,20 +1502,7 @@ input { font-family: inherit; }
   border-radius: 4px;
   padding: 2px 6px;
 }
-.loc-search mark {
-  background: var(--accent-navy-soft);
-  color: var(--accent-navy);
-  border-radius: 2px;
-  padding: 0 1px;
-}
-.loc-search-empty {
-  padding: 16px 12px;
-  text-align: center;
-  font-size: 0.76rem;
-  color: var(--muted-500);
-}
-
-/* Fila de capa recién localizada (desde el buscador de ubicación) */
+/* Fila de capa recién localizada */
 @keyframes ls-flash-kf {
   0%   { box-shadow: 0 0 0 2px var(--accent-navy); background: var(--accent-navy-soft); }
   100% { box-shadow: 0 0 0 2px transparent; background: transparent; }
