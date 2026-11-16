@@ -206,7 +206,10 @@ export async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(resolveApiPath(path), { ...options, headers });
+  // Timeout por defecto: evita dejar la interfaz bloqueada si el backend o
+  // GeoServer no responden. Las llamadas puntuales pueden pasar su propio signal.
+  const signal = options.signal ?? AbortSignal.timeout(60000);
+  const response = await fetch(resolveApiPath(path), { ...options, headers, signal });
 
   if (response.status === 401) {
     clearSession();

@@ -1381,6 +1381,148 @@ input { font-family: inherit; }
 }
 .loc-search:focus-within kbd { display: none; }
 
+/* ============================================================
+   FILTRO POR COORDENADAS (topbar)
+   ============================================================ */
+.coord-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 300px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 4px 0 32px;
+  border: 1px solid var(--line-700);
+  border-radius: 999px;
+  background: var(--paper);
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.coord-filter:focus-within,
+.coord-filter.has-filter {
+  border-color: var(--accent-navy);
+  background: var(--white);
+  box-shadow: 0 0 0 3px var(--accent-navy-soft);
+}
+.coord-filter-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: var(--muted-500);
+  pointer-events: none;
+}
+.coord-filter input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--accent-navy-dim);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.76rem;
+}
+.coord-filter input::placeholder { color: var(--muted-500); }
+.coord-filter-apply,
+.coord-filter-clear,
+.coord-filter-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent-navy);
+  transition: background .15s ease, color .15s ease;
+}
+.coord-filter-apply svg,
+.coord-filter-toggle svg { width: 15px; height: 15px; }
+.coord-filter-apply:hover { background: var(--accent-navy); color: #fff; }
+.coord-filter-clear { color: var(--accent-red); font-size: 0.85rem; font-weight: 700; }
+.coord-filter-clear:hover { background: rgba(193, 88, 74, 0.12); }
+.coord-filter-clear[hidden] { display: none; }
+.coord-filter-toggle { display: none; }
+.coord-radius .ls-chip { padding: 3px 8px; font-size: 0.62rem; }
+
+.coord-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 340px;
+  max-width: min(420px, calc(100vw - 24px));
+  max-height: min(60vh, 430px);
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--white);
+  border: 1px solid var(--line-700);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-2);
+  z-index: 70;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top left;
+  transition: opacity .16s ease, transform .16s cubic-bezier(0.16, 1, 0.3, 1), visibility .16s;
+  pointer-events: none;
+}
+.coord-filter.open .coord-filter-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: all;
+}
+.coord-radius { display: flex; gap: 6px; padding: 2px 2px 8px; }
+.coord-filter-hint {
+  margin: 2px 4px 8px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--muted-500);
+}
+.coord-filter-error {
+  margin: 0 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent-red);
+}
+.coord-filter-empty {
+  padding: 14px 8px;
+  text-align: center;
+  font-size: 0.74rem;
+  color: var(--muted-500);
+}
+.coord-filter-empty.is-error { color: var(--accent-red); }
+.coord-filter-actions {
+  display: flex;
+  gap: 8px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--line-700);
+  margin-bottom: 4px;
+}
+.coord-filter-all,
+.coord-filter-reset {
+  flex: 1 1 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line-700);
+  background: var(--paper);
+  color: var(--accent-navy-dim);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.coord-filter-all:hover { background: var(--accent-navy-soft); border-color: rgba(18, 43, 90, 0.2); }
+.coord-filter-reset { color: var(--accent-red); }
+.coord-filter-reset:hover { background: rgba(193, 88, 74, 0.10); border-color: rgba(193, 88, 74, 0.35); }
+.coord-result { cursor: pointer; }
+.coord-result.is-active { background: var(--accent-navy-soft); }
+.coord-result .lsd-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Variante dentro del panel "Filtrar por ubicación" */
 .filter-panel .loc-search-panel {
   flex: 0 0 auto;
@@ -1712,3 +1854,52 @@ input { font-family: inherit; }
 }
 .lsd-zone-item.is-active .lsd-check { opacity: 1; }
 .lsd-zone-item.is-active .lsd-name { font-weight: 500; }
+
+/* ============================================================
+   FILTRO POR COORDENADAS — responsive
+   (al final para que prevalezca sobre los estilos base)
+   ============================================================ */
+@media (max-width: 1280px) {
+  .coord-filter { flex-basis: 240px; }
+}
+@media (max-width: 1024px) {
+  .coord-filter { flex-basis: 200px; }
+}
+@media (max-width: 768px) {
+  .topbar { z-index: 50; }
+  .coord-filter {
+    flex: 0 0 36px;
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .coord-filter-icon,
+  .coord-filter input,
+  .coord-filter-apply,
+  .coord-filter-clear { display: none; }
+  .coord-filter-toggle { display: inline-flex; }
+  .coord-filter.is-open {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 14px;
+    flex: none;
+    width: auto;
+    padding: 0 4px 0 32px;
+    background: var(--white);
+    z-index: 80;
+    box-shadow: var(--shadow-2);
+  }
+  .coord-filter.is-open .coord-filter-icon { display: block; }
+  .coord-filter.is-open input { display: block; }
+  .coord-filter.is-open .coord-filter-apply { display: inline-flex; }
+  .coord-filter.is-open .coord-filter-clear:not([hidden]) { display: inline-flex; }
+  .coord-filter.is-open .coord-filter-toggle { display: none; }
+  .coord-filter-dropdown {
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}

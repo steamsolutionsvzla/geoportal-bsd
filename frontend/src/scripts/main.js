@@ -46,6 +46,7 @@ import {
 import { openFeaturePopup, closeFeaturePopup } from './feature-popup.js';
 import { beginBusy, endBusy, resetBusy } from './busy-overlay.js';
 import { initLocationSearch } from './loc-search.js';
+import { initCoordinateFilter } from './coord-filter.js';
 import { initShareView, applySharedView } from './share.js';
 import { attachLayerAttrTableEvents } from './attr-table.js';
 
@@ -304,6 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // la página trae sus controles (geoportal); en showroom u otras
           // páginas quedan como no-op.
           initLocationSearch();
+          initCoordinateFilter();
           initShareView(map);
           await applySharedView(map);
         } finally {

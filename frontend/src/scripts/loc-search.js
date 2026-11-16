@@ -1,15 +1,15 @@
 // loc-search.js
-// Buscador de ubicación en la topbar.
+// Buscador de ubicación del panel lateral.
 // - Estado / bloque → lista las capas con datos en esa zona (en el dropdown).
-// - Coordenadas      → zona circular (Punto / 15 / 50 km) con las capas.
 // - Capa             → la enciende en el catálogo y ajusta el mapa a ella.
+// - Coordenadas      → se gestionan en la topbar con coord-filter.js.
 import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
 import { getEstadosCache, getBloquesCache } from './filters.js';
 import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
 import {
-  parseCoordenadas, geometriaDeZona, dibujarZona, limpiarZona,
+  geometriaDeZona, dibujarZona, limpiarZona,
   consultarZona, capaActiva, activarCapaEnCatalogo, alternarCapaEnCatalogo,
 } from './zone-scan.js';
 import { beginBusy, endBusy } from './busy-overlay.js';
@@ -67,16 +67,8 @@ function buscar(texto) {
     items.forEach((it) => resultados.push({ tipo: 'item', ...it }));
   };
 
-  // Coordenadas → zona circular.
-  const coords = parseCoordenadas(texto);
-  if (coords) {
-    pushGrupo('Coordenadas', [{
-      kind: 'coords',
-      nombre: `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`,
-      lat: coords.lat,
-      lng: coords.lng,
-    }], 'pin');
-  }
+  // Las coordenadas se filtran desde la topbar (coord-filter.js); aquí solo
+  // se buscan estados, bloques y capas.
 
   // Estados (solo si el filtro existe en esta página)
   if (document.getElementById('dropdownEstado')) {
@@ -226,6 +218,8 @@ async function consultarZonaActual(dropdown) {
 function abrirModoZona(cfg, dropdown) {
   const map = getMap();
   const input = document.getElementById('locSearch');
+  // El filtro de coordenadas de la topbar suelta su zona si estaba activo.
+  document.dispatchEvent(new CustomEvent('zone:claim', { detail: 'search' }));
   dropdown.closest('.loc-search')?.classList.add('open');
   if (input) {
     input.readOnly = true;
@@ -269,6 +263,23 @@ function cancelarZona(dropdown) {
     input.readOnly = false;
     input.value = '';
     input.blur();
+  }
+}
+
+/**
+ * Descarta el modo zona sin borrar el dibujo del mapa. Se usa cuando el
+ * filtro de coordenadas de la topbar toma el control de la zona.
+ */
+function descartarZona(dropdown) {
+  if (!zona) return;
+  const input = document.getElementById('locSearch');
+  zona = null;
+  zonaToken++;
+  dropdown.innerHTML = '';
+  dropdown.closest('.loc-search')?.classList.remove('open');
+  if (input) {
+    input.readOnly = false;
+    input.value = '';
   }
 }
 
@@ -327,6 +338,10 @@ export function initLocationSearch() {
   let items = [];
   let activo = -1;
   let debounce = null;
+
+  document.addEventListener('zone:claim', (e) => {
+    if (e.detail !== 'search') descartarZona(dropdown);
+  });
 
   const cerrar = () => {
     wrap.classList.remove('open');

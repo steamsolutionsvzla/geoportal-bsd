@@ -19,31 +19,51 @@ const ZONE_POINT = 'layer-zone-scan-point';
 // ------------------------------------------------------------------
 export function parseCoordenadas(texto) {
   if (!texto) return null;
-  const t = String(texto).toUpperCase().replace(/[°º]/g, ' ').replace(/,/g, ' ');
-  const tokens = [...t.matchAll(/([NSEW])?\s*(-?\d+(?:\.\d+)?)\s*([NSEW])?/g)];
-  if (!tokens.length) return null;
+  const t = String(texto).toUpperCase().replace(/[°º]/g, ' ');
+  const tokens = t.match(/[NSEW]|-?\d+(?:\.\d+)?/g);
+  if (!tokens || tokens.length < 2 || tokens.length > 4) return null;
 
-  const items = tokens.map((m) => ({
-    dir: (m[1] || m[3] || '').toUpperCase() || null,
-    value: Number(m[2]),
-  })).filter((x) => Number.isFinite(x.value));
-
-  if (!items.length || items.length > 3) return null;
+  // Separa cada número de su dirección, admitiendo "N 10 W 71" y "10N 71W".
+  const items = [];
+  let pendiente = null;
+  for (const token of tokens) {
+    if (/^[NSEW]$/.test(token)) {
+      if (!items.length) {
+        pendiente = token;
+      } else {
+        const ultimo = items[items.length - 1];
+        if (!ultimo.dir) ultimo.dir = token;
+        else pendiente = token;
+      }
+      continue;
+    }
+    const value = Number(token);
+    if (!Number.isFinite(value)) return null;
+    items.push({ value, dir: pendiente });
+    pendiente = null;
+  }
+  if (!items.length) return null;
 
   let lat = null, lng = null;
   if (items.some((x) => x.dir)) {
     for (const it of items) {
-      if ((it.dir === 'N' || it.dir === 'S') && lat === null) lat = Math.abs(it.value) * (it.dir === 'S' ? -1 : 1);
-      else if ((it.dir === 'E' || it.dir === 'W') && lng === null) lng = Math.abs(it.value) * (it.dir === 'W' ? -1 : 1);
+      if (it.dir === 'N' || it.dir === 'S') {
+        if (lat === null) lat = Math.abs(it.value) * (it.dir === 'S' ? -1 : 1);
+      } else if (it.dir === 'E' || it.dir === 'W') {
+        if (lng === null) lng = Math.abs(it.value) * (it.dir === 'W' ? -1 : 1);
+      }
     }
-  }
-  if (lat === null || lng === null) {
+    // Si solo se indicó una dirección, no hay forma segura de deducir la otra.
+    if (lat === null || lng === null) return null;
+  } else {
     if (items.length < 2) return null;
     let [a, b] = [items[0].value, items[1].value];
     // Heurística: si el primero no puede ser latitud, se intercambian.
     if (Math.abs(a) > 90 && Math.abs(b) <= 90) [a, b] = [b, a];
     lat = a; lng = b;
   }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat, lng };
 }

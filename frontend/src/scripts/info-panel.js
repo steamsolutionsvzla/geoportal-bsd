@@ -638,7 +638,8 @@ async function generarReportePDF(etiqueta, nombreSeleccionado, totalPuntosGenera
     const enviar = () => apiFetch('/api/v1/reports/pdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000),
     });
 
     let response = await enviar();
@@ -682,7 +683,8 @@ async function generarReporteExcel(nombreSeleccionado, capasDetalleMap, tablaRes
     const response = await apiFetch('/api/v1/reports/excel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(120000),
     });
     if (!response.ok) {
       throw new Error(await leerErrorReporte(response));

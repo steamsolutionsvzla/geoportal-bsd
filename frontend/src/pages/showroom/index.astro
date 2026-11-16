@@ -286,6 +286,8 @@ import Footer from '../../components/Footer.astro';
   <Footer />
 
   <script>
+    // Showroom está bloqueado: session.js redirige a /hub o /admin según el rol.
+    import '../../scripts/session.js';
     import '../../scripts/main.js';
   </script>
 </body>

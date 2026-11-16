@@ -91,6 +91,47 @@ import Footer from '../../components/Footer.astro';
       <div class="brand-text">
         <span class="name">Geoportal</span>
       </div>
+
+      <!-- Filtro por coordenadas (topbar) -->
+      <div class="coord-filter" id="coordFilter">
+        <svg class="coord-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        <input
+          type="text"
+          id="coordFilterInput"
+          placeholder="Lat, Lng — ej. 10.65, -71.62"
+          autocomplete="off"
+          aria-label="Filtrar capas por coordenadas"
+          aria-expanded="false"
+          aria-controls="coordFilterDropdown"
+        />
+        <button type="button" class="coord-filter-toggle" id="coordFilterToggle" aria-label="Abrir filtro por coordenadas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 21s-7-7.2-7-12a7 7 0 0 1 14 0c0 4.8-7 12-7 12z"/>
+            <circle cx="12" cy="9" r="2.5"/>
+          </svg>
+        </button>
+        <button type="button" class="coord-filter-apply" id="coordFilterApply" title="Aplicar filtro por coordenadas" aria-label="Aplicar filtro por coordenadas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+        <button type="button" class="coord-filter-clear" id="coordFilterClear" title="Quitar filtro de coordenadas" aria-label="Quitar filtro de coordenadas" hidden>✕</button>
+
+        <div class="coord-filter-dropdown" id="coordFilterDropdown" role="dialog" aria-label="Filtro por coordenadas">
+          <div class="coord-radius" role="group" aria-label="Radio de búsqueda">
+            <button type="button" class="ls-chip" data-km="0">Punto</button>
+            <button type="button" class="ls-chip active" data-km="15">15 km</button>
+            <button type="button" class="ls-chip" data-km="50">50 km</button>
+          </div>
+          <p class="coord-filter-hint" id="coordFilterHint">Escribe latitud y longitud y pulsa Enter.</p>
+          <p class="coord-filter-error" id="coordFilterError" hidden></p>
+          <div class="coord-filter-results" id="coordFilterResults"></div>
+        </div>
+      </div>
+
       <div class="topbar-actions">
         <a href="/hub" class="icon-btn" id="homeBtn" title="Volver al hub" aria-label="Volver al hub">
           <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -142,9 +183,9 @@ import Footer from '../../components/Footer.astro';
             <input
               type="search"
               id="locSearch"
-              placeholder="Buscar estado, bloque o coordenadas…"
+              placeholder="Buscar estado, bloque o capa…"
               autocomplete="off"
-              aria-label="Buscar estado, bloque o coordenadas"
+              aria-label="Buscar estado, bloque o capa"
             />
             <div class="loc-search-dropdown" id="locSearchDropdown" role="listbox" aria-label="Resultados de búsqueda"></div>
           </div>

@@ -10,7 +10,9 @@ export async function downloadLayerShp(tableName) {
 
   const short = tableName.includes(':') ? tableName.split(':').pop() : tableName;
   try {
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}/download`);
+    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}/download`, {
+      signal: AbortSignal.timeout(120000),
+    });
     if (!response.ok) {
       let msg = `Error ${response.status}`;
       try {

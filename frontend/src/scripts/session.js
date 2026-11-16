@@ -15,7 +15,7 @@ export const ROUTES = [
   ['/admin',               [ROL.ADMIN, ROL.GERENTE]],           // admin.astro + acompañantes
   ['/hub',                 [ROL.ADMIN, ROL.ANALISTA]],          // hub + acompañantes
   ['/geoportal',           [ROL.ADMIN, ROL.ANALISTA, ROL.GERENTE]], // geoportal (agregado gerente)
-  ['/showroom',            ALL],                                // todos
+  ['/showroom',            []],                                 // ruta bloqueada (Showroom oculto)
 ];
 
 // Pantalla de inicio por rol (debe ser una ruta permitida para ese rol).
