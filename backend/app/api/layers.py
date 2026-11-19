@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import allowed_workspaces, auth_guard, filter_layers_by_workspace, workspace_guard
+from app.api.deps import auth_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
@@ -23,15 +23,15 @@ router = APIRouter(
 @router.get("/list")
 async def list_layers(user: CurrentUser = Depends(auth_guard)):
     layers = await GeoServerService.get_available_layers()
-    return {"layers": filter_layers_by_workspace(user, layers)}
+    return {"layers": layers}
 
 @router.get("/workspaces")
 async def get_workspaces(user: CurrentUser = Depends(auth_guard)):
-        return await GeoServerService.get_workspaces_with_layers(only=allowed_workspaces(user))
+    return await GeoServerService.get_workspaces_with_layers()
 
 
 # 2. Rutas con parámetros (después de las fijas)
-@router.get("/{table_name}/metadata", dependencies=[Depends(workspace_guard)])
+@router.get("/{table_name}/metadata", dependencies=[Depends(auth_guard)])
 async def get_layer_metadata_endpoint(table_name: str):
     try:
         pool = get_pool()
@@ -42,7 +42,7 @@ async def get_layer_metadata_endpoint(table_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{table_name}", dependencies=[Depends(workspace_guard)])
+@router.get("/{table_name}", dependencies=[Depends(auth_guard)])
 async def get_layer(table_name: str, geom_col: str = "geom"):
     try:
         return await GeoServerService.get_layer_geojson(table_name)
@@ -51,7 +51,7 @@ async def get_layer(table_name: str, geom_col: str = "geom"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{table_name}/download", dependencies=[Depends(workspace_guard)])
+@router.get("/{table_name}/download", dependencies=[Depends(auth_guard)])
 async def download_layer_shapefile(table_name: str):
     """Descarga la capa como Shapefile comprimido (.zip) vía WFS de GeoServer.
 
@@ -84,7 +84,7 @@ async def download_layer_shapefile(table_name: str):
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
     
-@router.get("/{table_name:path}/attributes", dependencies=[Depends(workspace_guard)])
+@router.get("/{table_name:path}/attributes", dependencies=[Depends(auth_guard)])
 async def get_layer_attributes(table_name: str):
     """
     Devuelve los nombres de los atributos de una capa.

@@ -16,9 +16,9 @@ logger = logging.getLogger("app.services.session")
 # ---------------------------------------------------------------------------
 
 _MOCK_USERS = {  # solo dev (AUTH_MOCK=true): token -> perfil
-    "mock-admin":    {"nombre": "Ana", "apellido": "Admin",    "rol": "Administrador", "cargo": "Administradora", "workspaces": [], "usuario_id": "mock-admin"},
-    "mock-gerente":  {"nombre": "Gil", "apellido": "Gerente",  "rol": "Rol_gerente",   "cargo": "Gerente",        "workspaces": ["ws1", "ws2"], "usuario_id": "mock-gerente"},
-    "mock-analista": {"nombre": "Ari", "apellido": "Analista", "rol": "Rol_analista",  "cargo": "Analista",       "workspaces": ["ws1"], "usuario_id": "mock-analista"},
+    "mock-admin":    {"nombre": "Ana", "apellido": "Admin",    "rol": "Administrador", "cargo": "Administradora", "usuario_id": "mock-admin"},
+    "mock-gerente":  {"nombre": "Gil", "apellido": "Gerente",  "rol": "Rol_gerente",   "cargo": "Gerente",        "usuario_id": "mock-gerente"},
+    "mock-analista": {"nombre": "Ari", "apellido": "Analista", "rol": "Rol_analista",  "cargo": "Analista",       "usuario_id": "mock-analista"},
 }
 
 # Key de Odoo (geoportal_roles[0].key, en minúsculas) -> rol interno del backend.
@@ -67,14 +67,11 @@ def build_profile(odoo: dict) -> dict:
         or rol.value
     )
 
-    workspaces = [w["name"] for w in (odoo.get("workspaces") or []) if w.get("name")]
-
     return {
         "nombre": nombre,
         "apellido": apellido,
         "rol": rol.value,
         "cargo": cargo,
-        "workspaces": workspaces,
         "usuario_id": _usuario_id(odoo),
     }
 

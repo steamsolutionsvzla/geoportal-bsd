@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.api.deps import allowed_workspaces, filter_layers_by_workspace, role_guard
+from app.api.deps import role_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser, Rol
 from app.services.geoserver_service import GeoServerService
@@ -30,7 +30,7 @@ async def admin_stats(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GERE
     - Sesiones activas.
     """
     try:
-        groups = await GeoServerService.get_workspaces_with_layers(only=allowed_workspaces(user))
+        groups = await GeoServerService.get_workspaces_with_layers()
     except HTTPException:
         raise
     except Exception as exc:
@@ -45,11 +45,11 @@ async def admin_stats(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GERE
 
     pool = get_pool()
 
-    # Lista plana (workspace, capa) respetando los workspaces del usuario.
+    # Lista plana (workspace, capa) de todo el catálogo.
     items: List[Dict[str, Any]] = []
     for group in groups:
         ws = group.get("name") or "—"
-        for layer in filter_layers_by_workspace(user, group.get("layers") or []):
+        for layer in (group.get("layers") or []):
             items.append({
                 "id": layer.get("id"),
                 "name": layer.get("name") or layer.get("id"),

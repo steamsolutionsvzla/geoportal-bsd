@@ -1,18 +1,14 @@
-from typing import Iterable, List, Optional, Set
+from typing import Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
 
 from app.models.user import CurrentUser, Rol
-from app.services.geoserver_service import GeoServerService
 from app.services.session_service import resolve_user
 
 SHOWROOM_WORKSPACE = "Showroom"
 _bearer = HTTPBearer(auto_error=False)
-
-def _norm(name: str) -> str:
-    return (name or "").strip().casefold()
 
 # authGuard
 async def auth_guard(cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)) -> CurrentUser:
@@ -37,34 +33,6 @@ def role_guard(*allowed: Rol):
 admin_area = role_guard(Rol.ADMIN, Rol.GERENTE)   # admin.astro + acompañantes
 hub_area   = role_guard(Rol.ADMIN, Rol.ANALISTA)  # hub + acompañantes
 users_area = role_guard(Rol.ADMIN)                # gestión users/roles
-
-# workspaceGuard
-# Workspaces con acceso universal para cualquier rol autenticado (sin importar Odoo).
-ALWAYS_ALLOWED_WORKSPACES = {"rasters"}
-
-def allowed_workspaces(user: CurrentUser) -> Optional[Set[str]]:
-    """None = sin restricción (Administrador)."""
-    if user.rol == Rol.ADMIN:
-        return None
-    return {_norm(w) for w in user.workspaces} | ALWAYS_ALLOWED_WORKSPACES
-
-def filter_layers_by_workspace(user: CurrentUser, layers: Iterable[dict]) -> List[dict]:
-    allowed = allowed_workspaces(user)
-    if allowed is None:
-        return list(layers)
-    return [item for item in layers if _norm(str(item.get("id", "")).split(":", 1)[0]) in allowed]
-
-async def workspace_guard(table_name: str, user: CurrentUser = Depends(auth_guard)) -> CurrentUser:
-    if ":" in table_name:
-        ws = table_name.split(":", 1)[0]
-    else:
-        ws = await GeoServerService._find_workspace_for_layer(table_name)
-        if ws is None:
-            raise HTTPException(404, f"No se encontró la capa '{table_name}' en ningún workspace.")
-    allowed = allowed_workspaces(user)
-    if allowed is not None and _norm(ws) not in allowed:
-        raise HTTPException(403, "No tienes acceso al workspace de esta capa.")
-    return user
 
 # showroomGuard: cualquier rol autenticado, siempre "Showroom"
 async def showroom_guard(user: CurrentUser = Depends(auth_guard)) -> str:

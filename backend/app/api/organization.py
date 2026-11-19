@@ -14,7 +14,7 @@ from typing import List, Optional, Set
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from app.api.deps import allowed_workspaces, auth_guard
+from app.api.deps import auth_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
@@ -57,14 +57,10 @@ class OrganizationIn(BaseModel):
         return v
 
 
-def _norm_ws(ws: str) -> str:
-    return (ws or "").strip().casefold()
-
-
-async def validar_capas(folders: List[FolderIn], allowed: Optional[Set[str]]) -> None:
+async def validar_capas(folders: List[FolderIn]) -> None:
     """
-    Cada capa debe ser un id único 'workspace:capa' y pertenecer a un workspace
-    permitido para el usuario. allowed=None (ADMIN) sin restricción.
+    Cada capa debe ser un id único 'workspace:capa'. El catálogo es el mismo
+    para todos los usuarios autenticados, sin restricción por workspace.
     """
     vistos: Set[str] = set()
     for f in folders:
@@ -77,15 +73,6 @@ async def validar_capas(folders: List[FolderIn], allowed: Optional[Set[str]]) ->
             if capa in vistos:
                 raise HTTPException(422, f"La capa '{capa}' está asignada a más de una carpeta.")
             vistos.add(capa)
-
-            if allowed is None:
-                continue
-            if ":" in capa:
-                ws = capa.split(":", 1)[0]
-            else:
-                ws = await GeoServerService._find_workspace_for_layer(capa) or ""
-            if _norm_ws(ws) not in allowed:
-                raise HTTPException(403, f"No tienes acceso a la capa '{capa}'.")
 
 
 @router.get("")
@@ -118,7 +105,7 @@ async def save_organization(payload: OrganizationIn, user: CurrentUser = Depends
     if not user.usuario_id:
         raise HTTPException(400, "Tu sesión no tiene identificador de usuario. Vuelve a iniciar sesión.")
 
-    await validar_capas(payload.folders, allowed_workspaces(user))
+    await validar_capas(payload.folders)
 
     data = json.dumps([f.model_dump() for f in payload.folders], ensure_ascii=False)
     pool = get_pool()

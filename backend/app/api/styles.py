@@ -6,7 +6,7 @@ Una fila por capa (unique layer_name). Los cambios se aplican
 automáticamente en el Geoportal al recargar.
 
 - Lectura: cualquier usuario autenticado (el geoportal consume).
-- Escritura: ADMIN o ANALISTA, y solo sobre capas de sus workspaces.
+- Escritura: ADMIN o ANALISTA, sobre cualquier capa del catálogo.
 """
 
 import json
@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from app.api.deps import allowed_workspaces, auth_guard, role_guard
+from app.api.deps import auth_guard, role_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser, Rol
 from app.services.geoserver_service import GeoServerService
@@ -120,10 +120,6 @@ def _row_to_style(row) -> dict:
     return d
 
 
-def _norm(s: str) -> str:
-    return (s or "").strip().casefold()
-
-
 _STYLE_COLS = """
         layer_name, fill_color, stroke_color, opacity, line_width, has_fill,
         min_zoom, max_zoom, visible_attributes, attribute_labels,
@@ -132,10 +128,10 @@ _STYLE_COLS = """
 """
 
 
-async def _ensure_workspace_access(table_name: str, user: CurrentUser) -> str:
+async def _ensure_layer_exists(table_name: str) -> str:
     """
-    Valida que la capa exista y que el usuario tenga acceso a su workspace.
-    Devuelve el workspace resuelto.
+    Valida que la capa exista en algún workspace y lo devuelve.
+    No hay restricción por usuario: el catálogo es común.
     """
     if ":" in table_name:
         ws = table_name.split(":", 1)[0]
@@ -143,10 +139,6 @@ async def _ensure_workspace_access(table_name: str, user: CurrentUser) -> str:
         ws = await GeoServerService._find_workspace_for_layer(table_name)
         if ws is None:
             raise HTTPException(404, f"No se encontró la capa '{table_name}' en ningún workspace.")
-
-    allowed = allowed_workspaces(user)  # None = admin sin restricción
-    if allowed is not None and _norm(ws) not in allowed:
-        raise HTTPException(403, "No tienes acceso al workspace de esta capa.")
     return ws
 
 
@@ -197,9 +189,9 @@ async def upsert_style(
 ):
     """
     Crea o actualiza el estilo de una capa. Solo ADMIN o ANALISTA,
-    y solo si la capa pertenece a un workspace del usuario.
+    sobre cualquier capa existente del catálogo.
     """
-    await _ensure_workspace_access(table_name, user)
+    await _ensure_layer_exists(table_name)
 
     pool = get_pool()
     await pool.execute(
@@ -260,7 +252,7 @@ async def reset_style(
     user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.ANALISTA)),
 ):
     """Elimina la configuración → el geoportal vuelve a los defaults."""
-    await _ensure_workspace_access(table_name, user)
+    await _ensure_layer_exists(table_name)
     pool = get_pool()
     await pool.execute(
         "DELETE FROM layer_style_configs WHERE layer_name = $1;",

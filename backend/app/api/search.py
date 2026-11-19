@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.deps import allowed_workspaces, auth_guard, filter_layers_by_workspace
+from app.api.deps import auth_guard
 from app.db.database import get_pool
 from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
@@ -61,17 +61,17 @@ async def search_zone(payload: ZoneSearchRequest, user: CurrentUser = Depends(au
     _validar_geometria(payload.geometry)
 
     try:
-        groups = await GeoServerService.get_workspaces_with_layers(only=allowed_workspaces(user))
+        groups = await GeoServerService.get_workspaces_with_layers()
     except HTTPException:
         raise
     except Exception as e:
         logger.warning("No se pudo listar workspaces para la búsqueda: %s", e)
         raise HTTPException(502, "No se pudo consultar el catálogo de capas.")
 
-    # Aplicar el mismo filtro de workspaces que usa el catálogo.
+    # Todo el catálogo visible para cualquier usuario autenticado.
     layers: List[Dict] = []
     for group in groups:
-        layers.extend(filter_layers_by_workspace(user, group.get("layers") or []))
+        layers.extend(group.get("layers") or [])
 
     candidatas = [l for l in layers if l.get("type") != "raster" and l.get("id")]
     if not candidatas:

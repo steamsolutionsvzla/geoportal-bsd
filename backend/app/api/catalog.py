@@ -69,7 +69,7 @@ def _find_table(rows: List[Dict[str, Any]], native: Optional[str]):
 async def _catalog(pool) -> List[Dict[str, Any]]:
     """Lista plana de capas con equivalencia PostGIS, estado y registros."""
     try:
-        groups = await GeoServerService.get_workspaces_with_layers(include_hidden=True)
+        groups = await GeoServerService.get_workspaces_with_layers()
     except Exception as exc:
         raise HTTPException(502, f"No se pudo consultar GeoServer: {exc}") from exc
 

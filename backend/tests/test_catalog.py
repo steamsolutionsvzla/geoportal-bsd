@@ -84,7 +84,7 @@ class FakePool:
 
 def _user(rol=Rol.GERENTE):
     return CurrentUser(nombre="Gil", apellido="Gerente", rol=rol, cargo="Gerente",
-                       workspaces=[], usuario_id="9")
+                       usuario_id="9")
 
 
 @pytest.fixture
@@ -96,7 +96,7 @@ def client_catalog(monkeypatch):
     monkeypatch.setattr(catalog_mod, "get_pool", lambda: pool)
     monkeypatch.setattr(settings_mod, "get_pool", lambda: pool)
 
-    async def fake_workspaces(only=None, include_hidden=False):
+    async def fake_workspaces(only=None):
         return [{"name": _WS, "layers": [
             {"id": f"{_WS}:Bloques petroleros", "name": "Bloques petroleros", "type": "fill"},
             {"id": f"{_WS}:Ortofoto", "name": "Ortofoto", "type": "raster"},

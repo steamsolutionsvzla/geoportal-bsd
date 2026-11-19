@@ -18,7 +18,6 @@ def _override_auth() -> CurrentUser:
         apellido="User",
         rol=Rol.ANALISTA,
         cargo="Analista",
-        workspaces=["ws1"],
     )
 
 

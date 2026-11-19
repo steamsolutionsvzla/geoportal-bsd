@@ -27,13 +27,12 @@ class FakePool:
 _WS = "Petróleo_y_gas"
 
 
-def _user(rol=Rol.ANALISTA, workspaces=(_WS,), usuario_id="42"):
+def _user(rol=Rol.ANALISTA, usuario_id="42"):
     return CurrentUser(
         nombre="Ari",
         apellido="Analista",
         rol=rol,
         cargo="Analista",
-        workspaces=list(workspaces),
         usuario_id=usuario_id,
     )
 
@@ -84,11 +83,11 @@ def test_put_guarda_carpetas(client_pool):
     assert _json.loads(args[1])[0]["nombre"] == "Perforación"
 
 
-def test_put_rechaza_workspace_no_permitido(client_pool):
+def test_put_acepta_capa_de_cualquier_workspace(client_pool):
     client, _pool = client_pool
     payload = {"folders": [{"nombre": "Otra", "capas": ["gerencia:licencias"]}]}
     resp = client.put("/api/v1/organization", json=payload)
-    assert resp.status_code == 403
+    assert resp.status_code == 200
 
 
 def test_put_rechaza_capa_duplicada(client_pool):
@@ -124,7 +123,7 @@ def test_put_vacio_deuelve_a_workspaces(client_pool):
 
 
 def test_put_admin_puede_cualquier_workspace(client_pool, monkeypatch):
-    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ADMIN, workspaces=())
+    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ADMIN)
     client, pool = client_pool
     payload = {"folders": [{"nombre": "Gerencia", "capas": ["gerencia:licencias"]}]}
     resp = client.put("/api/v1/organization", json=payload)
@@ -143,7 +142,7 @@ def test_put_sin_usuario_id_rechazado(client_pool, monkeypatch):
 # Showroom: organización general compartida
 # ---------------------------------------------------------------------------
 def _catalogo_showroom(monkeypatch, capas):
-    async def fake_workspaces(only=None, include_hidden=False):
+    async def fake_workspaces(only=None):
         return [{"name": "Showroom", "layers": [{"id": c} for c in capas]}]
     monkeypatch.setattr(organization.GeoServerService, "get_workspaces_with_layers", fake_workspaces)
 

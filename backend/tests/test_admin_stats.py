@@ -64,10 +64,10 @@ class FakePool:
         return 0
 
 
-def _user(rol=Rol.ADMIN, workspaces=()):
+def _user(rol=Rol.ADMIN):
     return CurrentUser(
         nombre="Ana", apellido="Admin", rol=rol, cargo="Administradora",
-        workspaces=list(workspaces), usuario_id="1",
+        usuario_id="1",
     )
 
 
@@ -132,7 +132,7 @@ def test_stats_agrupa_por_workspace(client_stats):
 
 
 def test_stats_rechaza_rol_sin_acceso(client_stats):
-    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA, workspaces=(_WS,))
+    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA)
     resp = client_stats.get("/api/v1/admin/stats")
     assert resp.status_code == 403
 
@@ -148,6 +148,6 @@ def test_bloques_devuelve_filas_reales_ordenadas(client_stats):
 
 
 def test_bloques_rechaza_rol_sin_acceso(client_stats):
-    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA, workspaces=(_WS,))
+    app.dependency_overrides[auth_guard] = lambda: _user(rol=Rol.ANALISTA)
     resp = client_stats.get("/api/v1/admin/bloques")
     assert resp.status_code == 403

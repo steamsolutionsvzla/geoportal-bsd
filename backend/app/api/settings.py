@@ -30,9 +30,7 @@ async def read_settings(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GE
 async def licenses_candidates(user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GERENTE))):
     """Capas candidatas para el dashboard gerencial (solo workspace Gerencia)."""
     try:
-        groups = await GeoServerService.get_workspaces_with_layers(
-            only={"gerencia"}, include_hidden=True
-        )
+        groups = await GeoServerService.get_workspaces_with_layers(only={"gerencia"})
     except Exception as exc:
         raise HTTPException(502, f"No se pudo consultar el catálogo: {exc}") from exc
 

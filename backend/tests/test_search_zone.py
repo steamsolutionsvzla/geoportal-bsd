@@ -60,10 +60,10 @@ class FakePool:
         return _Acquire(FakeConn(self))
 
 
-def _user(rol=Rol.ANALISTA, workspaces=(_WS,)):
+def _user(rol=Rol.ANALISTA):
     return CurrentUser(
         nombre="Ari", apellido="Analista", rol=rol, cargo="Analista",
-        workspaces=list(workspaces), usuario_id="42",
+        usuario_id="42",
     )
 
 
@@ -115,7 +115,7 @@ def test_devuelve_solo_capas_con_datos_ordenadas(client_search):
     assert [l["id"] for l in data["layers"]] == [f"{_WS}:Pozos", f"{_WS}:Bloques petroleros"]
     assert data["layers"][0]["count"] == 9
     # Los rásteres no se consultan
-    assert data["scanned"] == 3
+    assert data["scanned"] == 4
 
 
 def test_include_zero_lista_todas_las_vectoriales(client_search):
@@ -126,12 +126,11 @@ def test_include_zero_lista_todas_las_vectoriales(client_search):
     assert len(resp.json()["layers"]) == 3
 
 
-def test_filtra_por_workspace_del_usuario(client_search):
-    app.dependency_overrides[auth_guard] = lambda: _user(workspaces=("otra",))
-    resp = client_search.post("/api/v1/search/zone", json={"geometry": POLY})
-    assert resp.status_code == 200
-    ids = [l["id"] for l in resp.json()["layers"]]
-    assert ids == []  # "Otra:Privada" no existe como tabla → 0/None, y no hay más
+def test_incluye_capas_de_todos_los_workspaces(client_search):
+    rep = client_search.post("/api/v1/search/zone", json={"geometry": POLY})
+    assert rep.status_code == 200
+    # "Otra:Privada" se consulta (ya no se filtra), pero su tabla no existe → 0/None.
+    assert rep.json()["scanned"] == 4
 
 
 def test_rechaza_geometria_no_poligonal(client_search):
