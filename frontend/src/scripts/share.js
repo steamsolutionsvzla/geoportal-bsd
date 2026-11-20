@@ -1,6 +1,6 @@
 // share.js
 // Enlace permanente de la vista actual: centro, zoom, mapa base, capas
-// activas y filtros de estado/bloque. El botón copia la URL al portapapeles
+// activas y filtro de estado. El botón copia la URL al portapapeles
 // y deja el estado reflejado en la barra de direcciones.
 // applySharedView() restaura esa vista al arrancar (si la URL la trae).
 
@@ -8,7 +8,7 @@ function estadoActualDeDropdown(dropdownId) {
   const dropdown = document.getElementById(dropdownId);
   const sel = dropdown?.querySelector('.loc-option.selected');
   const val = sel?.getAttribute('data-value') ?? '';
-  return val && val !== 'Todos los estados' && val !== 'Todos los bloques' ? val : '';
+  return val && val !== 'Todos los estados' ? val : '';
 }
 
 function capasyaActivas() {
@@ -83,8 +83,6 @@ export function initShareView(map) {
     if (capas.length) url.searchParams.set('capas', capas.join(','));
     const estado = estadoActualDeDropdown('dropdownEstado');
     if (estado) url.searchParams.set('estado', estado);
-    const bloque = estadoActualDeDropdown('dropdownBloque');
-    if (bloque) url.searchParams.set('bloque', bloque);
 
     history.replaceState(null, '', url.toString());
     const ok = await copiarTexto(url.toString());
@@ -97,7 +95,7 @@ export function initShareView(map) {
 // ------------------------------------------------------------------
 export async function applySharedView(map) {
   const params = new URLSearchParams(window.location.search);
-  if (![...params.keys()].some((k) => ['c', 'z', 'bm', 'capas', 'estado', 'bloque'].includes(k))) return;
+  if (![...params.keys()].some((k) => ['c', 'z', 'bm', 'capas', 'estado'].includes(k))) return;
 
   // Mapa base.
   const bm = params.get('bm');
@@ -120,8 +118,6 @@ export async function applySharedView(map) {
   // centro/zoom explícito de la URL manda al final.
   const estado = params.get('estado');
   if (estado) clickOptionLoc('dropdownEstado', estado);
-  const bloque = params.get('bloque');
-  if (bloque) clickOptionLoc('dropdownBloque', bloque);
 
   // Vista: centro/zoom sin animación (estamos en la carga inicial).
   const c = params.get('c')?.split(',').map(Number);

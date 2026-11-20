@@ -12,10 +12,9 @@ import {
   usarAreaDibujada,
   limpiarFiltroArea,
   limpiarFiltroEstado as filtroEstadoOriginal,
-  limpiarFiltroBloque as filtroBloqueOriginal,
   setEstadosCache,
-  setBloquesCache,
-  recalcularFiltrosActivos
+  recalcularFiltrosActivos,
+  refreshAreaLayerOptions
 } from './filters.js';
 import { setDrawnArea } from './area-temporal.js';
 import { initDrawTools, startPolygonTool } from './draw-tools.js';
@@ -29,7 +28,7 @@ import {
   pushFilterLoading,
   popFilterLoading
 } from './info-panel.js';
-import { obtenerNombreEstado, normalizarNombreEstado, obtenerNombreBloque, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo, revokeSession, esCapa, claveNombreCapa } from './utils.js';
+import { obtenerNombreEstado, normalizarNombreEstado, refreshCount, updateLegendUI, getPaletteForType, hashCode, apiFetch, esperarMapaListo, revokeSession, esCapa, claveNombreCapa } from './utils.js';
 import {
   setAvailableLayers, renderLayerGroups, attachLayerToggleEvents, loadLayerToMap, applySavedStyleColors,
   getAvailableLayers, getLayerDisplayName, getSelectedSourceId, getSelectedFeatureId,
@@ -57,9 +56,7 @@ setWorkerUrl(maplibreWorkerUrl);
 // =========================================================================
 // CONSTANTES DE CAPAS ESPECIALES
 // =========================================================================
-const BLOQUES_LAYER_BASE = 'Bloques petroleros';
 const ESTADOS_LAYER_BASE = 'División Político Territorial';
-let BLOQUES_LAYER_NAME = BLOQUES_LAYER_BASE;
 let ESTADOS_LAYER_NAME = ESTADOS_LAYER_BASE;
 const ROL_ANALISTA = 'Rol_analista';
 
@@ -88,7 +85,7 @@ function esperarSesion(timeoutMs = 4000) {
 // =========================================================================
 /**
  * Busca la config de estilo de una capa en stylesMap.
- * Las capas especiales (estados, bloques) se guardan como
+ * La capa especial de estados se guarda como
  * "workspace:nombre" pero el mapa las llama solo por el nombre corto.
  */
 function getStyleCapa(name) {
@@ -168,17 +165,11 @@ let organizacionActual = null; // carpetas guardadas del usuario; null = por wor
 let orgShowroomInfo = null;   // {folders, updated_at, updated_by} de Showroom
 let gruposRenderizados = [];   // grupos tal como se muestran (para buscador/índice)
 let estadosGeoJsonCache = null;
-let bloquesGeoJsonCache = null;
 let currentFilterData = null;
-let currentBloqueFilterData = null;
 let currentAreaFilterData = null;
 let currentIntersectionFilterData = null;
-let activeBloqueId = null;
-let bloqueSelectionToken = 0;
 let isFilterActive = false;
-let isBloqueFilterActive = false;
 let estadoSeleccionado = '';
-let bloqueSeleccionado = '';
 const IS_SHOWROOM = document.body.dataset.showroom === 'true';
 
 // =========================================================================
@@ -275,18 +266,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (!IS_SHOWROOM) {
             await cargarCapaEstadosVenezuela();
-            await cargarCapaBloques();
 
             if (esAnalista) {
-              // El analista reemplaza el filtro de bloques por el área temporal.
-              const filtroBloque = document.getElementById('filterBloque');
-              if (filtroBloque) filtroBloque.hidden = true;
-              setupFilterDropdowns(estadosGeoJsonCache, null, { includeBloque: false });
+              setupFilterDropdowns(estadosGeoJsonCache);
               setupAreaFilter({ onRequestDraw: () => startPolygonTool() });
-            } else if (estadosGeoJsonCache && bloquesGeoJsonCache) {
-              setupFilterDropdowns(estadosGeoJsonCache, bloquesGeoJsonCache);
+            } else if (estadosGeoJsonCache) {
+              setupFilterDropdowns(estadosGeoJsonCache);
             } else {
-              mostrarError('No se pudieron cargar los datos de estados o bloques.');
+              mostrarError('No se pudo cargar la capa de división político territorial.');
             }
           }
 
@@ -321,15 +308,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderInfoPanel();
     }
 
-    function limpiarFiltroBloque() {
-      filtroBloqueOriginal();
-      currentBloqueFilterData = null;
-      isBloqueFilterActive = false;
-      bloqueSeleccionado = '';
-      setInfoPanelData({ currentBloqueFilterData: null, isBloqueFilterActive: false });
-      renderInfoPanel();
-    }
-
     window.handleFeatureClick = (tableName, props, lngLat, onClose = null) => {
       // Mientras se dibuja o se mide, los clics pertenecen a la herramienta.
       if (window.__mapToolActive) return null;
@@ -347,13 +325,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.calcularPuntosEnEstado = (feature, nombre) => calcularPuntosEnEstado(feature, nombre);
-    window.calcularPuntosEnBloque = (feature, nombre) => calcularPuntosEnBloque(feature, nombre);
     window.calcularElementosEnArea = (feature, nombre) => calcularElementosEnArea(feature, nombre);
     window.calcularElementosEnInterseccion = (estadoFeature, areaFeature, nombreEstado, nombreArea) =>
       calcularElementosEnInterseccion(estadoFeature, areaFeature, nombreEstado, nombreArea);
     window.updateInfoPanel = renderInfoPanel;
     window.limpiarFiltroEstado = limpiarFiltroEstado;
-    window.limpiarFiltroBloque = limpiarFiltroBloque;
     window.limpiarFiltroArea = () => limpiarFiltroArea({ keepLayer: false });
     window.limpiarResaltadoFiltro = limpiarResaltadoFiltro;
     window.cerrarSesion = cerrarSesion;
@@ -423,14 +399,10 @@ async function loadWorkspaces() {
     groups.forEach(group => {
       group.layers.forEach(layer => {
         const id = layer.id.split(':').pop();
-        if (esCapa(id, ESTADOS_LAYER_BASE) || esCapa(id, BLOQUES_LAYER_BASE)) {
+        if (esCapa(id, ESTADOS_LAYER_BASE)) {
           layer.type = 'fill';
           layer.noOpacity = true;   // 👈 NUEVO: sin slider de opacidad
-          if (esCapa(id, ESTADOS_LAYER_BASE)) {
-            layer.color = '#1a365d';
-          } else if (esCapa(id, BLOQUES_LAYER_BASE)) {
-            layer.color = '#8a4baf';
-          }
+          layer.color = '#1a365d';
         }
       });
     });
@@ -456,7 +428,6 @@ async function loadWorkspaces() {
       );
       return encontrada ? encontrada.id.split(':').pop() : base;
     };
-    BLOQUES_LAYER_NAME = resolverCapaEspecial(BLOQUES_LAYER_BASE);
     ESTADOS_LAYER_NAME = resolverCapaEspecial(ESTADOS_LAYER_BASE);
 
     wsGroupsBase = groups;
@@ -889,7 +860,7 @@ function renderizarListaCapas(grupos) {
 }
 
 // =========================================================================
-// CARGA DE CAPAS ESPECIALES (estados y bloques)
+// CARGA DE LA CAPA ESPECIAL DE ESTADOS
 // =========================================================================
 function calcularEtiquetaEstado(feature, nombre) {
   let punto = null;
@@ -1154,224 +1125,6 @@ async function cargarCapaEstadosVenezuela() {
   }
 }
 
-async function cargarCapaBloques() {
-  try {
-    ocultarError();
-    mostrarCargando(true);
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(BLOQUES_LAYER_NAME)}`, { signal: signalTimeout() });
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
-    bloquesGeoJsonCache = data;
-    setBloquesCache(data);
-
-    // Centroides por bloque: una etiqueta por feature, fija en el mismo
-    // lugar geográfico (evita duplicados/saltos al hacer zoom, que pasan
-    // al colocar symbols directamente sobre polígonos tilingeados).
-    const puntosEtiquetasBloques = {
-      type: 'FeatureCollection',
-      features: []
-    };
-    data.features.forEach(f => {
-      try {
-        const centroide = turf.centerOfMass(f);
-        centroide.properties = {
-          ...f.properties,
-          nombre_bloque: obtenerNombreBloque(f.properties) || f.properties?.bloque || ''
-        };
-        puntosEtiquetasBloques.features.push(centroide);
-      } catch (e) {}
-    });
-
-    const map = getMap();
-    const BLOQUE_SOURCE_ID = 'source-bloques-venezuela';
-    const BLOQUE_LABEL_SOURCE_ID = 'source-bloques-venezuela-labels';
-    const BLOQUE_LAYER_ID = 'layer-bloques-venezuela-fill';
-    const BLOQUE_FILTER_LINE_LAYER_ID = 'layer-bloques-venezuela-filter-line';
-    const BLOQUE_THEMATIC_LINE_LAYER_ID = 'layer-bloques-venezuela-thematic-line';
-    const BLOQUE_LABEL_LAYER_ID = 'layer-bloques-venezuela-label';
-
-    if (map.getSource(BLOQUE_LABEL_SOURCE_ID)) {
-      map.getSource(BLOQUE_LABEL_SOURCE_ID).setData(puntosEtiquetasBloques);
-    } else {
-      map.addSource(BLOQUE_LABEL_SOURCE_ID, {
-        type: 'geojson',
-        data: puntosEtiquetasBloques,
-        generateId: true
-      });
-    }
-
-    if (map.getSource(BLOQUE_SOURCE_ID)) {
-      map.getSource(BLOQUE_SOURCE_ID).setData(data);
-    } else {
-      map.addSource(BLOQUE_SOURCE_ID, {
-        type: 'geojson',
-        data: data,
-        generateId: true
-      });
-    }
-
-    if (!map.getLayer(BLOQUE_LAYER_ID)) {
-      map.addLayer({
-        id: BLOQUE_LAYER_ID,
-        type: 'fill',
-        source: BLOQUE_SOURCE_ID,
-        layout: { visibility: 'none' },
-        paint: {
-          'fill-color': [
-            'case',
-            ['boolean', ['feature-state', 'active'], false], '#facc15',
-            '#8a4baf'
-          ],
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'active'], false], 0.35,
-            ['boolean', ['feature-state', 'bloque-hover'], false], 0.12,
-            0
-          ]
-        }
-      });
-    }
-
-    if (!map.getLayer(BLOQUE_FILTER_LINE_LAYER_ID)) {
-      map.addLayer({
-        id: BLOQUE_FILTER_LINE_LAYER_ID,
-        type: 'line',
-        source: BLOQUE_SOURCE_ID,
-        layout: { visibility: 'none' },
-        paint: {
-          'line-color': [
-            'case',
-            ['boolean', ['feature-state', 'active'], false], '#facc15',
-            '#8a4baf'
-          ],
-          'line-width': [
-            'case',
-            ['boolean', ['feature-state', 'active'], false], 4,
-            ['boolean', ['feature-state', 'selected'], false], 3,
-            1
-          ]
-        }
-      });
-    }
-
-    if (!map.getLayer(BLOQUE_THEMATIC_LINE_LAYER_ID)) {
-      map.addLayer({
-        id: BLOQUE_THEMATIC_LINE_LAYER_ID,
-        type: 'line',
-        source: BLOQUE_SOURCE_ID,
-        layout: { visibility: 'none' },
-        paint: {
-          'line-color': '#8a4baf',
-          'line-width': 1
-        }
-      });
-    }
-
-    if (map.getLayer(BLOQUE_LABEL_LAYER_ID)) {
-      map.removeLayer(BLOQUE_LABEL_LAYER_ID);
-    }
-    const styleBloques = getStyleCapa(BLOQUES_LAYER_NAME);
-    const attrBloques = styleBloques?.label_attribute || 'nombre_bloque';
-    const claveBloques =
-      resolverClaveProp(puntosEtiquetasBloques.features[0]?.properties, attrBloques) || attrBloques;
-    map.addLayer({
-      id: BLOQUE_LABEL_LAYER_ID,
-      type: 'symbol',
-      source: BLOQUE_LABEL_SOURCE_ID,
-      layout: {
-        'visibility': 'none',
-        'text-field': ['get', claveBloques],
-        'text-font': ['Open Sans Regular'],
-        'text-size': [
-          'interpolate', ['exponential', 1.5], ['zoom'],
-          3, 8,
-          6, 10,
-          10, 12,
-          14, 14,
-        ],
-        'text-max-width': [
-          'interpolate', ['linear'], ['zoom'],
-          3, 4,
-          6, 6,
-          10, 10,
-        ],
-        'text-line-height': 1.15,
-        'text-allow-overlap': false,
-        'text-ignore-placement': false,
-        'text-justify': 'center',
-        'symbol-placement': 'point'
-      },
-      paint: {
-        'text-color': styleBloques?.label_color || '#3b1650',
-        'text-halo-color': '#ffffff',
-        'text-halo-width': [
-          'interpolate', ['linear'], ['zoom'],
-          3, 1,
-          10, 1.4,
-        ],
-      }
-    });
-
-    if (!map.listenedClicks) map.listenedClicks = new Set();
-    if (!map.listenedClicks.has(BLOQUE_LAYER_ID)) {
-      map.listenedClicks.add(BLOQUE_LAYER_ID);
-      let hoveredBloqueId = null;
-
-      map.on('mousemove', BLOQUE_LAYER_ID, (e) => {
-        map.getCanvas().style.cursor = 'pointer';
-        if (e.features.length > 0) {
-          if (hoveredBloqueId !== null) {
-            map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: hoveredBloqueId }, { 'bloque-hover': false });
-          }
-          hoveredBloqueId = e.features[0].id;
-          map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: hoveredBloqueId }, { 'bloque-hover': true });
-        }
-      });
-
-      map.on('mouseleave', BLOQUE_LAYER_ID, () => {
-        map.getCanvas().style.cursor = '';
-        if (hoveredBloqueId !== null) {
-          map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: hoveredBloqueId }, { 'bloque-hover': false });
-        }
-        hoveredBloqueId = null;
-      });
-
-      map.on('click', BLOQUE_LAYER_ID, (ev) => {
-        if (!ev.features || ev.features.length === 0) return;
-        const props = ev.features[0].properties;
-        const clickedId = ev.features[0].id;
-
-        if (activeBloqueId !== null) {
-          map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: activeBloqueId }, { active: false });
-        }
-        activeBloqueId = clickedId;
-        const token = ++bloqueSelectionToken;
-        map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: activeBloqueId }, { active: true });
-
-        if (typeof window.handleFeatureClick === 'function') {
-          window.handleFeatureClick(BLOQUES_LAYER_NAME, props, ev.lngLat, () => {
-            if (token !== bloqueSelectionToken) return;
-            if (activeBloqueId === clickedId) {
-              try {
-                map.setFeatureState({ source: BLOQUE_SOURCE_ID, id: clickedId }, { active: false });
-              } catch (_) { /* capa eliminada */ }
-              activeBloqueId = null;
-            }
-          });
-        }
-      });
-    }
-
-    updateLayerFeatureCount(BLOQUES_LAYER_NAME, data.features.length);
-  } catch (error) {
-    console.error('Error al cargar la capa de bloques:', error);
-    mostrarError('No se pudo cargar la capa de bloques. Verifica que el backend esté funcionando.');
-  } finally {
-    mostrarCargando(false);
-  }
-}
 
 // =========================================================================
 // ETIQUETAS GENÉRICAS POR CAPA
@@ -1509,40 +1262,6 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       return;
     }
 
-    if (esCapa(shortName, BLOQUES_LAYER_BASE)) {
-      const vis = isVisible ? 'visible' : 'none';
-      const styleBloques = getStyleCapa(BLOQUES_LAYER_NAME);
-      const visLabels = (isVisible && styleBloques?.show_labels) ? 'visible' : 'none';
-      const fillLayer = map.getLayer('layer-bloques-venezuela-fill');
-      const lineLayer = map.getLayer('layer-bloques-venezuela-thematic-line');
-      const labelLayer = map.getLayer('layer-bloques-venezuela-label');
-
-      if (fillLayer) {
-        map.setLayoutProperty('layer-bloques-venezuela-fill', 'visibility', vis);
-      }
-      if (lineLayer) {
-        map.setLayoutProperty('layer-bloques-venezuela-thematic-line', 'visibility', vis);
-      }
-      if (labelLayer) {
-        map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', visLabels);
-      } else {
-        setTimeout(() => {
-          const retryLabel = map.getLayer('layer-bloques-venezuela-label');
-          if (retryLabel) {
-            map.setLayoutProperty('layer-bloques-venezuela-label', 'visibility', visLabels);
-          }
-        }, 500);
-      }
-
-      if (!isVisible) {
-        clearSelectedLayerMetadataIfMatches(BLOQUES_LAYER_NAME);
-      }
-      updateLegendUI(getAvailableLayers());
-      renderInfoPanel();
-      cargandoCapas.delete(tableName);
-      return;
-    }
-
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
 
@@ -1606,6 +1325,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
     refreshCount();
     updateLegendUI(getAvailableLayers());
+    refreshAreaLayerOptions();
     renderInfoPanel();
     bringVenezuelaBoundaryToFront(map);
     bringMapLabelsToFront(map);
@@ -1640,7 +1360,7 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
 // =========================================================================
 // RESALTADO DE FEATURES FILTRADAS
-// Al aplicar un filtro (estado/bloque/área) las features que caen dentro se
+// Al aplicar un filtro (estado/área) las features que caen dentro se
 // marcan con `feature-state.selected` para que se pinten en amarillo.
 // Se lleva un registro por fuente para poder limpiarlas sin pisar el resaltado
 // de clic de una sola feature.
@@ -1750,81 +1470,6 @@ function calcularPuntosEnEstado(estadoPolygonFeature, nombreEstado) {
   };
 
   setInfoPanelData({ currentFilterData, isFilterActive: true });
-  renderInfoPanel();
-}
-
-function calcularPuntosEnBloque(bloquePolygonFeature, nombreBloque) {
-  const infoContent = document.getElementById('infoPanelContent');
-  if (!infoContent) return;
-
-  let totalPuntosGeneral = 0;
-  let capasContadas = 0;
-  let capasDetalleMap = {};
-  let rowsHtml = '';
-
-  const layers = getAvailableLayers();
-  const map = getMap();
-
-  layers.forEach(layerConfig => {
-    const sourceId = `source-${layerConfig.id}`;
-    const source = map.getSource(sourceId);
-    if (!source) return; // capa no activa en el mapa
-
-    // 👇 Leer SIEMPRE del caché de datos crudos, NUNCA del source.
-    const sourceData = getLayerRawData(layerConfig.id);
-    if (!sourceData || !Array.isArray(sourceData.features) || sourceData.features.length === 0) return;
-
-    const firstGeomType = sourceData.features[0]?.geometry?.type;
-    const isPointLayer =
-      layerConfig.type === 'circle' ||
-      layerConfig.type === 'point' ||
-      layerConfig.type === 'Point' ||
-      layerConfig.type === 'Punto' ||
-      firstGeomType === 'Point' ||
-      firstGeomType === 'MultiPoint';
-
-    if (!isPointLayer) return;
-
-    let countInPolygon = 0;
-    let featuresInLayer = [];
-    const indicesDentro = [];
-    // Dedupe de filas gemelas exactas (duplicados ETL en las tablas base).
-    const vistos = new Set();
-
-    sourceData.features.forEach((ptFeature, index) => {
-      if (!ptFeature || !ptFeature.geometry) return;
-      if (ptFeature.geometry.type !== 'Point' && ptFeature.geometry.type !== 'MultiPoint') return;
-      const clave = JSON.stringify(ptFeature.geometry) + '~' + JSON.stringify(ptFeature.properties || null);
-      if (vistos.has(clave)) return;
-      try {
-        if (turf.booleanPointInPolygon(ptFeature, bloquePolygonFeature)) {
-          vistos.add(clave);
-          countInPolygon++;
-          featuresInLayer.push(ptFeature.properties);
-          indicesDentro.push(index);
-        }
-      } catch (_) { /* ignore */ }
-    });
-
-    resaltarFeaturesFiltradas(sourceId, indicesDentro);
-
-    if (countInPolygon > 0) {
-      capasContadas++;
-      totalPuntosGeneral += countInPolygon;
-      capasDetalleMap[layerConfig.name] = featuresInLayer;
-      rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPolygon}</td></tr>`;
-    }
-  });
-
-  currentBloqueFilterData = {
-    bloqueSeleccionado: nombreBloque,
-    totalPuntosGeneral,
-    capasContadas,
-    capasDetalleMap,
-    rowsHtml
-  };
-
-  setInfoPanelData({ currentBloqueFilterData, isBloqueFilterActive: true });
   renderInfoPanel();
 }
 

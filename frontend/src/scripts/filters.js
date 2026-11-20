@@ -1,7 +1,8 @@
 // filters.js
 import { getMap } from './map-config.js';
-import { obtenerNombreEstado, obtenerNombreBloque } from './utils.js';
+import { obtenerNombreEstado, esCapa } from './utils.js';
 import { setInfoPanelData, renderInfoPanel } from './info-panel.js';
+import { getAvailableLayers, getLayerRawData } from './layer-manager.js';
 import * as turf from '@turf/turf';
 import {
   loadAreaFromFile,
@@ -17,44 +18,34 @@ import {
   getAreaSourceType,
   hasAreaLayer,
   bringAreaToFront,
-  formatearAreaNombre
+  formatearAreaNombre,
+  setAreaFromFeatures
 } from './area-temporal.js';
 
+const DIVISION_LAYER_BASE = 'División Político Territorial';
+
 let estadosGeoJsonCache = null;
-let bloquesGeoJsonCache = null;
 let isFilterActive = false;
-let isBloqueFilterActive = false;
 let isAreaFilterActive = false;
 let selectedStateFeatureId = null;
-let selectedBloqueFeatureId = null;
 let selectedEstadoFeature = null;   // feature del estado seleccionado (para recalcular)
-let selectedBloqueFeature = null;   // feature del bloque seleccionado (para recalcular)
 let selectedAreaFeature = null;     // feature del área seleccionada (para recalcular)
 let selectedAreaIndex = null;
 let estadoSeleccionado = '';
-let bloqueSeleccionado = '';
 let areaSeleccionada = '';
 let currentFilterData = null;
-let currentBloqueFilterData = null;
 
 export function setEstadosCache(data) { estadosGeoJsonCache = data; }
-export function setBloquesCache(data) { bloquesGeoJsonCache = data; }
 export function getEstadosCache() { return estadosGeoJsonCache; }
-export function getBloquesCache() { return bloquesGeoJsonCache; }
 
 // -------------------------------------------------------------------------
-// DROPDOWNS DE ESTADO Y BLOQUE (comportamiento original)
+// DROPDOWN DE ESTADO
 // -------------------------------------------------------------------------
-export function setupFilterDropdowns(estadosCache, bloquesCache, options = {}) {
-  const { includeBloque = true } = options;
-
+export function setupFilterDropdowns(estadosCache) {
   if (estadosCache) setEstadosCache(estadosCache);
-  if (bloquesCache) setBloquesCache(bloquesCache);
 
   const filterEstado = document.getElementById('filterEstado');
-  const filterBloque = document.getElementById('filterBloque');
   const dropdownEstado = document.getElementById('dropdownEstado');
-  const dropdownBloque = document.getElementById('dropdownBloque');
 
   // Llenar dropdown de estado
   if (dropdownEstado && estadosGeoJsonCache) {
@@ -70,23 +61,6 @@ export function setupFilterDropdowns(estadosCache, bloquesCache, options = {}) {
       opt.setAttribute('data-value', estado);
       opt.textContent = estado;
       dropdownEstado.appendChild(opt);
-    });
-  }
-
-  // Llenar dropdown de bloque
-  if (includeBloque && dropdownBloque && bloquesGeoJsonCache) {
-    dropdownBloque.innerHTML = '<div class="loc-option selected" data-value="">Todos los bloques</div>';
-    const bloquesSet = new Set();
-    bloquesGeoJsonCache.features.forEach(f => {
-      const nombre = obtenerNombreBloque(f.properties);
-      if (nombre) bloquesSet.add(nombre);
-    });
-    Array.from(bloquesSet).sort().forEach(bloque => {
-      const opt = document.createElement('div');
-      opt.className = 'loc-option';
-      opt.setAttribute('data-value', bloque);
-      opt.textContent = bloque;
-      dropdownBloque.appendChild(opt);
     });
   }
 
@@ -126,28 +100,6 @@ export function setupFilterDropdowns(estadosCache, bloquesCache, options = {}) {
       }
     });
   }
-
-  // Selección en dropdown de bloque
-  if (includeBloque && dropdownBloque) {
-    dropdownBloque.addEventListener('click', (e) => {
-      const option = e.target.closest('.loc-option');
-      if (!option) return;
-      e.stopPropagation();
-      dropdownBloque.querySelectorAll('.loc-option').forEach(o => o.classList.remove('selected'));
-      option.classList.add('selected');
-      const valor = option.getAttribute('data-value') || option.textContent.trim();
-      bloqueSeleccionado = valor === 'Todos los bloques' ? '' : valor;
-      const label = filterBloque.querySelector('.lf-label');
-      label.textContent = bloqueSeleccionado || 'Bloque';
-      label.classList.toggle('has-value', Boolean(bloqueSeleccionado));
-      filterBloque.classList.remove('open');
-      if (!bloqueSeleccionado) {
-        limpiarFiltroBloque();
-      } else {
-        aplicarFiltroBloque(bloqueSeleccionado);
-      }
-    });
-  }
 }
 
 // -------------------------------------------------------------------------
@@ -165,10 +117,60 @@ function areaEls() {
     clearLayerBtn: document.getElementById('areaClearLayerBtn'),
     labelField: document.getElementById('areaLabelField'),
     labelSelect: document.getElementById('areaLabelSelect'),
+    layerField: document.getElementById('areaLayerField'),
+    layerSelect: document.getElementById('areaLayerSelect'),
     entityList: document.getElementById('areaEntityList'),
     hint: document.getElementById('areaHint'),
     error: document.getElementById('areaError')
   };
+}
+
+// Capas poligonales activas que pueden usarse como área de análisis.
+function capasPoligonalesDisponibles() {
+  return getAvailableLayers().filter((layer) => {
+    if (layer.type !== 'fill') return false;
+    const shortName = (layer.id || '').split(':').pop();
+    if (esCapa(shortName, DIVISION_LAYER_BASE)) return false;
+    const data = getLayerRawData(layer.id);
+    return Boolean(data?.features?.some((f) => {
+      const tipo = f?.geometry?.type;
+      return tipo === 'Polygon' || tipo === 'MultiPolygon';
+    }));
+  });
+}
+
+function renderAreaLayerOptions() {
+  const { layerField, layerSelect } = areaEls();
+  if (!layerField || !layerSelect) return;
+
+  const actual = layerSelect.value;
+  const capas = capasPoligonalesDisponibles();
+
+  layerSelect.innerHTML = '';
+  if (!capas.length) {
+    layerField.hidden = true;
+    return;
+  }
+
+  layerField.hidden = false;
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Selecciona una capa…';
+  layerSelect.appendChild(placeholder);
+
+  capas.forEach((capa) => {
+    const opt = document.createElement('option');
+    opt.value = capa.id;
+    opt.textContent = capa.name || (capa.id || '').split(':').pop();
+    layerSelect.appendChild(opt);
+  });
+
+  layerSelect.value = capas.some((c) => c.id === actual) ? actual : '';
+}
+
+export function refreshAreaLayerOptions() {
+  renderAreaLayerOptions();
 }
 
 function setAreaError(texto) {
@@ -222,7 +224,7 @@ function renderAreaEntities() {
   entityList.innerHTML = '';
 
   if (!features.length) {
-    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, o dibuja un polígono.');
+    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, dibuja un polígono o elige una capa de polígonos activa.');
     return;
   }
 
@@ -334,15 +336,16 @@ export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
 
   if (!keepLayer) {
     clearAreaLayer();
-    const { fileRow, fileName, labelField, labelSelect, entityList, fileInput, error } = areaEls();
+    const { fileRow, fileName, labelField, labelSelect, layerSelect, entityList, fileInput, error } = areaEls();
     if (fileRow) fileRow.hidden = true;
     if (fileName) fileName.textContent = '';
     if (fileInput) fileInput.value = '';
     if (labelField) labelField.hidden = true;
     if (labelSelect) labelSelect.innerHTML = '';
+    if (layerSelect) layerSelect.value = '';
     if (entityList) entityList.innerHTML = '';
     if (error) error.hidden = true;
-    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, o dibuja un polígono.');
+    setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, dibuja un polígono o elige una capa de polígonos activa.');
   } else if (!keepUI) {
     marcarEntidadSeleccionada(-1);
   }
@@ -364,6 +367,46 @@ export function setupAreaFilter({ onRequestDraw = null } = {}) {
   const els = areaEls();
   if (!els.filter) return;
   els.filter.hidden = false;
+
+  const areaBtn = document.getElementById('filterAreaBtn');
+  if (areaBtn && areaBtn.dataset.areaRefreshBound !== 'true') {
+    areaBtn.dataset.areaRefreshBound = 'true';
+    // La lista de capas se arma al abrir el panel: así refleja las capas
+    // que estén activas en ese momento.
+    areaBtn.addEventListener('click', () => renderAreaLayerOptions());
+  }
+
+  if (els.layerSelect && els.layerSelect.dataset.bound !== 'true') {
+    els.layerSelect.dataset.bound = 'true';
+    els.layerSelect.addEventListener('change', () => {
+      const layerId = els.layerSelect.value;
+      if (!layerId) return;
+
+      const capa = getAvailableLayers().find((l) => l.id === layerId);
+      const data = getLayerRawData(layerId);
+      if (!data?.features?.length) {
+        setAreaError('La capa no tiene datos cargados. Vuelve a activarla en el mapa.');
+        return;
+      }
+
+      setAreaError('');
+      setAreaHint('Cargando capa…');
+
+      try {
+        limpiarFiltroArea({ keepLayer: false });
+        const meta = setAreaFromFeatures(data.features, {
+          fileName: capa?.name || layerId.split(':').pop(),
+          sourceType: 'layer'
+        });
+        refrescarAreaUI(meta);
+        if (els.layerSelect) els.layerSelect.value = layerId;
+        if (els.filter) els.filter.classList.add('open');
+      } catch (error) {
+        console.error('Error al usar la capa como área:', error);
+        setAreaError(error?.message || 'No se pudo usar la capa como área.');
+      }
+    });
+  }
 
   if (els.drawBtn && els.drawBtn.dataset.bound !== 'true') {
     els.drawBtn.dataset.bound = 'true';
@@ -465,7 +508,8 @@ export function usarAreaDibujada(meta) {
   limpiarFiltroArea({ keepLayer: true, keepUI: true });
   refrescarAreaUI(meta);
   aplicarFiltroArea(0);
-  const { filter } = areaEls();
+  const { filter, layerSelect } = areaEls();
+  if (layerSelect) layerSelect.value = '';
   if (filter) filter.classList.remove('open');
 }
 
@@ -520,40 +564,6 @@ export function limpiarFiltroEstado() {
   recalcularFiltrosActivos();
 }
 
-export function limpiarFiltroBloque() {
-  isBloqueFilterActive = false;
-  bloqueSeleccionado = '';
-  currentBloqueFilterData = null;
-  selectedBloqueFeature = null;
-
-  const map = getMap();
-  if (map.getLayer('layer-bloques-venezuela-filter-line')) {
-    map.setLayoutProperty('layer-bloques-venezuela-filter-line', 'visibility', 'none');
-  }
-  if (selectedBloqueFeatureId !== null) {
-    map.setFeatureState({ source: 'source-bloques-venezuela', id: selectedBloqueFeatureId }, { selected: false });
-    selectedBloqueFeatureId = null;
-  }
-  const label = document.querySelector('#filterBloque .lf-label');
-  if (label) {
-    label.textContent = 'Bloque';
-    label.classList.remove('has-value');
-  }
-  const dropdown = document.getElementById('dropdownBloque');
-  if (dropdown) {
-    dropdown.querySelectorAll('.loc-option').forEach(o => o.classList.remove('selected'));
-    const todos = dropdown.querySelector('.loc-option[data-value=""]');
-    if (todos) todos.classList.add('selected');
-  }
-
-  setInfoPanelData({ currentBloqueFilterData: null, isBloqueFilterActive: false });
-  renderInfoPanel();
-
-  // Limpia el resaltado amarillo y re-sincroniza los filtros que sigan activos.
-  if (typeof window.limpiarResaltadoFiltro === 'function') window.limpiarResaltadoFiltro();
-  recalcularFiltrosActivos();
-}
-
 // -------------------------------------------------------------------------
 // AJUSTAR VISTA A LOS FILTROS ACTIVOS (puede ser uno o ambos)
 // -------------------------------------------------------------------------
@@ -562,7 +572,6 @@ function fitToActiveFilters() {
   const features = [];
   if (isFilterActive && selectedEstadoFeature) features.push(selectedEstadoFeature);
   if (isAreaFilterActive && selectedAreaFeature) features.push(selectedAreaFeature);
-  if (isBloqueFilterActive && selectedBloqueFeature) features.push(selectedBloqueFeature);
   if (features.length === 0) return;
   try {
     const bbox = features.length === 1
@@ -584,7 +593,7 @@ function aplicarFiltroEstado(nombreEstado) {
   });
   if (!estadoFeature) return;
 
-  // Ya NO se limpia el filtro de bloque/área: pueden coexistir
+  // El filtro de área puede coexistir con el de estado.
   isFilterActive = true;
   selectedEstadoFeature = estadoFeature;
 
@@ -612,42 +621,6 @@ function aplicarFiltroEstado(nombreEstado) {
   sincronizarInterseccion();
 }
 
-function aplicarFiltroBloque(nombreBloque) {
-  if (!bloquesGeoJsonCache) return;
-  const map = getMap();
-  const bloqueFeature = bloquesGeoJsonCache.features.find(f => {
-    const nombre = obtenerNombreBloque(f.properties);
-    return nombre && nombre.toLowerCase() === nombreBloque.toLowerCase();
-  });
-  if (!bloqueFeature) return;
-
-  // Ya NO se limpia el filtro de estado: ambos pueden coexistir
-  isBloqueFilterActive = true;
-  selectedBloqueFeature = bloqueFeature;
-
-  if (map.getLayer('layer-bloques-venezuela-filter-line')) {
-    map.setLayoutProperty('layer-bloques-venezuela-filter-line', 'visibility', 'visible');
-  }
-  if (selectedBloqueFeatureId !== null) {
-    map.setFeatureState({ source: 'source-bloques-venezuela', id: selectedBloqueFeatureId }, { selected: false });
-  }
-  const featureIndex = bloquesGeoJsonCache.features.findIndex(f => {
-    const nombre = obtenerNombreBloque(f.properties);
-    return nombre && nombre.toLowerCase() === nombreBloque.toLowerCase();
-  });
-  if (featureIndex !== -1) {
-    selectedBloqueFeatureId = featureIndex;
-    map.setFeatureState({ source: 'source-bloques-venezuela', id: selectedBloqueFeatureId }, { selected: true });
-  }
-
-  fitToActiveFilters();
-
-  // Llamar a la función global pasando el nombre del bloque
-  if (window.calcularPuntosEnBloque) {
-    window.calcularPuntosEnBloque(bloqueFeature, nombreBloque);
-  }
-}
-
 // -------------------------------------------------------------------------
 // RECALCULAR FILTROS ACTIVOS
 // Se llama desde main.js cuando se activa/desactiva una capa,
@@ -661,10 +634,7 @@ export function recalcularFiltrosActivos() {
   if (isAreaFilterActive && selectedAreaFeature && typeof window.calcularElementosEnArea === 'function') {
     window.calcularElementosEnArea(selectedAreaFeature, areaSeleccionada);
   }
-  if (isBloqueFilterActive && selectedBloqueFeature && typeof window.calcularPuntosEnBloque === 'function') {
-    window.calcularPuntosEnBloque(selectedBloqueFeature, bloqueSeleccionado);
-  }
   sincronizarInterseccion();
 }
 
-export { aplicarFiltroEstado, aplicarFiltroBloque, aplicarFiltroArea };
+export { aplicarFiltroEstado, aplicarFiltroArea };

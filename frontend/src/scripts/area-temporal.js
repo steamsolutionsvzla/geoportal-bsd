@@ -549,6 +549,34 @@ export async function loadAreaFromFile(file) {
 }
 
 /**
+ * Usa las entidades de una capa del catálogo como área activa.
+ * Se copian al source temporal del navegador, así el área sigue funcionando
+ * aunque la capa de origen se apague después.
+ */
+export function setAreaFromFeatures(features, { fileName = '', sourceType = 'layer' } = {}) {
+  const validas = [];
+  let omitidas = 0;
+
+  (features || []).forEach((feature) => {
+    const limpia = cleanupFeature(feature);
+    if (limpia) validas.push(limpia);
+    else omitidas++;
+  });
+
+  if (!validas.length) {
+    throw new Error('La capa no contiene polígonos válidos.');
+  }
+
+  const collection = { type: 'FeatureCollection', features: validas };
+  const fieldKeys = obtenerClavesCampos(validas);
+  const labelKey = detectarClaveEtiqueta(validas, fieldKeys);
+
+  aplicarColeccion(collection, { labelKey, fileName, sourceType, fit: true });
+
+  return { collection, fieldKeys, labelKey, fileName, sourceType, skipped: omitidas };
+}
+
+/**
  * Usa un polígono dibujado como área activa, reemplazando la anterior.
  * Devuelve la metadata de la nueva capa.
  */

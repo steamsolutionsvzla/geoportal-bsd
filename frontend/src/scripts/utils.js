@@ -86,18 +86,6 @@ export function obtenerNombreEstado(properties) {
   return null;
 }
 
-export function obtenerNombreBloque(properties) {
-  const posiblesClaves = ['bloque', 'nombre', 'name'];
-  const keysReales = Object.keys(properties || {});
-  for (const clave of posiblesClaves) {
-    const encontrada = keysReales.find(k => k.toLowerCase() === clave);
-    if (encontrada && properties[encontrada] !== undefined && properties[encontrada] !== null) {
-      return String(properties[encontrada]).trim();
-    }
-  }
-  return null;
-}
-
 export function refreshCount(elementId = 'layerCount') {
   const el = document.getElementById(elementId);
   if (!el) return;

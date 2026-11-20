@@ -7,15 +7,12 @@ import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.
 // ESTADO INTERNO DEL PANEL
 // ========================================================================
 let currentFilterData = null;
-let currentBloqueFilterData = null;
 let currentAreaFilterData = null;
 let currentIntersectionFilterData = null;
 let isFilterActive = false;
-let isBloqueFilterActive = false;
 let isAreaFilterActive = false;
 let isIntersectionFilterActive = false;
 let estadoSeleccionado = '';
-let bloqueSeleccionado = '';
 let areaSeleccionada = '';
 
 let selectedLayerTableName = null;
@@ -131,8 +128,7 @@ const PDF_MAP_PRESETS = [
 ];
 const ANALYSIS_LINE_LAYERS = [
   { layer: 'layer-area-temporal-line', source: 'source-area-temporal', fill: 'pdf-area-highlight' },
-  { layer: 'layer-estados-venezuela-line', source: 'source-estados-venezuela', fill: 'pdf-estado-highlight' },
-  { layer: 'layer-bloques-venezuela-filter-line', source: 'source-bloques-venezuela', fill: 'pdf-bloque-highlight' }
+  { layer: 'layer-estados-venezuela-line', source: 'source-estados-venezuela', fill: 'pdf-estado-highlight' }
 ];
 
 /**
@@ -293,15 +289,12 @@ export async function captureMapForPdf() {
 // ========================================================================
 export function setInfoPanelData(data) {
   if (data.currentFilterData !== undefined) currentFilterData = data.currentFilterData;
-  if (data.currentBloqueFilterData !== undefined) currentBloqueFilterData = data.currentBloqueFilterData;
   if (data.currentAreaFilterData !== undefined) currentAreaFilterData = data.currentAreaFilterData;
   if (data.currentIntersectionFilterData !== undefined) currentIntersectionFilterData = data.currentIntersectionFilterData;
   if (data.isFilterActive !== undefined) isFilterActive = data.isFilterActive;
-  if (data.isBloqueFilterActive !== undefined) isBloqueFilterActive = data.isBloqueFilterActive;
   if (data.isAreaFilterActive !== undefined) isAreaFilterActive = data.isAreaFilterActive;
   if (data.isIntersectionFilterActive !== undefined) isIntersectionFilterActive = data.isIntersectionFilterActive;
   if (data.estadoSeleccionado !== undefined) estadoSeleccionado = data.estadoSeleccionado;
-  if (data.bloqueSeleccionado !== undefined) bloqueSeleccionado = data.bloqueSeleccionado;
   if (data.areaSeleccionada !== undefined) areaSeleccionada = data.areaSeleccionada;
 }
 
@@ -356,7 +349,6 @@ export function renderInfoPanel() {
 
   const selectedLayerMetadataHtml = buildSelectedLayerMetadataHtml();
   const filterHtml = (isFilterActive && currentFilterData) ? buildFilterSummaryHtml() : '';
-  const bloqueFilterHtml = (isBloqueFilterActive && currentBloqueFilterData) ? buildBloqueFilterSummaryHtml() : '';
   const areaFilterHtml = (isAreaFilterActive && currentAreaFilterData) ? buildAreaFilterSummaryHtml() : '';
   const intersectionFilterHtml = (isIntersectionFilterActive && currentIntersectionFilterData) ? buildIntersectionFilterSummaryHtml() : '';
 
@@ -364,14 +356,13 @@ export function renderInfoPanel() {
   let bloques = [];
   if (selectedLayerMetadataHtml) bloques.push(selectedLayerMetadataHtml);
   if (filterHtml) bloques.push(filterHtml);
-  if (bloqueFilterHtml) bloques.push(bloqueFilterHtml);
   if (areaFilterHtml) bloques.push(areaFilterHtml);
   if (intersectionFilterHtml) bloques.push(intersectionFilterHtml);
 
   if (bloques.length > 0) {
     html = bloques.join('');
   } else {
-    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado, un bloque o un área y aplique el filtro, o haga clic en un punto/línea/polígono del mapa, para ver los metadatos de su capa.</p></div>`;
+    html = `<div class="info-card"><div class="ic-label">Información</div><p class="info-card-empty">Seleccione un estado o un área y aplique el filtro, o haga clic en un punto/línea/polígono del mapa, para ver los metadatos de su capa.</p></div>`;
   }
 
   infoContent.innerHTML = html;
@@ -385,7 +376,6 @@ export function renderInfoPanel() {
   }
 
   if (filterHtml) attachFilterDownloadListeners();
-  if (bloqueFilterHtml) attachBloqueFilterDownloadListeners();
   if (areaFilterHtml) attachAreaFilterDownloadListeners();
   if (intersectionFilterHtml) attachIntersectionFilterDownloadListeners();
 
@@ -417,28 +407,6 @@ function buildFilterSummaryHtml() {
     html += `<button type="button" id="downloadExcelBtn" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
   }
   html += `<button type="button" id="clearFilterEstadoBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de estado</button>`;
-  html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
-  html += `</div>`;
-  return html;
-}
-
-function buildBloqueFilterSummaryHtml() {
-  if (!currentBloqueFilterData) return '';
-  const { bloqueSeleccionado: bloqueNombre, totalPuntosGeneral, capasContadas, rowsHtml } = currentBloqueFilterData;
-  let html = `<div class="info-card filter-card" data-filter="bloque"><div class="ic-label">Bloque: ${bloqueNombre}</div><hr class="info-divider">`;
-  html += `<div class="info-table-wrap"><table id="tablaPuntosBloque" class="info-table">`;
-  html += `<thead><tr><th>Capa / Elemento</th><th>Cantidad</th></tr></thead><tbody>`;
-  html += rowsHtml;
-  if (capasContadas === 0) {
-    html += `<tr><td colspan="2" class="info-table-empty">No hay capas de puntos activas.</td></tr>`;
-  }
-  html += `</tbody></table></div>`;
-  if (capasContadas > 0) {
-    html += `<div class="info-total"><span>Total de puntos en el bloque</span><b>${totalPuntosGeneral}</b></div>`;
-    html += `<button type="button" id="downloadPdfBtnBloque" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
-    html += `<button type="button" id="downloadExcelBtnBloque" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
-  }
-  html += `<button type="button" id="clearFilterBloqueBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de bloque</button>`;
   html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
   html += `</div>`;
   return html;
@@ -544,29 +512,6 @@ function attachFilterDownloadListeners() {
   if (clearEstadoBtn) {
     clearEstadoBtn.addEventListener('click', () => {
       if (typeof window.limpiarFiltroEstado === 'function') window.limpiarFiltroEstado();
-    });
-  }
-}
-
-function attachBloqueFilterDownloadListeners() {
-  if (!currentBloqueFilterData) return;
-  const { bloqueSeleccionado: bloqueNombre, totalPuntosGeneral, capasDetalleMap } = currentBloqueFilterData;
-  const downloadPdfBtnBloque = document.getElementById('downloadPdfBtnBloque');
-  if (downloadPdfBtnBloque) {
-    downloadPdfBtnBloque.addEventListener('click', async () => {
-      await generarReportePDF('Bloque', bloqueNombre, totalPuntosGeneral, capasDetalleMap, document.getElementById('tablaPuntosBloque'));
-    });
-  }
-  const downloadExcelBtnBloque = document.getElementById('downloadExcelBtnBloque');
-  if (downloadExcelBtnBloque) {
-    downloadExcelBtnBloque.addEventListener('click', () => {
-      generarReporteExcel(bloqueNombre, capasDetalleMap, document.getElementById('tablaPuntosBloque'));
-    });
-  }
-  const clearBloqueBtn = document.getElementById('clearFilterBloqueBtn');
-  if (clearBloqueBtn) {
-    clearBloqueBtn.addEventListener('click', () => {
-      if (typeof window.limpiarFiltroBloque === 'function') window.limpiarFiltroBloque();
     });
   }
 }

@@ -185,7 +185,7 @@ export function initCoordinateFilter() {
     render();
   };
 
-  // Si otra herramienta reclama la zona (estado/bloque desde el buscador),
+  // Si otra herramienta reclama la zona (estado desde el buscador),
   // se descarta el estado del filtro sin borrar el dibujo que hará el otro.
   document.addEventListener('zone:claim', (e) => {
     if (e.detail === 'coords') return;

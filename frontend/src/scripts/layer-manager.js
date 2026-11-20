@@ -33,7 +33,6 @@ export function clearLayerRawData(tableName) {
 // IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
 // Para estas no mostramos el slider de opacidad.
 const NO_OPACITY_IDS = [
-  'Bloques petroleros',
   'División Político Territorial'
 ];
 
@@ -157,7 +156,6 @@ export function getAvailableLayers() {
 export function getLayerDisplayName(tableName) {
   const shortName = tableName ? tableName.split(':').pop() : '';
   if (esCapa(shortName, 'dpt_estadal_venezuela')) return 'Entidades Federales (Estados)';
-  if (esCapa(shortName, 'Bloques petroleros')) return 'Bloques petroleros';
   const layerConfig = availableLayers.find(l => l.id === tableName);
   return layerConfig ? layerConfig.name : tableName;
 }
@@ -443,9 +441,6 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
 const ESTADO_SOURCE_ID = 'source-estados-venezuela';
 const ESTADO_LAYER_ID = 'layer-estados-venezuela-fill';
 const ESTADO_LINE_LAYER_ID = 'layer-estados-venezuela-line';
-const BLOQUE_LAYER_ID = 'layer-bloques-venezuela-fill';
-const BLOQUE_FILTER_LINE_LAYER_ID = 'layer-bloques-venezuela-filter-line';
-const BLOQUE_THEMATIC_LINE_LAYER_ID = 'layer-bloques-venezuela-thematic-line';
 
 export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayers, targetMap) {
   const map = targetMap || getMap();
@@ -464,9 +459,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       const existingLayers = map.getStyle().layers;
       for (let l of existingLayers) {
         if (l.id.startsWith('layer-') &&
-            l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
-            l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
-            l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+            l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID) {
           const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
           if (t && (t.type === 'line' || t.type === 'fill')) {
             beforeLayerId = l.id;
@@ -518,9 +511,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       if (geomType === 'fill') {
         for (let l of existingLayers) {
           if (l.id.startsWith('layer-') &&
-              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
-              l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
-              l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID) {
             const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
             if (t && (t.type === 'line' || t.type === 'circle')) {
               beforeLayerId = l.id;
@@ -531,9 +522,7 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
       } else if (geomType === 'line') {
         for (let l of existingLayers) {
           if (l.id.startsWith('layer-') &&
-              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID &&
-              l.id !== BLOQUE_LAYER_ID && l.id !== BLOQUE_FILTER_LINE_LAYER_ID &&
-              l.id !== BLOQUE_THEMATIC_LINE_LAYER_ID) {
+              l.id !== ESTADO_LAYER_ID && l.id !== ESTADO_LINE_LAYER_ID) {
             const t = availableLayers.find(cfg => `layer-${cfg.id}` === l.id);
             if (t && t.type === 'circle') {
               beforeLayerId = l.id;
