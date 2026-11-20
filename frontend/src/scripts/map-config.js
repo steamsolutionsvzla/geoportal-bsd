@@ -35,6 +35,11 @@ export const USE_OFFLINE_TILES =
 // prefijo PUBLIC_ de Astro). Sin clave no se añade la capa profunda.
 const CARTO_KEY = (import.meta.env && import.meta.env.PUBLIC_CARTO_KEY) || "";
 const CARTO_DEEP_URL = "https://a.basemaps.cartocdn.com/rastertiles/light_nolabels/{z}/{x}/{y}.png";
+// El zoom inicial es 5; dos clics en «+» dejan el mapa en 7.
+const CARTO_DEEP_MIN_ZOOM = USE_OFFLINE_TILES ? 9 : 7;
+const CARTO_DEEP_FULL_ZOOM = CARTO_DEEP_MIN_ZOOM + 1.5;
+// A partir de este zoom, el mapa Estándar pasa a OpenStreetMap.
+const OSM_AUTO_ZOOM = 16;
 
 
 // ============================================================
@@ -224,12 +229,16 @@ export function addBaseLayers(map) {
       type: 'raster',
       source: 'clara-deep-source',
       layout: { visibility: 'visible' },
-      minzoom: 8,
+      minzoom: CARTO_DEEP_MIN_ZOOM,
       maxzoom: 22,
       paint: {
         // El relieve beige de Esri manda hasta ~z9; CARTO entra con fundido
-        // y domina el detalle urbano a partir de ahí.
-        'raster-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 10, 1]
+        // desde el zoom 7 (dos clics en «+» desde el zoom inicial).
+        'raster-opacity': [
+          'interpolate', ['linear'], ['zoom'],
+          CARTO_DEEP_MIN_ZOOM, 0.35,
+          CARTO_DEEP_FULL_ZOOM, 1
+        ]
       }
     });
   }
@@ -300,7 +309,9 @@ export function addBaseLayers(map) {
     source: 'osm-source',
     layout: { visibility: 'none' },
     minzoom: 0,
-    maxzoom: 19
+    // La fuente OSM llega a z19; por encima MapLibre reutiliza la última
+    // tesela. La capa debe seguir visible en los zooms máximos.
+    maxzoom: 22
   });
 
   // --- Capa de etiquetas personalizadas (placeholder) ---
@@ -382,6 +393,35 @@ export function setupBasemapSwitcher(map) {
   const basemapSwitch = document.querySelector('.basemap-switch');
   const basemapBtn = document.getElementById('basemapToggleBtn');
   let activeBasemap = 'clara';
+  let autoOsm = false;
+
+  const setLayerVisible = (layerId, visible) => {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+    }
+  };
+
+  const applyAutoBasemap = () => {
+    // Solo el mapa Estándar cambia a OSM en zoom alto. Satélite y OSM manual
+    // conservan la elección del usuario.
+    const shouldOsm = activeBasemap === 'clara' && map.getZoom() >= OSM_AUTO_ZOOM;
+    if (shouldOsm === autoOsm) return;
+    autoOsm = shouldOsm;
+
+    setLayerVisible('osm-layer', shouldOsm);
+    setLayerVisible('clara-layer', !shouldOsm);
+    setLayerVisible('clara-deep-layer', !shouldOsm);
+
+    actualizarFronteraOficial(map, shouldOsm ? 'osm' : activeBasemap);
+    bringVenezuelaBoundaryToFront(map);
+    bringCountryLabelsToFront(map);
+    if (map.getLayer('layer-estados-venezuela-label')) {
+      try { map.moveLayer('layer-estados-venezuela-label'); } catch (_) { /* ignorar */ }
+    }
+  };
+
+  map.on('zoom', applyAutoBasemap);
+  applyAutoBasemap();
 
   if (basemapBtn && basemapSwitch) {
     basemapBtn.addEventListener('click', (e) => {
@@ -406,12 +446,22 @@ export function setupBasemapSwitcher(map) {
         document.querySelectorAll('[data-basemap]').forEach(x => x.classList.remove('active'));
         option.classList.add('active');
         activeBasemap = targetKey;
+        autoOsm = false;
+        applyAutoBasemap();
       }
       if (basemapSwitch) basemapSwitch.classList.remove('open');
     });
   });
 
-  window.switchBasemap = (targetKey) => switchBasemap(targetKey, map, activeBasemap);
+  window.switchBasemap = (targetKey) => {
+    const switched = switchBasemap(targetKey, map, activeBasemap);
+    if (switched) {
+      activeBasemap = targetKey;
+      autoOsm = false;
+      applyAutoBasemap();
+    }
+    return switched;
+  };
 }
 
 function switchBasemap(targetKey, map, activeBasemap) {

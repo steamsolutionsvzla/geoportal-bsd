@@ -6,6 +6,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.gzip_middleware import SizeLimitedGZipMiddleware
+
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
 from app.api.catalog import router as catalog_router
@@ -82,6 +84,15 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Gzip solo para respuestas pequeñas/medianas. Las capas GeoJSON grandes
+# (Hidrografía ~206 MB) viajan sin comprimir para no bloquear el backend.
+app.add_middleware(
+    SizeLimitedGZipMiddleware,
+    minimum_size=1024,
+    max_size_bytes=settings.GZIP_MAX_MB * 1024 * 1024,
+    compresslevel=6,
 )
 
 app.include_router(layers_router)

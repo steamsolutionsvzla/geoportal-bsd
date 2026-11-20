@@ -10,6 +10,7 @@ from app.db.database import get_pool
 from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
 from app.services.layer_service import get_layer_metadata
+from app.services.layer_stats import enrich_groups_with_stats
 from app.services.metadata_export import build_iso19139, build_qmd
 
 logger = logging.getLogger("app.api.layers")
@@ -27,7 +28,8 @@ async def list_layers(user: CurrentUser = Depends(auth_guard)):
 
 @router.get("/workspaces")
 async def get_workspaces(user: CurrentUser = Depends(auth_guard)):
-    return await GeoServerService.get_workspaces_with_layers()
+    groups = await GeoServerService.get_workspaces_with_layers()
+    return await enrich_groups_with_stats(groups)
 
 
 # 2. Rutas con parámetros (después de las fijas)
@@ -92,9 +94,10 @@ async def get_layer_attributes(table_name: str):
     porque son las que el popup y las etiquetas encuentran en los features.
     Los metadatos se usan solo como fallback.
     """
-    # 1. Propiedades reales del WFS (verdad para popup/etiquetas)
+    # 1. Propiedades reales del WFS (verdad para popup/etiquetas).
+    #    count=1 evita descargar la capa completa solo para leer los campos.
     try:
-        data = await GeoServerService.get_layer_geojson(table_name)
+        data = await GeoServerService.get_layer_geojson(table_name, count=1)
         feats = (data or {}).get("features") or []
         if feats:
             props = feats[0].get("properties") or {}

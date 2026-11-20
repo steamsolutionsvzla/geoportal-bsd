@@ -127,10 +127,13 @@ function areaEls() {
 
 // Capas poligonales activas que pueden usarse como área de análisis.
 function capasPoligonalesDisponibles() {
+  const map = getMap();
   return getAvailableLayers().filter((layer) => {
     if (layer.type !== 'fill') return false;
     const shortName = (layer.id || '').split(':').pop();
     if (esCapa(shortName, DIVISION_LAYER_BASE)) return false;
+    // La caché de datos puede conservar capas apagadas: solo ofrecer las activas.
+    if (!map?.getSource(`source-${layer.id}`)) return false;
     const data = getLayerRawData(layer.id);
     return Boolean(data?.features?.some((f) => {
       const tipo = f?.geometry?.type;

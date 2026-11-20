@@ -37,6 +37,20 @@ class Settings(BaseSettings):
     GEOSERVER_PASSWORD: str = ""
 
     # -------------------------------------------------------------------
+    # Rendimiento: caché de datos geográficos y catálogo de GeoServer.
+    # GEODATA_CACHE_TTL=0 desactiva la caché de GeoJSON.
+    # -------------------------------------------------------------------
+    GEODATA_CACHE_TTL: float = 900.0      # segundos (15 min)
+    GEODATA_CACHE_MAX_MB: int = 512       # tope de memoria para GeoJSON
+    CATALOG_CACHE_TTL: float = 300.0      # segundos (5 min)
+    # Gzip: solo se comprimen respuestas menores o iguales a este tamaño.
+    # Las capas GeoJSON grandes viajan sin comprimir para no bloquear el backend.
+    GZIP_MAX_MB: int = 20
+    # Clasificación dinámica de capas pesadas (no depende del nombre).
+    HEAVY_LAYER_MIN_FEATURES: int = 50000
+    HEAVY_LAYER_MIN_MB: int = 20
+
+    # -------------------------------------------------------------------
     # Odoo / Geoportal: el backend hace de proxy hacia Odoo.
     # -------------------------------------------------------------------
     ODOO_URL: str = ""

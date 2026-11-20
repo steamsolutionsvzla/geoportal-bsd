@@ -1,5 +1,6 @@
 import asyncio
 import io
+import logging
 import os
 import re
 import tempfile
@@ -13,6 +14,8 @@ import shapefile  # pyshp
 from fastapi import HTTPException
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # WKT de WGS 84 (EPSG:4326) para el archivo .prj del Shapefile.
 _WGS84_PRJ = (
@@ -165,8 +168,66 @@ _LAYER_MAPPING_CACHE_TIME = 0
 _DETAILS_CACHE: Dict[str, Dict] = {}
 _DETAILS_CACHE_TIME = 0.0
 
-# Logger (opcional, puedes descomentar para depuración)
-# logger = logging.getLogger(__name__)
+# Caché del catálogo de workspaces: clave None (todos) o tupla de "only".
+_WORKSPACES_CACHE: Dict[Optional[tuple], tuple] = {}
+
+# Caché de GeoJSON: typeName → (data, timestamp, bytes aproximados).
+_GEOJSON_CACHE: Dict[str, tuple] = {}
+_GEOJSON_CACHE_BYTES = 0
+
+
+def _purge_expired_geojson(now: float, ttl: float) -> None:
+    """Elimina entradas vencidas y ajusta el contador de bytes."""
+    global _GEOJSON_CACHE_BYTES
+    for key, (_data, ts, size) in list(_GEOJSON_CACHE.items()):
+        if now - ts >= ttl:
+            _GEOJSON_CACHE.pop(key, None)
+            _GEOJSON_CACHE_BYTES -= size
+
+
+def _cache_geojson(key: str, data: dict, size_bytes: int) -> None:
+    """Guarda un GeoJSON respetando el tope de memoria configurado."""
+    global _GEOJSON_CACHE_BYTES
+    ttl = float(settings.GEODATA_CACHE_TTL or 0)
+    if ttl <= 0:
+        return
+
+    now = time.monotonic()
+    _purge_expired_geojson(now, ttl)
+
+    max_bytes = max(1, int(settings.GEODATA_CACHE_MAX_MB or 1)) * 1024 * 1024
+    if size_bytes > max_bytes:
+        return
+
+    previous = _GEOJSON_CACHE.pop(key, None)
+    if previous:
+        _GEOJSON_CACHE_BYTES -= previous[2]
+
+    # Evicta las entradas más antiguas hasta que quepa la nueva.
+    while _GEOJSON_CACHE and (_GEOJSON_CACHE_BYTES + size_bytes) > max_bytes:
+        oldest_key = min(_GEOJSON_CACHE, key=lambda k: _GEOJSON_CACHE[k][1])
+        _GEOJSON_CACHE_BYTES -= _GEOJSON_CACHE.pop(oldest_key)[2]
+
+    _GEOJSON_CACHE[key] = (data, now, size_bytes)
+    _GEOJSON_CACHE_BYTES += size_bytes
+
+
+def clear_geodata_cache() -> None:
+    """Vacía la caché de GeoJSON (p. ej. tras una actualización de datos)."""
+    global _GEOJSON_CACHE_BYTES
+    _GEOJSON_CACHE.clear()
+    _GEOJSON_CACHE_BYTES = 0
+
+
+def clear_catalog_cache() -> None:
+    """Invalida las cachés de catálogo/mapping de GeoServer."""
+    global _LAYER_MAPPING_CACHE, _LAYER_MAPPING_CACHE_TIME
+    global _DETAILS_CACHE, _DETAILS_CACHE_TIME
+    _WORKSPACES_CACHE.clear()
+    _LAYER_MAPPING_CACHE = {}
+    _LAYER_MAPPING_CACHE_TIME = 0.0
+    _DETAILS_CACHE = {}
+    _DETAILS_CACHE_TIME = 0.0
 
 
 def _as_list(value) -> list:
@@ -404,7 +465,6 @@ class GeoServerService:
     @staticmethod
     async def set_featuretype_enabled(layer_id: str, enabled: bool) -> None:
         """Publica/oculta una capa vectorial en GeoServer (REST)."""
-        global _DETAILS_CACHE, _DETAILS_CACHE_TIME
         if ":" not in layer_id:
             raise HTTPException(400, "El id de capa debe ser 'workspace:capa'.")
         ws_name, ft_name = layer_id.split(":", 1)
@@ -433,8 +493,7 @@ class GeoServerService:
             raise HTTPException(502, f"GeoServer rechazó el cambio (HTTP {r.status_code}).")
 
         # El estado cambió: refrescar en la siguiente lectura.
-        _DETAILS_CACHE = {}
-        _DETAILS_CACHE_TIME = 0.0
+        clear_catalog_cache()
 
     # --------------------------------------------------------------
     # Obtención de GeoJSON de una capa
@@ -443,12 +502,16 @@ class GeoServerService:
     async def get_layer_geojson(
         table_name: str,
         srs: str = "EPSG:4326",
-        workspace: Optional[str] = None
+        workspace: Optional[str] = None,
+        count: Optional[int] = None,
     ) -> dict:
         """
         Obtiene el GeoJSON de una capa.
         Si el table_name contiene ':', se extrae el workspace de ahí.
         Si no, se autodeteca el workspace.
+
+        `count` limita los registros (WFS count). Se usa para lecturas ligeras
+        como /attributes; en ese caso no se guarda en la caché de capa completa.
         """
         # 1. Si el table_name contiene ':' y no se especificó workspace, extraerlo
         if ':' in table_name and workspace is None:
@@ -473,6 +536,18 @@ class GeoServerService:
 
         type_name = f"{workspace}:{table_name}"
         url = f"{settings.GEOSERVER_URL.rstrip('/')}/wfs"
+
+        # Caché solo para la capa completa (no para muestras con count).
+        cache_key = type_name if count is None else None
+        ttl = float(settings.GEODATA_CACHE_TTL or 0)
+        if cache_key and ttl > 0:
+            cached = _GEOJSON_CACHE.get(cache_key)
+            if cached and (time.monotonic() - cached[1]) < ttl:
+                logger.info("GeoJSON cache hit: %s", type_name)
+                return cached[0]
+            if cached:
+                _purge_expired_geojson(time.monotonic(), ttl)
+
         params = {
             "service": "WFS",
             "version": "2.0.0",
@@ -481,12 +556,17 @@ class GeoServerService:
             "outputFormat": "application/json",
             "srsName": srs,
         }
+        if count is not None:
+            params["count"] = max(1, int(count))
 
+        started = time.monotonic()
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.get(url, params=params, auth=GeoServerService._auth())
         except httpx.RequestError as e:
             raise HTTPException(502, f"No se pudo conectar con GeoServer ({url}): {e}")
+
+        elapsed = time.monotonic() - started
 
         if response.status_code == 401:
             raise HTTPException(502, "GeoServer rechazó las credenciales configuradas.")
@@ -506,7 +586,20 @@ class GeoServerService:
         if not isinstance(data, dict) or data.get("type") != "FeatureCollection":
             raise HTTPException(502, f"Respuesta inesperada de GeoServer para la capa '{table_name}'.")
 
+        size_bytes = len(response.content or b"")
+        logger.info(
+            "WFS %s: %.2fs, %.2f MB, %d features",
+            type_name,
+            elapsed,
+            size_bytes / (1024 * 1024),
+            len(data.get("features") or []),
+        )
+
+        if cache_key:
+            _cache_geojson(cache_key, data, size_bytes)
+
         return data
+
 
     # --------------------------------------------------------------
     # Exportación de una capa a Shapefile (.zip) generado con pyshp
@@ -553,36 +646,38 @@ class GeoServerService:
         return "fill"
 
     @staticmethod
-    async def _get_geometry_type(
+    async def _get_featuretype_info(
         client: httpx.AsyncClient,
         base_url: str,
         ws_name: str,
         ds_name: str,
         ft_name: str,
         auth
-    ) -> str:
+    ) -> Dict[str, Optional[str]]:
         """
-        Obtiene el tipo de geometría de una capa. Siempre devuelve un string.
+        Obtiene en una sola llamada el tipo de geometría y la tabla nativa.
         Si falla, usa fallback por nombre.
         """
+        fallback = {
+            "type": GeoServerService._fallback_type_by_name(ft_name),
+            "native": ft_name,
+        }
         try:
             detail_url = f"{base_url}/rest/workspaces/{ws_name}/datastores/{ds_name}/featuretypes/{ft_name}.json"
             resp = await client.get(detail_url, auth=auth)
             if resp.status_code != 200:
-                # Si falla la petición, devolver fallback
-                return GeoServerService._fallback_type_by_name(ft_name)
+                return fallback
             detail = resp.json()
             ft_detail = detail.get("featureType", {})
+            native = ft_detail.get("nativeName") or ft_name
             attributes = ft_detail.get("attributes", {}).get("attribute", [])
             for attr in attributes:
                 mapped = GeoServerService._map_binding_to_type(attr.get("binding", ""))
                 if mapped:
-                    return mapped
-            # Si no se detectó binding, fallback por nombre
-            return GeoServerService._fallback_type_by_name(ft_name)
+                    return {"type": mapped, "native": native}
+            return {"type": fallback["type"], "native": native}
         except Exception:
-            # Cualquier error (conexión, JSON, etc.) -> fallback por nombre
-            return GeoServerService._fallback_type_by_name(ft_name)
+            return fallback
 
     @staticmethod
     async def _collect_layers_for_workspace(
@@ -618,22 +713,25 @@ class GeoServerService:
 
         # (sin return anticipado: un workspace puede tener SOLO capas raster)
 
-        # Obtener tipos de geometría de manera robusta
-        geom_results = await asyncio.gather(*[
-            GeoServerService._get_geometry_type(client, base_url, ws_name, ds_name, ft_name, auth)
+        # Obtener tipo de geometría y tabla nativa en una sola llamada.
+        info_results = await asyncio.gather(*[
+            GeoServerService._get_featuretype_info(client, base_url, ws_name, ds_name, ft_name, auth)
             for ds_name, ft_name, _title in pending
         ], return_exceptions=True)  # <- importante: captura excepciones
 
         layers = []
         for idx, (ds_name, ft_name, title) in enumerate(pending):
-            geom_type = geom_results[idx]
-            if isinstance(geom_type, Exception):
-                # Si hubo error, usar fallback por nombre
-                geom_type = GeoServerService._fallback_type_by_name(ft_name)
+            info = info_results[idx]
+            if isinstance(info, Exception) or not isinstance(info, dict):
+                info = {
+                    "type": GeoServerService._fallback_type_by_name(ft_name),
+                    "native": ft_name,
+                }
             layers.append({
                 "id": f"{ws_name}:{ft_name}",
                 "name": title,
-                "type": geom_type,
+                "type": info.get("type") or GeoServerService._fallback_type_by_name(ft_name),
+                "native": info.get("native") or ft_name,
             })
 
         # --- Capas raster (coveragestores) ---
@@ -671,6 +769,7 @@ class GeoServerService:
     @staticmethod
     async def get_workspaces_with_layers(
         only: Optional[Set[str]] = None,
+        force_refresh: bool = False,
     ) -> List[Dict]:
         """
         Obtiene TODOS los workspaces de GeoServer y, para cada uno,
@@ -679,9 +778,22 @@ class GeoServerService:
 
         `only`: conjunto de nombres de workspace en casefold para filtrar.
         None = sin restricción (todos).
+
+        El catálogo se cachea unos minutos y los workspaces se consultan en
+        paralelo; antes se recorrían uno por uno en cada arranque.
         """
+        cache_key = frozenset(only) if only is not None else None
+        ttl = float(settings.CATALOG_CACHE_TTL or 0)
+        now = time.monotonic()
+        if not force_refresh and ttl > 0:
+            cached = _WORKSPACES_CACHE.get(cache_key)
+            if cached and (now - cached[1]) < ttl:
+                logger.info("Workspaces cache hit")
+                return cached[0]
+
         base_url = settings.GEOSERVER_URL.rstrip('/')
         auth = GeoServerService._auth()
+        started = time.monotonic()
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -693,19 +805,32 @@ class GeoServerService:
                 names = [w["name"] for w in workspaces if w.get("name")]
                 if only is not None:  # set en casefold; None = todos
                     names = [n for n in names if n.strip().casefold() in only]
-                result = []
-                for ws_name in names:
+
+                async def _collect(ws_name: str):
                     try:
-                        layers = await GeoServerService._collect_layers_for_workspace(
+                        return ws_name, await GeoServerService._collect_layers_for_workspace(
                             client, base_url, ws_name, auth
                         )
-                        if layers:
-                            result.append({"name": ws_name, "layers": layers})
-                    except Exception:
-                        # Registra el error (puedes usar logging) pero continúa
-                        # logger.warning(f"Error procesando workspace '{ws_name}': {e}")
-                        continue
+                    except Exception as exc:
+                        logger.warning("Error procesando workspace '%s': %s", ws_name, exc)
+                        return ws_name, []
 
+                collected = await asyncio.gather(*[_collect(n) for n in names])
+                result = [
+                    {"name": ws_name, "layers": layers}
+                    for ws_name, layers in collected
+                    if layers
+                ]
+
+                logger.info(
+                    "Catálogo GeoServer: %d workspaces, %d capas en %.2fs",
+                    len(result),
+                    sum(len(g["layers"]) for g in result),
+                    time.monotonic() - started,
+                )
+
+                if ttl > 0:
+                    _WORKSPACES_CACHE[cache_key] = (result, time.monotonic())
                 return result
 
         except HTTPException:

@@ -173,9 +173,9 @@ export function addVenezuelaBoundaryLayers(map) {
 }
 
 export function actualizarFronteraOficial(map, basemapActivo) {
-  // El fondo estándar actual (Esri Terrain Base) no pinta fronteras
-  // políticas; las líneas de borrado quedan desactivadas.
-  const visibilidadBorrado = 'none';
+  // Esri/CARTO no pintan fronteras políticas; OSM sí, así que en OSM se
+  // muestran las líneas que ocultan la frontera de facto.
+  const visibilidadBorrado = basemapActivo === 'osm' ? 'visible' : 'none';
 
   if (map.getLayer(OFFICIAL_CASING_LAYER)) {
     map.setLayoutProperty(OFFICIAL_CASING_LAYER, 'visibility', 'visible');

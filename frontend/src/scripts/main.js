@@ -35,7 +35,7 @@ import {
   setSelectedSourceId, setSelectedFeatureId, clearSelection, updateLayerFeatureCount,
   attachLayerOpacityEvents,
   attachLayerDownloadEvents,
-  getLayerRawData, clearLayerRawData,   // 👈 NUEVOS
+  getLayerRawData,   // 👈 NUEVOS
   isRasterLayer, addRasterLayerToMap, removeRasterLayer,
   setLayerFillOpacity
 } from './layer-manager.js';
@@ -137,8 +137,8 @@ function ocultarError() {
 // Mientras está visible, busy-overlay.js bloquea toda la interfaz (mapa,
 // capas, filtros, botones y teclado) hasta que la carga termina.
 // =========================================================================
-function mostrarCargando(mostrar) {
-  if (mostrar) beginBusy('Cargando datos…');
+function mostrarCargando(mostrar, mensaje = 'Cargando datos…') {
+  if (mostrar) beginBusy(mensaje);
   else endBusy();
 }
 
@@ -265,15 +265,19 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
 
           if (!IS_SHOWROOM) {
+            // El área de análisis no depende de la capa de estados: se monta
+            // primero para que esté disponible aunque los estados tarden.
+            if (esAnalista) {
+              setupAreaFilter({ onRequestDraw: () => startPolygonTool() });
+            }
+
             await cargarCapaEstadosVenezuela();
 
-            if (esAnalista) {
-              setupFilterDropdowns(estadosGeoJsonCache);
-              setupAreaFilter({ onRequestDraw: () => startPolygonTool() });
-            } else if (estadosGeoJsonCache) {
+            const hayEstados = Boolean(estadosGeoJsonCache?.features?.length);
+            if (hayEstados) {
               setupFilterDropdowns(estadosGeoJsonCache);
             } else {
-              mostrarError('No se pudo cargar la capa de división político territorial.');
+              document.getElementById('filterEstado')?.setAttribute('hidden', '');
             }
           }
 
@@ -419,16 +423,6 @@ async function loadWorkspaces() {
 
     availableLayers = allLayers;
     setAvailableLayers(availableLayers);
-
-    // Las capas especiales pueden venir con sufijo de geometría (_PL/_P/_L).
-    // Se resuelve el nombre real para usar el mismo id que el catálogo.
-    const resolverCapaEspecial = (base) => {
-      const encontrada = availableLayers.find(
-        l => esCapa((l.id || '').split(':').pop(), base)
-      );
-      return encontrada ? encontrada.id.split(':').pop() : base;
-    };
-    ESTADOS_LAYER_NAME = resolverCapaEspecial(ESTADOS_LAYER_BASE);
 
     wsGroupsBase = groups;
 
@@ -951,15 +945,35 @@ function bringMapLabelsToFront(map) {
   }
 }
 
+async function cargarDatosEstados() {
+  // Fuente principal: GeoJSON estático del frontend.
+  try {
+    const response = await fetch('/data/estados-venezuela.geojson', {
+      cache: 'force-cache',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (response.ok) {
+      return await response.json();
+    }
+    console.warn(`GeoJSON estático de estados: HTTP ${response.status}. Se usará GeoServer.`);
+  } catch (error) {
+    console.warn('No se pudo leer el GeoJSON estático de estados; se usará GeoServer:', error);
+  }
+
+  // Respaldo: capa de estados publicada en GeoServer.
+  const response = await apiFetch(
+    `/api/v1/layers/${encodeURIComponent(ESTADOS_LAYER_NAME)}`,
+    { signal: AbortSignal.timeout(60000) },
+  );
+  if (!response.ok) {
+    throw new Error(`Error ${response.status}: ${response.statusText}`);
+  }
+  return await response.json();
+}
+
 async function cargarCapaEstadosVenezuela() {
   try {
-    ocultarError();
-    mostrarCargando(true);
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(ESTADOS_LAYER_NAME)}`, { signal: signalTimeout(180000) });
-    if (!response.ok) {
-      throw new Error(`Error ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
+    const data = await cargarDatosEstados();
 
     const featuresByName = {};
     data.features.forEach(f => {
@@ -1118,10 +1132,10 @@ async function cargarCapaEstadosVenezuela() {
 
     updateLayerFeatureCount(ESTADOS_LAYER_NAME, data.features.length);
   } catch (error) {
-    console.error('Error al cargar la capa de estados:', error);
-    mostrarError('No se pudo cargar la capa de estados. Verifica que el backend esté funcionando.');
-  } finally {
-    mostrarCargando(false);
+    // Sin banner global: el geoportal sigue funcionando sin filtro de estados.
+    console.warn('No se pudo cargar el GeoJSON estático de estados:', error);
+    estadosGeoJsonCache = null;
+    setEstadosCache(null);
   }
 }
 
@@ -1291,7 +1305,12 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
 
     if (isVisible) {
       rowTarget?.classList.add('is-loading');
-      mostrarCargando(true);
+      const datosEnCache = Boolean(getLayerRawData(tableName)?.features?.length);
+      const esPesada = Boolean(layerInfo?.heavy) && !datosEnCache;
+      const mensajeCarga = esPesada
+        ? `Cargando ${layerInfo?.name || tableName.split(':').pop()}… Capa pesada: puede tardar varios minutos.`
+        : 'Cargando datos…';
+      mostrarCargando(true, mensajeCarga);
       try {
         await loadLayerToMap(tableName, map, getAvailableLayers(), (tn, srcId, lyrId, featureCount) => {
           updateLayerFeatureCount(tn, featureCount);
@@ -1314,8 +1333,8 @@ async function handleLayerToggle(tableName, isVisible, toggleBtn, rowTarget) {
       if (map.getLayer(layerId)) map.removeLayer(layerId);
       if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-      
-      clearLayerRawData(tableName);
+      // Los datos crudos se conservan en la caché de sesión para que volver
+      // a encender la capa sea inmediato (ver layer-manager.js).
 
       if (getSelectedSourceId() === sourceId) {
         clearSelection();

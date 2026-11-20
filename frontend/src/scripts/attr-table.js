@@ -8,7 +8,7 @@ import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import {
   getLayerDisplayName, getLayerRawData,
-  setLayerRawData, GEOSERVER_WMS_BASE,
+  setLayerRawData, GEOSERVER_WMS_BASE, LAYER_REQUEST_TIMEOUT_MS,
 } from './layer-manager.js';
 
 const MAX_ROWS = 500;
@@ -115,7 +115,9 @@ const state = {
 async function obtenerDatos(tableName) {
   let data = getLayerRawData(tableName);
   if (data) return data;
-  const res = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}`);
+  const res = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}`, {
+    signal: AbortSignal.timeout(LAYER_REQUEST_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`Error ${res.status}`);
   data = await res.json();
   setLayerRawData(tableName, data);

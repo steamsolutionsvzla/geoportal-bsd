@@ -16,10 +16,32 @@ const layerOpacityFactors = {};
 
 // Caché de datos crudos (GeoJSON original) por capa, usado para los
 // cálculos de filtros sin depender del source de MapLibre.
+// Se conserva al apagar una capa para que volver a encenderla no la descargue
+// de nuevo; se limita el número de capas retenidas para no crecer sin control.
 const layerRawData = {};
+const layerRawDataOrder = [];
+const MAX_RAW_CACHE_ENTRIES = 8;
+
+function isLayerActive(tableName) {
+  return Boolean(getMap()?.getSource(`source-${tableName}`));
+}
 
 export function setLayerRawData(tableName, data) {
+  if (!layerRawData[tableName]) layerRawDataOrder.push(tableName);
   layerRawData[tableName] = data;
+
+  // Solo se descartan capas apagadas: nunca una que esté en el mapa y que
+  // los filtros/análisis puedan estar usando.
+  let intentos = layerRawDataOrder.length;
+  while (layerRawDataOrder.length > MAX_RAW_CACHE_ENTRIES && intentos-- > 0) {
+    const oldest = layerRawDataOrder.shift();
+    if (!oldest) continue;
+    if (oldest === tableName || isLayerActive(oldest)) {
+      layerRawDataOrder.push(oldest);
+      continue;
+    }
+    delete layerRawData[oldest];
+  }
 }
 
 export function getLayerRawData(tableName) {
@@ -28,6 +50,8 @@ export function getLayerRawData(tableName) {
 
 export function clearLayerRawData(tableName) {
   delete layerRawData[tableName];
+  const index = layerRawDataOrder.indexOf(tableName);
+  if (index >= 0) layerRawDataOrder.splice(index, 1);
 }
 
 // IDs (short name, sin workspace) de capas que son 'fill' pero NO tienen relleno real.
@@ -84,6 +108,9 @@ function isShowroomPage() {
 export const GEOSERVER_WMS_BASE =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PUBLIC_GEOSERVER_URL) ||
   '/geoserver';
+
+// Las capas GeoJSON pesadas pueden tardar varios minutos.
+export const LAYER_REQUEST_TIMEOUT_MS = 300000;
 
 export function isRasterLayer(layerInfo) {
   return !!layerInfo && layerInfo.type === 'raster';
@@ -402,15 +429,22 @@ export function attachLayerDownloadEvents(sidebarElement) {
 // Función para cargar una capa desde el backend
 // ================================================================
 export async function loadLayerToMap(tableName, map, availableLayers, onSuccess, onError) {
+  const started = performance.now();
   try {
-    const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}`);
-    const data = await response.json();
-    if (!data.features || data.features.length === 0) {
-      throw new Error('No features');
-    }
+    // Si la capa ya se cargó en esta sesión, se reutiliza sin volver a pedirla.
+    let data = getLayerRawData(tableName);
+    const fromCache = Boolean(data?.features?.length);
 
-    // 👇 NUEVO: guardar los datos crudos en el caché
-    setLayerRawData(tableName, data);
+    if (!fromCache) {
+      const response = await apiFetch(`/api/v1/layers/${encodeURIComponent(tableName)}`, {
+        signal: AbortSignal.timeout(LAYER_REQUEST_TIMEOUT_MS),
+      });
+      data = await response.json();
+      if (!data.features || data.features.length === 0) {
+        throw new Error('No features');
+      }
+      setLayerRawData(tableName, data);
+    }
 
     const sourceId = `source-${tableName}`;
     const layerId = `layer-${tableName}`;
@@ -429,6 +463,11 @@ export async function loadLayerToMap(tableName, map, availableLayers, onSuccess,
 
     addMapLayerDirectly(tableName, sourceId, layerId, availableLayers, map);
     if (onSuccess) onSuccess(tableName, sourceId, layerId, data.features.length);
+
+    console.debug(
+      `[capas] ${tableName}: ${fromCache ? 'caché de sesión' : 'red'} ` +
+      `en ${(performance.now() - started).toFixed(0)} ms`
+    );
   } catch (error) {
     if (onError) onError(tableName, error);
     throw error;

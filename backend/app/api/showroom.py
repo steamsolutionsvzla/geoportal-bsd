@@ -7,6 +7,7 @@ from app.db.database import get_pool
 from app.models.user import CurrentUser
 from app.services.geoserver_service import GeoServerService
 from app.services.layer_service import get_layer_metadata
+from app.services.layer_stats import enrich_groups_with_stats
 
 router = APIRouter(prefix="/api/v1/showroom", tags=["Showroom"])
 
@@ -29,7 +30,8 @@ async def _resolve_workspace(table_name: str) -> Tuple[Optional[str], str]:
 @router.get("/workspaces")
 async def showroom_workspaces(user: CurrentUser = Depends(auth_guard)):
     """Catálogo completo visible de GeoServer para Showroom."""
-    return await GeoServerService.get_workspaces_with_layers()
+    groups = await GeoServerService.get_workspaces_with_layers()
+    return await enrich_groups_with_stats(groups)
 
 
 @router.get("/layers/{table_name}/metadata")

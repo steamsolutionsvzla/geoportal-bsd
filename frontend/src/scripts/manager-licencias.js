@@ -4,7 +4,8 @@ import { initMap, addBaseLayers } from './map-config.js';
 import { apiFetch } from './utils.js';
 
 const LICENSES_ENDPOINT = '/api/v1/manager/licenses';
-const STATES_ENDPOINT = '/api/v1/layers/' + encodeURIComponent('División Político Territorial');
+// Límites estadales desde el GeoJSON estático: no dependen de GeoServer.
+const STATES_ENDPOINT = '/data/estados-venezuela.geojson';
 
 const STATUS = {
   // `color`/`line` son la simbología del mapa (verde vigente / rojo culminada).
@@ -770,7 +771,7 @@ function addLicenseLayers(map) {
 
 async function loadStateBorders(map) {
   try {
-    const response = await apiFetch(STATES_ENDPOINT);
+    const response = await fetch(STATES_ENDPOINT, { cache: 'force-cache' });
     if (!response.ok) return;
     const data = await response.json();
     if (!data?.features?.length) return;
