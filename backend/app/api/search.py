@@ -73,7 +73,7 @@ async def search_zone(payload: ZoneSearchRequest, user: CurrentUser = Depends(au
     for group in groups:
         layers.extend(group.get("layers") or [])
 
-    candidatas = [l for l in layers if l.get("type") != "raster" and l.get("id")]
+    candidatas = [layer for layer in layers if layer.get("type") != "raster" and layer.get("id")]
     if not candidatas:
         return {"layers": [], "scanned": 0}
 
@@ -100,7 +100,7 @@ async def search_zone(payload: ZoneSearchRequest, user: CurrentUser = Depends(au
         return {"id": layer_id, "name": layer.get("name") or tabla,
                 "type": layer.get("type") or "fill", "count": total}
 
-    resultados = await asyncio.gather(*(contar(l) for l in candidatas))
+    resultados = await asyncio.gather(*(contar(layer) for layer in candidatas))
     hits = [r for r in resultados if r and (payload.include_zero or r["count"] > 0)]
     hits.sort(key=lambda r: r["count"], reverse=True)
 

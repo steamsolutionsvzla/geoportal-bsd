@@ -114,7 +114,7 @@ def test_stats_devuelve_totales_reales(client_stats):
     assert cat["vector"] == 3
     assert cat["raster"] == 1
     assert cat["features_total"] == 13          # 4 + 9 (+0 inexistente, ráster)
-    assert [l["id"] for l in cat["by_layer"]][:2] == [
+    assert [layer["id"] for layer in cat["by_layer"]][:2] == [
         f"{_WS}:Campos", f"{_WS}:Bloques petroleros",
     ]
     assert data["metadata_layers"] == 18

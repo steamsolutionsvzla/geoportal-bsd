@@ -112,7 +112,7 @@ def test_devuelve_solo_capas_con_datos_ordenadas(client_search):
     resp = client_search.post("/api/v1/search/zone", json={"geometry": POLY})
     assert resp.status_code == 200
     data = resp.json()
-    assert [l["id"] for l in data["layers"]] == [f"{_WS}:Pozos", f"{_WS}:Bloques petroleros"]
+    assert [layer["id"] for layer in data["layers"]] == [f"{_WS}:Pozos", f"{_WS}:Bloques petroleros"]
     assert data["layers"][0]["count"] == 9
     # Los rásteres no se consultan
     assert data["scanned"] == 4

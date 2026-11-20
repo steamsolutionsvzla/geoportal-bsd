@@ -6,10 +6,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.gzip_middleware import SizeLimitedGZipMiddleware
-
-from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
@@ -21,6 +19,7 @@ from app.api.showroom import router as showroom_router
 from app.api.styles import router as styles_router
 from app.config import settings
 from app.db.database import connect_db, disconnect_db
+from app.gzip_middleware import SizeLimitedGZipMiddleware
 
 # ---------------------------------------------------------------------
 # Logging: todo (incl. uvicorn) fluye al logger raíz.
