@@ -2,6 +2,7 @@
 import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
+import { downloadZoneArchive } from './download-files.js';
 
 // ========================================================================
 // ESTADO INTERNO DEL PANEL
@@ -427,6 +428,8 @@ function buildAreaFilterSummaryHtml() {
     html += `<div class="info-total"><span>Total de puntos en el área</span><b>${totalElementos}</b></div>`;
     html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnArea" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
+    html += `<button type="button" id="downloadZipBtnArea" class="info-btn info-btn-dark">Descargar resultados (ZIP)</button>`;
+    html += `<div id="downloadZipStatusArea" class="info-download-status" hidden></div>`;
   }
   html += `<button type="button" id="clearFilterAreaBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de área</button>`;
   html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
@@ -454,6 +457,8 @@ function buildIntersectionFilterSummaryHtml() {
     html += `<div class="info-total"><span>Total en la intersección</span><b>${totalElementos}</b></div>`;
     html += `<button type="button" id="downloadPdfBtnInterseccion" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnInterseccion" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
+    html += `<button type="button" id="downloadZipBtnInterseccion" class="info-btn info-btn-dark">Descargar resultados (ZIP)</button>`;
+    html += `<div id="downloadZipStatusInterseccion" class="info-download-status" hidden></div>`;
   }
   html += `<button type="button" id="clearFilterInterseccionBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar ambos filtros</button>`;
   html += `<div class="info-card-loader" aria-hidden="true"><div class="info-card-spinner"></div><div class="info-card-loader-text">Recalculando…</div></div>`;
@@ -537,6 +542,12 @@ function attachAreaFilterDownloadListeners() {
       if (typeof window.limpiarFiltroArea === 'function') window.limpiarFiltroArea();
     });
   }
+  const zipBtn = document.getElementById('downloadZipBtnArea');
+  if (zipBtn) {
+    zipBtn.addEventListener('click', () => {
+      runZoneDownload(currentAreaFilterData, zipBtn, 'downloadZipStatusArea');
+    });
+  }
 }
 
 function attachIntersectionFilterDownloadListeners() {
@@ -560,6 +571,63 @@ function attachIntersectionFilterDownloadListeners() {
       if (typeof window.limpiarFiltroEstado === 'function') window.limpiarFiltroEstado();
       if (typeof window.limpiarFiltroArea === 'function') window.limpiarFiltroArea();
     });
+  }
+  const zipBtn = document.getElementById('downloadZipBtnInterseccion');
+  if (zipBtn) {
+    zipBtn.addEventListener('click', () => {
+      runZoneDownload(
+        currentIntersectionFilterData,
+        zipBtn,
+        'downloadZipStatusInterseccion',
+      );
+    });
+  }
+}
+
+/**
+ * Descarga el ZIP mixto del filtro: archivos originales de
+ * ``archivos_indexados`` + Shapefile de las demás capas de puntos.
+ */
+async function runZoneDownload(data, button, statusId) {
+  if (!data) return;
+  const status = document.getElementById(statusId);
+  const setStatus = (msg, isError = false) => {
+    if (!status) return;
+    status.hidden = !msg;
+    status.textContent = msg || '';
+    status.classList.toggle('is-error', Boolean(isError));
+  };
+
+  if (!data.geometry) {
+    setStatus('No hay un área activa para descargar.', true);
+    return;
+  }
+  if (!Array.isArray(data.capasSeleccionadas) || !data.capasSeleccionadas.length) {
+    setStatus('No hay capas con datos dentro del área.', true);
+    return;
+  }
+
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Generando ZIP…';
+  setStatus('Preparando la descarga…');
+  try {
+    await downloadZoneArchive({
+      geometry: data.geometry,
+      maskGeometry: data.mask_geometry || null,
+      layers: data.capasSeleccionadas,
+      label: data.areaSeleccionada
+        || data.interseccionSeleccionada
+        || 'Área',
+      onProgress: (msg) => setStatus(msg),
+    });
+    setStatus('Descarga lista.');
+  } catch (error) {
+    console.error('Error al descargar los archivos del área:', error);
+    setStatus(error?.message || 'No se pudo generar el ZIP.', true);
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
   }
 }
 

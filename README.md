@@ -135,6 +135,37 @@ frontend/
   usar librerías que produzcan el PDF en el navegador: los antivirus corporativos
   marcaban los binarios de jsPDF como malware.
 
+## Descarga de archivos indexados
+
+El visor permite descargar los archivos originales de la capa
+`archivos_indexados` (LAS/LIS/DLIS/SEG-Y) y, en el mismo ZIP, el Shapefile
+completo de las demás capas de puntos que hayan dado hits en el filtro
+poligonal.
+
+- **Individual**: el popup de un punto de `archivos_indexados:*` muestra
+  "Descargar archivo". Va por `GET /api/v1/downloads/document/{id}` con una
+  URL firmada de corta duración y soporte de `Range` (reanudable).
+- **Lote**: la tarjeta de Área/Intersección muestra "Descargar resultados
+  (ZIP)". `POST /api/v1/downloads/zone` consulta PostGIS por `ST_Intersects`,
+  pide los archivos originales a Odoo y los Shapefiles a GeoServer.
+- **Odoo**: expone `GET /api/geoportal/v1/documents/{id}/content`, valida el
+  JWT compartido y aplica las record rules del usuario. El ZIP lo arma FastAPI
+  (es el único punto que conoce ambos orígenes).
+- **Temporales**: los ZIP se guardan en `backend/storage/downloads/`
+  (`DOWNLOAD_DIR`) y se borran a las `DOWNLOAD_TTL_HOURS` (48 h por defecto).
+  Los jobs viven en memoria del proceso; con varios workers uvicorn no se
+  comparten (el despliegue actual usa uno).
+- **Límites**: `DOWNLOAD_SYNC_*` decide cuándo el lote se arma en la misma
+  petición; `DOWNLOAD_MAX_*` son los topes del job asíncrono. Si el tamaño de
+  los archivos indexados no se conoce (columna `tamano_bytes` antigua), el lote
+  va siempre a job asíncrono.
+- **Requisito**: tras actualizar el módulo de Odoo, pulsar "Actualizar ahora"
+  en la capa de archivos para que la tabla incluya `tamano_bytes` y
+  `hash_archivo`.
+- **Nginx**: para las rutas `/api/v1/downloads/` conviene
+  `proxy_buffering off;` y un `proxy_read_timeout` alto; si no, una descarga
+  de SEG-Y puede cortarse en el proxy aunque el backend siga sirviendo.
+
 ## Mapa base sin conexión (offline) y zoom profundo de Clara
 
 **Importante (jun 2026): Esri retiró World_Terrain_Base.** Solo sirve teselas

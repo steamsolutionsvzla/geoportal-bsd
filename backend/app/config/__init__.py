@@ -57,6 +57,25 @@ class Settings(BaseSettings):
     ODOO_DB: str = "bsd"          # 👈 ESTA LÍNEA ES LA QUE FALTABA
     AUTH_MOCK: bool = False       # SOLO desarrollo local. Nunca true en producción.
 
+    # -------------------------------------------------------------------
+    # Descarga de archivos indexados (LAS/LIS/DLIS/SEG-Y) + Shapefiles.
+    # -------------------------------------------------------------------
+    # Carpeta de ZIPs temporales (relativa al WORKDIR o absoluta).
+    DOWNLOAD_DIR: str = "storage/downloads"
+    # Lote que se arma antes de responder (el resto va a job asíncrono).
+    DOWNLOAD_SYNC_MAX_FILES: int = 20
+    DOWNLOAD_SYNC_MAX_LAYERS: int = 3
+    DOWNLOAD_SYNC_MAX_MB: int = 500
+    # Topes del job asíncrono.
+    DOWNLOAD_MAX_FILES: int = 500
+    DOWNLOAD_MAX_LAYERS: int = 50
+    DOWNLOAD_MAX_GB: float = 20.0
+    DOWNLOAD_MAX_CONCURRENT_JOBS: int = 3
+    # Horas que se conserva un ZIP listo para descargar.
+    DOWNLOAD_TTL_HOURS: int = 48
+    # Minutos de validez de la URL firmada de descarga.
+    DOWNLOAD_TICKET_MINUTES: int = 120
+
     @computed_field
     @property
     def DATABASE_URL(self) -> str:

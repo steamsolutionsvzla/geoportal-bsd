@@ -1,5 +1,6 @@
 // feature-popup.js
 import * as maplibregl from 'maplibre-gl';
+import { downloadDocumentFile, formatBytes } from './download-files.js';
 
 let activePopup = null;
 let activeLayerId = null;
@@ -39,7 +40,7 @@ function fmtVal(v) {
   return String(v);
 }
 
-function buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeLabels = null) {
+function buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeLabels = null, layerId = null) {
   let rowsHtml = '';
 
   const etiqueta = (key) => {
@@ -57,7 +58,10 @@ function buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeL
 
   const pushRow = (key, realKey) => {
     const raw = props[realKey];
-    const val = fmtVal(raw);
+    let val = fmtVal(raw);
+    if (realKey.toLowerCase() === 'tamano_bytes' && Number(raw) > 0) {
+      val = formatBytes(raw);
+    }
     const shown = val === '' ? '—' : val;
     rowsHtml += `
       <div class="fp-row">
@@ -88,6 +92,31 @@ function buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeL
     rowsHtml = `<p class="fp-empty">Sin atributos disponibles.</p>`;
   }
 
+  // Solo la capa de archivos indexados expone un archivo original por punto.
+  const isIndexed = /^archivos_indexados:/i.test(String(layerId || ''));
+  const docKey = resolverClaveProp(props, 'documento_id');
+  const docId = docKey ? props[docKey] : null;
+  const fileNameKey = resolverClaveProp(props, 'nombre_archivo')
+    || resolverClaveProp(props, 'archivo_principal');
+  const fileName = fileNameKey ? String(props[fileNameKey] || '') : '';
+  const sizeKey = resolverClaveProp(props, 'tamano_bytes');
+  const sizeText = sizeKey && Number(props[sizeKey]) > 0
+    ? formatBytes(props[sizeKey])
+    : '';
+  let actionsHtml = '';
+  if (isIndexed && docId) {
+    const label = fileName
+      ? `Descargar ${escapeHtml(fileName)}${sizeText ? ` <span class="fp-size">(${escapeHtml(sizeText)})</span>` : ''}`
+      : 'Descargar archivo';
+    actionsHtml = `
+      <div class="fp-actions">
+        <button type="button" class="fp-download" data-doc-id="${escapeHtml(docId)}">
+          <span aria-hidden="true">⬇</span>
+          ${label}
+        </button>
+      </div>`;
+  }
+
   return `
     <div class="fp">
       <div class="fp-head">
@@ -95,6 +124,7 @@ function buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeL
         <span class="fp-title">${escapeHtml(displayName)}</span>
       </div>
       <div class="fp-body">${rowsHtml}</div>
+      ${actionsHtml}
     </div>
   `;
 }
@@ -171,7 +201,7 @@ export function openFeaturePopup(
     activePopup = null;
   }
 
-  const html = buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeLabels);
+  const html = buildFeaturePopupHtml(displayName, props, visibleAttributes, attributeLabels, layerId);
 
   const popup = new maplibregl.Popup({
     closeButton: true,
@@ -188,6 +218,30 @@ export function openFeaturePopup(
 
   // Ajuste tras el primer layout (el popup ya mide su alto real).
   requestAnimationFrame(() => ajustarParaQueQuepa(popup, map));
+
+  // Descarga del archivo original (solo capas de archivos indexados).
+  const downloadBtn = popup.getElement()?.querySelector('.fp-download');
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', async () => {
+      const docId = downloadBtn.dataset.docId;
+      if (!docId) return;
+      const original = downloadBtn.innerHTML;
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = 'Preparando descarga…';
+      try {
+        await downloadDocumentFile(docId);
+      } catch (error) {
+        console.error('Error al descargar el archivo:', error);
+        downloadBtn.textContent = error?.message || 'No se pudo descargar';
+        setTimeout(() => { downloadBtn.innerHTML = original; }, 3000);
+      } finally {
+        downloadBtn.disabled = false;
+        if (downloadBtn.textContent === 'Preparando descarga…') {
+          downloadBtn.innerHTML = original;
+        }
+      }
+    });
+  }
 
   // Al terminar de mover/redimensionar: si el popup quedó fuera, se cierra
   // para no dejar un fantasma imposible de ver o cerrar.

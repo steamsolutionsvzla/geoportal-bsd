@@ -1520,6 +1520,7 @@ function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } =
   let totalElementos = 0;
   let capasContadas = 0;
   const capasDetalleMap = {};
+  const capasSeleccionadas = [];
   let rowsHtml = '';
 
   const layers = getAvailableLayers();
@@ -1574,18 +1575,23 @@ function analizarCapasEnPoligonos({ estadoFeature = null, areaFeature = null } =
       capasContadas++;
       totalElementos += countInPoligonos;
       capasDetalleMap[layerConfig.name] = featuresInLayer;
+      capasSeleccionadas.push({
+        id: layerConfig.id,
+        name: layerConfig.name,
+        count: countInPoligonos,
+      });
       rowsHtml += `<tr><td style="padding:4px;">${layerConfig.name}</td><td style="text-align:right; padding:4px; font-weight:bold;">${countInPoligonos}</td></tr>`;
     }
   });
 
-  return { totalElementos, capasContadas, capasDetalleMap, rowsHtml };
+  return { totalElementos, capasContadas, capasDetalleMap, capasSeleccionadas, rowsHtml };
 }
 
 function calcularElementosEnArea(areaPolygonFeature, nombreArea) {
   const infoContent = document.getElementById('infoPanelContent');
   if (!infoContent) return;
 
-  const { totalElementos, capasContadas, capasDetalleMap, rowsHtml } =
+  const { totalElementos, capasContadas, capasDetalleMap, capasSeleccionadas, rowsHtml } =
     analizarCapasEnPoligonos({ areaFeature: areaPolygonFeature });
 
   currentAreaFilterData = {
@@ -1593,6 +1599,8 @@ function calcularElementosEnArea(areaPolygonFeature, nombreArea) {
     totalElementos,
     capasContadas,
     capasDetalleMap,
+    capasSeleccionadas,
+    geometry: areaPolygonFeature?.geometry || null,
     rowsHtml
   };
 
@@ -1604,7 +1612,7 @@ function calcularElementosEnInterseccion(estadoPolygonFeature, areaPolygonFeatur
   const infoContent = document.getElementById('infoPanelContent');
   if (!infoContent) return;
 
-  const { totalElementos, capasContadas, capasDetalleMap, rowsHtml } =
+  const { totalElementos, capasContadas, capasDetalleMap, capasSeleccionadas, rowsHtml } =
     analizarCapasEnPoligonos({
       estadoFeature: estadoPolygonFeature,
       areaFeature: areaPolygonFeature
@@ -1617,6 +1625,9 @@ function calcularElementosEnInterseccion(estadoPolygonFeature, areaPolygonFeatur
     totalElementos,
     capasContadas,
     capasDetalleMap,
+    capasSeleccionadas,
+    geometry: areaPolygonFeature?.geometry || null,
+    mask_geometry: estadoPolygonFeature?.geometry || null,
     rowsHtml
   };
 

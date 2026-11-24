@@ -27,7 +27,7 @@ RUN pip install --upgrade pip && \
 # Código de la aplicación, corriendo como usuario sin privilegios.
 RUN useradd --uid 1001 --no-create-home --user-group --shell /usr/sbin/nologin appuser
 COPY . .
-RUN mkdir -p /app/storage/geojson /app/storage/json \
+RUN mkdir -p /app/storage/geojson /app/storage/json /app/storage/downloads \
     && chown -R appuser:appuser /app
 USER appuser
 

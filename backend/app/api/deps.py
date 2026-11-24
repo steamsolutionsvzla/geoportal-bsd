@@ -10,6 +10,20 @@ from app.services.session_service import resolve_user
 SHOWROOM_WORKSPACE = "Showroom"
 _bearer = HTTPBearer(auto_error=False)
 
+
+async def bearer_token(
+    cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> str:
+    """Token JWT crudo del usuario.
+
+    La descarga de archivos necesita reenviarlo a Odoo (server-to-server)
+    para que se apliquen las record rules del usuario real.
+    """
+    if cred is None or not cred.credentials:
+        raise HTTPException(401, "No autenticado.", headers={"WWW-Authenticate": "Bearer"})
+    return cred.credentials
+
+
 # authGuard
 async def auth_guard(cred: Optional[HTTPAuthorizationCredentials] = Depends(_bearer)) -> CurrentUser:
     if cred is None or not cred.credentials:

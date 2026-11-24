@@ -9,7 +9,13 @@ import gzip
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-EXCLUDED_CONTENT_TYPES = ("text/event-stream",)
+EXCLUDED_CONTENT_TYPES = (
+    "text/event-stream",
+    # Descargas: ya vienen comprimidas o son binarios grandes.
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/octet-stream",
+)
 
 
 class SizeLimitedGZipMiddleware:

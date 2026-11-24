@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
@@ -9,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
+from app.api.downloads import router as downloads_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
 from app.api.organization import router as organization_router
@@ -62,8 +64,30 @@ _configurar_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
-    yield
-    await disconnect_db()
+    # Limpieza periódica de ZIPs de descarga expirados.
+    from app.services import download_service
+    download_service.sweep_expired()
+    cleanup = asyncio.create_task(_download_cleanup_loop(download_service))
+    try:
+        yield
+    finally:
+        cleanup.cancel()
+        try:
+            await cleanup
+        except asyncio.CancelledError:
+            pass
+        await disconnect_db()
+
+
+async def _download_cleanup_loop(service):
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            service.sweep_expired()
+        except Exception:  # noqa: BLE001 - nunca debe tumbar el backend
+            logging.getLogger("app.main").warning(
+                "Fallo limpiando descargas temporales", exc_info=True)
+
 
 app = FastAPI(
     title="Geoportal API Backend",
@@ -105,6 +129,7 @@ app.include_router(search_router)
 app.include_router(admin_router)
 app.include_router(settings_router)
 app.include_router(catalog_router)
+app.include_router(downloads_router)
 
 @app.get("/")
 def health_check():
