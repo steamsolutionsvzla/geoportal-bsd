@@ -81,11 +81,11 @@ async def create_data_package(
         body.geometry,
         body.mask_geometry,
     )
-    indexed = plan.get("indexed") or {}
+    indexed = plan.get("indexed") or []
     document_ids = []
-    for doc_id in indexed.keys():
+    for doc in indexed:
         try:
-            document_ids.append(int(doc_id))
+            document_ids.append(int(doc.get("documento_id")))
         except (TypeError, ValueError):
             continue
     document_ids = list(dict.fromkeys(document_ids))
