@@ -434,11 +434,112 @@ input { font-family: inherit; }
 
 .area-entity-list {
   display: flex; flex-direction: column; gap: 2px;
-  max-height: 176px;
+  max-height: 220px;
   overflow-y: auto;
 }
 .area-entity-list .loc-option { padding: 7px 8px; }
 .area-entity-list:empty { display: none; }
+
+/* Buscador de entidades + "Elegir en el mapa" */
+.area-entity-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+.area-entity-tools[hidden] { display: none; }
+
+.area-entity-search {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line-700);
+  border-radius: var(--radius-s);
+  background: var(--white);
+  color: var(--accent-navy-dim);
+  font-family: inherit;
+  font-size: 0.76rem;
+  outline: none;
+}
+.area-entity-search:focus {
+  border-color: var(--accent-navy);
+  box-shadow: 0 0 0 2px var(--accent-navy-soft);
+}
+
+.area-pick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px dashed rgba(18, 43, 90, 0.28);
+  border-radius: var(--radius-s);
+  background: #f6f9ff;
+  color: var(--accent-navy-dim);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.area-pick-btn:hover {
+  background: var(--accent-navy-soft);
+  border-color: var(--accent-navy);
+}
+.area-pick-btn.is-active {
+  background: var(--accent-navy);
+  border-style: solid;
+  border-color: var(--accent-navy);
+  color: #fff;
+}
+.area-pick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Aviso flotante mientras se elige la entidad en el mapa */
+.area-pick-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--accent-navy, #123a6b);
+  color: #fff;
+  border-radius: 999px;
+  box-shadow: var(--shadow-2);
+  font-size: 0.8rem;
+  font-weight: 500;
+  max-width: calc(100vw - 32px);
+}
+.area-pick-banner[hidden] { display: none; }
+.area-pick-banner button {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.area-pick-banner button:hover { background: rgba(255, 255, 255, 0.16); }
+
+.area-entity-list .loc-option.selected { scroll-margin: 24px; }
+
+@media (max-width: 640px) {
+  .area-pick-banner {
+    bottom: 76px;
+    font-size: 0.74rem;
+    padding: 9px 12px;
+  }
+}
 
 .area-hint, .area-error {
   margin: 0;

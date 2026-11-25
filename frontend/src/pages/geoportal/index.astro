@@ -221,6 +221,32 @@ import Footer from '../../components/Footer.astro';
                 <span>Etiqueta de entidad</span>
                 <select id="areaLabelSelect"></select>
               </label>
+              <div class="area-entity-tools" id="areaEntityTools" hidden>
+                <input
+                  type="search"
+                  class="area-entity-search"
+                  id="areaEntitySearch"
+                  placeholder="Buscar entidad por nombre…"
+                  autocomplete="off"
+                  aria-label="Buscar entidad del área de análisis"
+                />
+                <button
+                  type="button"
+                  class="area-pick-btn"
+                  id="areaPickBtn"
+                  aria-pressed="false"
+                  title="Elegir la entidad haciendo clic sobre el mapa"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="7"></circle>
+                    <line x1="12" y1="1" x2="12" y2="5"></line>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="1" y1="12" x2="5" y2="12"></line>
+                    <line x1="19" y1="12" x2="23" y2="12"></line>
+                  </svg>
+                  <span>Elegir en el mapa</span>
+                </button>
+              </div>
               <div class="area-entity-list" id="areaEntityList"></div>
               <p class="area-hint" id="areaHint">Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, dibuja un polígono o elige una capa de polígonos activa.</p>
               <p class="area-error" id="areaError" hidden></p>
@@ -431,8 +457,21 @@ import Footer from '../../components/Footer.astro';
       <div class="divider"></div>
       <div class="stat">DATUM <b>REGVEN (EPSG:4189)</b></div>
       <div class="grow"></div>
-      <div class="stat">GEOPORTAL v0.1</div>
+      <div class="stat">GEOPORTAL v{APP_VERSION}</div>
     </footer>
+  </div>
+
+  <!-- Modo "Elegir en el mapa" para el área de análisis -->
+  <div class="area-pick-banner" id="areaPickBanner" hidden role="status" aria-live="polite">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="7"></circle>
+      <line x1="12" y1="1" x2="12" y2="5"></line>
+      <line x1="12" y1="19" x2="12" y2="23"></line>
+      <line x1="1" y1="12" x2="5" y2="12"></line>
+      <line x1="19" y1="12" x2="23" y2="12"></line>
+    </svg>
+    <span id="areaPickBannerText">Haz clic sobre una entidad del área para analizarla</span>
+    <button type="button" id="areaPickCancel">Cancelar</button>
   </div>
 
   <!-- Footer compartido (el mismo del index) -->

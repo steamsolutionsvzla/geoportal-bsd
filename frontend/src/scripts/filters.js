@@ -19,7 +19,8 @@ import {
   hasAreaLayer,
   bringAreaToFront,
   formatearAreaNombre,
-  setAreaFromFeatures
+  setAreaFromFeatures,
+  pickAreaFeatureIndex
 } from './area-temporal.js';
 
 const DIVISION_LAYER_BASE = 'División Político Territorial';
@@ -120,10 +121,21 @@ function areaEls() {
     layerField: document.getElementById('areaLayerField'),
     layerSelect: document.getElementById('areaLayerSelect'),
     entityList: document.getElementById('areaEntityList'),
+    entityTools: document.getElementById('areaEntityTools'),
+    entitySearch: document.getElementById('areaEntitySearch'),
+    pickBtn: document.getElementById('areaPickBtn'),
+    pickBanner: document.getElementById('areaPickBanner'),
+    pickBannerText: document.getElementById('areaPickBannerText'),
+    pickCancel: document.getElementById('areaPickCancel'),
     hint: document.getElementById('areaHint'),
     error: document.getElementById('areaError')
   };
 }
+
+// Modo "Elegir en el mapa": el siguiente clic sobre un polígono del área
+// selecciona esa entidad y lanza el análisis.
+let areaPickMode = false;
+let areaPickFeedbackTimer = null;
 
 // Capas poligonales activas que pueden usarse como área de análisis.
 function capasPoligonalesDisponibles() {
@@ -220,11 +232,18 @@ function renderAreaLabelField(meta) {
 }
 
 function renderAreaEntities() {
-  const { entityList } = areaEls();
+  const { entityList, entityTools, entitySearch, pickBtn } = areaEls();
   if (!entityList) return;
 
   const features = getAreaFeatures();
   entityList.innerHTML = '';
+
+  if (entityTools) entityTools.hidden = !features.length;
+  if (entitySearch && !features.length) entitySearch.value = '';
+  if (pickBtn) {
+    pickBtn.disabled = !features.length;
+    if (!features.length) setAreaPickMode(false);
+  }
 
   if (!features.length) {
     setAreaHint('Carga un Shapefile (.zip), KML, KMZ, GeoJSON o RAR, dibuja un polígono o elige una capa de polígonos activa.');
@@ -253,7 +272,85 @@ function renderAreaEntities() {
   });
 
   if (selectedAreaIndex === null) placeholder.classList.add('selected');
+
+  // Si el usuario ya había escrito en el buscador, se respeta el filtro.
+  const { entitySearch: buscador } = areaEls();
+  if (buscador?.value) filtrarEntidades(buscador.value);
+
   setAreaHint('');
+}
+
+/** Filtra la lista de entidades por texto (nombre, no solo el select). */
+function filtrarEntidades(texto) {
+  const { entityList } = areaEls();
+  if (!entityList) return;
+  const q = String(texto || '').trim().toLowerCase();
+
+  entityList.querySelectorAll('.loc-option').forEach((el) => {
+    if (el.dataset.index === '-1') {
+      el.hidden = Boolean(q);
+      return;
+    }
+    el.hidden = q ? !el.textContent.toLowerCase().includes(q) : false;
+  });
+}
+
+/** Activa/desactiva el modo "Elegir en el mapa". */
+function setAreaPickMode(activo) {
+  const { filter, pickBtn, pickBanner, pickBannerText } = areaEls();
+  const on = Boolean(activo);
+  areaPickMode = on;
+  document.body.dataset.areaPick = on ? 'true' : 'false';
+
+  if (pickBtn) {
+    pickBtn.classList.toggle('is-active', on);
+    pickBtn.setAttribute('aria-pressed', String(on));
+    const label = pickBtn.querySelector('span');
+    if (label) label.textContent = on ? 'Cancelar selección' : 'Elegir en el mapa';
+  }
+  if (pickBanner) pickBanner.hidden = !on;
+  if (pickBannerText) {
+    pickBannerText.textContent = 'Haz clic sobre una entidad del área para analizarla';
+  }
+  if (areaPickFeedbackTimer) {
+    clearTimeout(areaPickFeedbackTimer);
+    areaPickFeedbackTimer = null;
+  }
+
+  const map = getMap();
+  if (map) map.getCanvas().style.cursor = on ? 'crosshair' : '';
+  if (on) filter?.classList.remove('open');
+}
+
+function avisarPick(mensaje) {
+  const { pickBannerText } = areaEls();
+  if (!pickBannerText) return;
+  pickBannerText.textContent = mensaje;
+  if (areaPickFeedbackTimer) clearTimeout(areaPickFeedbackTimer);
+  areaPickFeedbackTimer = setTimeout(() => {
+    pickBannerText.textContent = 'Haz clic sobre una entidad del área para analizarla';
+  }, 2600);
+}
+
+function onAreaPickClick(event) {
+  if (!areaPickMode) return;
+
+  const index = pickAreaFeatureIndex(event.point);
+  if (index === null) {
+    avisarPick('Ese punto no está dentro de ningún polígono del área. Prueba de nuevo.');
+    return;
+  }
+
+  aplicarFiltroArea(index);
+  // El popup de la capa se evalúa en este mismo evento de clic: se mantiene
+  // bloqueado un instante para que el guard de layer-manager no lo abra.
+  document.body.dataset.areaPickSuppress = 'true';
+  setTimeout(() => {
+    delete document.body.dataset.areaPickSuppress;
+    setAreaPickMode(false);
+  }, 80);
+  const { entityList } = areaEls();
+  entityList?.querySelector('.loc-option.selected')?.scrollIntoView({ block: 'nearest' });
 }
 
 function marcarEntidadSeleccionada(index) {
@@ -263,7 +360,6 @@ function marcarEntidadSeleccionada(index) {
     el.classList.toggle('selected', Number(el.dataset.index) === index);
   });
 }
-
 function actualizarLabelArea(texto) {
   const { filter } = areaEls();
   const label = filter?.querySelector('.lf-label');
@@ -329,6 +425,7 @@ function aplicarFiltroArea(index) {
 }
 
 export function limpiarFiltroArea({ keepLayer = true, keepUI = false } = {}) {
+  setAreaPickMode(false);
   isAreaFilterActive = false;
   selectedAreaFeature = null;
   selectedAreaIndex = null;
@@ -487,6 +584,52 @@ export function setupAreaFilter({ onRequestDraw = null } = {}) {
       }
       aplicarFiltroArea(index);
     });
+  }
+
+  if (els.entitySearch && els.entitySearch.dataset.bound !== 'true') {
+    els.entitySearch.dataset.bound = 'true';
+    els.entitySearch.addEventListener('input', () => {
+      filtrarEntidades(els.entitySearch.value);
+    });
+  }
+
+  if (els.pickBtn && els.pickBtn.dataset.bound !== 'true') {
+    els.pickBtn.dataset.bound = 'true';
+    els.pickBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!hasAreaLayer()) {
+        setAreaError('Carga o dibuja primero un área para poder elegir una entidad.');
+        return;
+      }
+      setAreaError('');
+      setAreaPickMode(!areaPickMode);
+    });
+  }
+
+  if (els.pickCancel && els.pickCancel.dataset.bound !== 'true') {
+    els.pickCancel.dataset.bound = 'true';
+    els.pickCancel.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setAreaPickMode(false);
+    });
+  }
+
+  // Escape cancela el modo de selección en el mapa.
+  if (!window.__areaPickKeyBound) {
+    window.__areaPickKeyBound = true;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && areaPickMode) {
+        e.preventDefault();
+        setAreaPickMode(false);
+      }
+    });
+  }
+
+  // Un solo listener de mapa; solo actúa si el modo está activo.
+  const map = getMap();
+  if (map && !map.__areaPickBound) {
+    map.__areaPickBound = true;
+    map.on('click', onAreaPickClick);
   }
 
   if (els.clearLayerBtn && els.clearLayerBtn.dataset.bound !== 'true') {

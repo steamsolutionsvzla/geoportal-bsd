@@ -15,6 +15,7 @@ import * as turf from '@turf/turf';
 import { getMap } from './map-config.js';
 
 const AREA_SOURCE_ID = 'source-area-temporal';
+const AREA_FILL_LAYER_ID = 'layer-area-temporal-fill';
 const AREA_LINE_LAYER_ID = 'layer-area-temporal-line';
 const AREA_LABEL_SOURCE_ID = 'source-area-temporal-label';
 const AREA_LABEL_LAYER_ID = 'layer-area-temporal-label';
@@ -356,6 +357,26 @@ function asegurarCapa() {
     });
   }
 
+  // Relleno invisible: solo sirve para detectar clics dentro de la entidad
+  // ("Elegir en el mapa"). No altera la vista salvo un leve tinte al
+  // seleccionar la entidad.
+  if (!map.getLayer(AREA_FILL_LAYER_ID)) {
+    map.addLayer({
+      id: AREA_FILL_LAYER_ID,
+      type: 'fill',
+      source: AREA_SOURCE_ID,
+      paint: {
+        'fill-color': AREA_SELECTED_COLOR,
+        'fill-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false],
+          0.07,
+          0
+        ]
+      }
+    });
+  }
+
   if (!map.getLayer(AREA_LINE_LAYER_ID)) {
     map.addLayer({
       id: AREA_LINE_LAYER_ID,
@@ -422,6 +443,7 @@ function asegurarCapa() {
 
   // Los bordes y luego las etiquetas deben quedar por encima de las capas de datos.
   try {
+    map.moveLayer(AREA_FILL_LAYER_ID);
     map.moveLayer(AREA_LINE_LAYER_ID);
     map.moveLayer(AREA_LABEL_LAYER_ID);
   } catch (_) { /* capa recién creada */ }
@@ -616,6 +638,7 @@ export function clearAreaLayer() {
     if (map.getLayer(AREA_LABEL_LAYER_ID)) map.removeLayer(AREA_LABEL_LAYER_ID);
     if (map.getSource(AREA_LABEL_SOURCE_ID)) map.removeSource(AREA_LABEL_SOURCE_ID);
     if (map.getLayer(AREA_LINE_LAYER_ID)) map.removeLayer(AREA_LINE_LAYER_ID);
+    if (map.getLayer(AREA_FILL_LAYER_ID)) map.removeLayer(AREA_FILL_LAYER_ID);
     if (map.getSource(AREA_SOURCE_ID)) map.removeSource(AREA_SOURCE_ID);
   } catch (_) { /* fuente en uso */ }
 
@@ -652,9 +675,34 @@ export function bringAreaToFront() {
   const map = getMap();
   if (!map) return;
   try {
+    if (map.getLayer(AREA_FILL_LAYER_ID)) map.moveLayer(AREA_FILL_LAYER_ID);
     if (map.getLayer(AREA_LINE_LAYER_ID)) map.moveLayer(AREA_LINE_LAYER_ID);
     if (map.getLayer(AREA_LABEL_LAYER_ID)) map.moveLayer(AREA_LABEL_LAYER_ID);
   } catch (_) { /* ignorar */ }
+}
+
+/**
+ * Devuelve el índice de la entidad del área que hay bajo un punto del mapa
+ * (píxeles CSS), o null si el clic cae fuera de todos los polígonos.
+ * Se usa para "Elegir en el mapa".
+ */
+export function pickAreaFeatureIndex(point) {
+  const map = getMap();
+  if (!map || !point) return null;
+
+  const layers = [AREA_FILL_LAYER_ID, AREA_LINE_LAYER_ID].filter((id) => map.getLayer(id));
+  if (!layers.length) return null;
+
+  let hits = [];
+  try {
+    hits = map.queryRenderedFeatures(point, { layers });
+  } catch (_) {
+    return null;
+  }
+  if (!hits.length) return null;
+
+  const id = hits[0].id;
+  return Number.isInteger(id) ? id : null;
 }
 
 export function getAreaCollection() {
