@@ -188,6 +188,64 @@ export function getLayerDisplayName(tableName) {
 }
 
 // ================================================================
+// Orden de dibujo: polígonos abajo → líneas → puntos arriba.
+// Se reaplica tras cada alta de capa para que no dependa del orden en
+// que el usuario las encienda. Las capas auxiliares (etiquetas, área de
+// análisis) quedan siempre por encima.
+// ================================================================
+const VECTOR_DRAW_ORDER = { fill: 0, line: 1, circle: 2 };
+
+// Capas que no participan del orden de datos: herramientas, etiquetas,
+// área de análisis y bordes oficiales (deben quedar siempre arriba).
+const OVERLAY_LAYER_PREFIXES = [
+  'layer-area-temporal-',
+  'layer-draw-tool-',
+  'layer-measure-tool-',
+  'layer-venezuela-',
+  'layer-guyana-',
+  'layer-country-',
+  'layer-highlight-'
+];
+const BASE_DATA_LAYER_IDS = new Set([
+  'layer-estados-venezuela-fill',
+  'layer-estados-venezuela-line'
+]);
+
+function isVectorDataLayer(layer) {
+  if (!layer || !layer.id.startsWith('layer-')) return false;
+  if (VECTOR_DRAW_ORDER[layer.type] === undefined) return false;
+  if (OVERLAY_LAYER_PREFIXES.some((prefix) => layer.id.startsWith(prefix))) return false;
+  if (BASE_DATA_LAYER_IDS.has(layer.id)) return true;
+  // Solo capas del catálogo (layer-<id de capa>).
+  return availableLayers.some((cfg) => `layer-${cfg.id}` === layer.id);
+}
+
+export function enforceVectorZOrder(map) {
+  const target = map || getMap();
+  if (!target) return;
+
+  const layers = target.getStyle().layers || [];
+  const dataLayers = layers.filter(isVectorDataLayer);
+  if (dataLayers.length < 2) return;
+
+  const firstDataIndex = layers.findIndex(isVectorDataLayer);
+  const anchor = layers
+    .slice(firstDataIndex + 1)
+    .find((layer) => !isVectorDataLayer(layer));
+
+  const sorted = [...dataLayers].sort(
+    (a, b) => VECTOR_DRAW_ORDER[a.type] - VECTOR_DRAW_ORDER[b.type]
+  );
+
+  for (const layer of sorted) {
+    try {
+      if (anchor) target.moveLayer(layer.id, anchor.id);
+      else target.moveLayer(layer.id);
+    } catch (_) { /* capa recién creada o ya eliminada */ }
+  }
+}
+
+// ================================================================
 // Renderizar grupos de capas (workspaces) con acordeón
 // ================================================================
 export function renderLayerGroups(groups, containerId) {
@@ -625,6 +683,10 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
     }
   }
 
+  // ---------------- Orden de dibujo ----------------
+  // Polígonos → líneas → puntos, sin importar el orden de encendido.
+  enforceVectorZOrder(map);
+
   // ---------------- Eventos ----------------
   if (!map.listenedClicks) map.listenedClicks = new Set();
 
@@ -655,6 +717,8 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
     });
 
     map.on('click', layerId, (ev) => {
+      if (document.body.dataset.areaPick === 'true'
+          || document.body.dataset.areaPickSuppress === 'true') return;
       if (!ev.features || ev.features.length === 0) return;
       const clickedFeature = ev.features[0];
       const props = clickedFeature.properties;
@@ -711,6 +775,8 @@ export function addMapLayerDirectly(tableName, sourceId, layerId, availableLayer
     });
 
     map.on('click', layerId, (ev) => {
+      if (document.body.dataset.areaPick === 'true'
+          || document.body.dataset.areaPickSuppress === 'true') return;
       if (!ev.features || ev.features.length === 0) return;
       const clickedFeature = ev.features[0];
       const props = clickedFeature.properties;
