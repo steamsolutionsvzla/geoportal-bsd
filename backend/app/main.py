@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
+from app.api.data_packages import router as data_packages_router
 from app.api.downloads import router as downloads_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
@@ -130,6 +131,7 @@ app.include_router(admin_router)
 app.include_router(settings_router)
 app.include_router(catalog_router)
 app.include_router(downloads_router)
+app.include_router(data_packages_router)
 
 @app.get("/")
 def health_check():

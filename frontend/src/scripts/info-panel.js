@@ -3,6 +3,7 @@ import { getMap } from './map-config.js';
 import { apiFetch } from './utils.js';
 import { buildQgisMetadataHtml, initQgisMetadataWidgets } from './metadata-qgis.js';
 import { downloadZoneArchive } from './download-files.js';
+import { openDataPackageModal } from './data-package-modal.js';
 
 // ========================================================================
 // ESTADO INTERNO DEL PANEL
@@ -429,6 +430,7 @@ function buildAreaFilterSummaryHtml() {
     html += `<button type="button" id="downloadPdfBtnArea" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnArea" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
     html += `<button type="button" id="downloadZipBtnArea" class="info-btn info-btn-dark">Descargar resultados (ZIP)</button>`;
+    html += `<button type="button" id="dataPackageBtnArea" class="info-btn info-btn-dark">Guardar como paquete de datos</button>`;
     html += `<div id="downloadZipStatusArea" class="info-download-status" hidden></div>`;
   }
   html += `<button type="button" id="clearFilterAreaBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar filtro de área</button>`;
@@ -458,6 +460,7 @@ function buildIntersectionFilterSummaryHtml() {
     html += `<button type="button" id="downloadPdfBtnInterseccion" class="info-btn info-btn-primary">Descargar datos en PDF</button>`;
     html += `<button type="button" id="downloadExcelBtnInterseccion" class="info-btn info-btn-success">Descargar tablas en Excel</button>`;
     html += `<button type="button" id="downloadZipBtnInterseccion" class="info-btn info-btn-dark">Descargar resultados (ZIP)</button>`;
+    html += `<button type="button" id="dataPackageBtnInterseccion" class="info-btn info-btn-dark">Guardar como paquete de datos</button>`;
     html += `<div id="downloadZipStatusInterseccion" class="info-download-status" hidden></div>`;
   }
   html += `<button type="button" id="clearFilterInterseccionBtn" class="info-btn info-btn-danger" style="margin-top:8px;">✕ Quitar ambos filtros</button>`;
@@ -548,6 +551,12 @@ function attachAreaFilterDownloadListeners() {
       runZoneDownload(currentAreaFilterData, zipBtn, 'downloadZipStatusArea');
     });
   }
+  const packageBtn = document.getElementById('dataPackageBtnArea');
+  if (packageBtn) {
+    packageBtn.addEventListener('click', () => {
+      openDataPackageModal(currentAreaFilterData, 'area');
+    });
+  }
 }
 
 function attachIntersectionFilterDownloadListeners() {
@@ -580,6 +589,12 @@ function attachIntersectionFilterDownloadListeners() {
         zipBtn,
         'downloadZipStatusInterseccion',
       );
+    });
+  }
+  const packageBtn = document.getElementById('dataPackageBtnInterseccion');
+  if (packageBtn) {
+    packageBtn.addEventListener('click', () => {
+      openDataPackageModal(currentIntersectionFilterData, 'intersection');
     });
   }
 }

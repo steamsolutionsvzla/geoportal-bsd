@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     # Minutos de validez de la URL firmada de descarga.
     DOWNLOAD_TICKET_MINUTES: int = 120
 
+    # -------------------------------------------------------------------
+    # Paquetes de datos (selecciones de archivos indexados guardadas en Odoo)
+    # -------------------------------------------------------------------
+    # Máximo de archivos indexados por paquete.
+    DATA_PACKAGE_MAX_DOCS: int = 100000
+    # A partir de este número Odoo construye el paquete en segundo plano.
+    DATA_PACKAGE_SYNC_MAX_DOCS: int = 5000
+    # Tiempo máximo de espera de la llamada a Odoo al crear el paquete.
+    DATA_PACKAGE_TIMEOUT_SECONDS: int = 900
+
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
