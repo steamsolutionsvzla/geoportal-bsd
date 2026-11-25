@@ -1,64 +1,218 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { paquetesTabla } from '../../lib/adminMockData';
-
-const estadoBadge = (estado: string) => {
-  if (estado === 'Entregado') return 'green';
-  if (estado === 'En construcción') return 'blue';
-  if (estado === 'Por entregar') return 'amber';
-  return 'gray';
-};
 ---
 
-<AdminLayout title="Paquetes · Admin BSD">
+<AdminLayout title="Paquetes de datos — Admin BSD">
   <header class="admin-header">
     <div>
       <span class="admin-eyebrow">Sección</span>
-      <h1>Paquetes de capas</h1>
-      <p>Entrega y construcción de paquetes asociados a bloques.</p>
+      <h1>Paquetes de datos</h1>
+      <p>Paquetes reales creados desde el geoportal y desde Odoo.</p>
     </div>
   </header>
 
   <div class="admin-table-wrap">
     <div class="admin-table-head">
       <h2>Listado de paquetes</h2>
-      <input
-        type="search"
-        class="admin-search"
-        placeholder="Buscar paquete, bloque, estado..."
-        oninput="filtrarTabla(this.value)"
-      />
+      <div class="admin-table-tools">
+        <input
+          id="paquetes-search"
+          type="search"
+          class="admin-search"
+          placeholder="Buscar código, nombre, entidad, estado..."
+        />
+        <button id="paquetes-refresh" type="button" class="admin-refresh">
+          Actualizar
+        </button>
+      </div>
     </div>
+    <div id="paquetes-status" class="admin-status" hidden></div>
     <table class="admin-table" id="tabla-paquetes">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Bloque</th>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Entidad / polígono</th>
           <th>Estado</th>
-          <th>Fecha entrega</th>
-          <th>Capas</th>
+          <th>Fecha de creación</th>
+          <th>Archivos</th>
+          <th>Formatos</th>
         </tr>
       </thead>
-      <tbody>
-        {paquetesTabla.map((p) => (
-          <tr>
-            <td>{p.id}</td>
-            <td>{p.bloque}</td>
-            <td><span class={`badge ${estadoBadge(p.estado)}`}>{p.estado}</span></td>
-            <td>{p.fechaEntrega}</td>
-            <td>{p.capas}</td>
-          </tr>
-        ))}
+      <tbody id="paquetes-body">
+        <tr>
+          <td colspan="7" class="admin-table-empty">Cargando paquetes…</td>
+        </tr>
       </tbody>
     </table>
   </div>
 
-  <script is:inline>
-    window.filtrarTabla = (q) => {
-      const term = (q || '').toLowerCase();
-      document.querySelectorAll('#tabla-paquetes tbody tr').forEach((tr) => {
-        tr.style.display = tr.innerText.toLowerCase().includes(term) ? '' : 'none';
-      });
+  <style>
+    .admin-table-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .admin-refresh {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line-200, #e5e7eb);
+      background: #fff;
+      color: var(--navy-700, #1e3a6e);
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .admin-refresh:hover {
+      background: #f8fafc;
+    }
+    .admin-refresh:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+    .admin-status {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--line-100, #f1f5f9);
+      font-size: .8rem;
+      color: #6b7280;
+    }
+    .admin-status.is-error {
+      color: #991b1b;
+      background: #fef2f2;
+    }
+    .admin-format-cell {
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+
+  <script>
+    import { apiFetch } from '../../scripts/utils.js';
+
+    const ESTADOS = {
+      ready: { label: 'Listo', cls: 'green' },
+      building: { label: 'Creando', cls: 'blue' },
+      draft: { label: 'Borrador', cls: 'amber' },
+      error: { label: 'Error', cls: 'red' },
     };
+
+    const body = document.getElementById('paquetes-body');
+    const status = document.getElementById('paquetes-status');
+    const search = document.getElementById('paquetes-search');
+    const refresh = document.getElementById('paquetes-refresh');
+
+    function showStatus(message, isError = false) {
+      status.hidden = !message;
+      status.textContent = message || '';
+      status.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function formatDate(value) {
+      if (!value) return '—';
+      const normalized = String(value).replace(' ', 'T');
+      const date = new Date(
+        normalized.endsWith('Z') ? normalized : `${normalized}Z`
+      );
+      if (Number.isNaN(date.getTime())) return value;
+      return date.toLocaleString('es-VE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    }
+
+    function cell(text, className = '') {
+      const td = document.createElement('td');
+      td.textContent = text || '—';
+      if (className) td.className = className;
+      return td;
+    }
+
+    function render(items) {
+      body.innerHTML = '';
+      if (!items.length) {
+        const row = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 7;
+        td.className = 'admin-table-empty';
+        td.textContent = 'No hay paquetes de datos todavía.';
+        row.appendChild(td);
+        body.appendChild(row);
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement('tr');
+        const estado = ESTADOS[item.state] || {
+          label: item.state || '—',
+          cls: 'gray',
+        };
+        row.dataset.search = [
+          item.code,
+          item.name,
+          item.polygon_entity,
+          item.state_entity,
+          estado.label,
+          item.format_summary,
+        ].filter(Boolean).join(' ').toLowerCase();
+
+        row.appendChild(cell(item.code));
+        row.appendChild(cell(item.name));
+        row.appendChild(cell(item.polygon_entity || item.filter_label));
+        const estadoTd = document.createElement('td');
+        const badge = document.createElement('span');
+        badge.className = `badge ${estado.cls}`;
+        badge.textContent = estado.label;
+        estadoTd.appendChild(badge);
+        row.appendChild(estadoTd);
+        row.appendChild(cell(formatDate(item.create_date)));
+        row.appendChild(cell(String(item.document_count ?? 0)));
+        row.appendChild(
+          cell(item.format_summary || '—', 'admin-format-cell')
+        );
+        body.appendChild(row);
+      }
+    }
+
+    function applyFilter() {
+      const term = (search.value || '').trim().toLowerCase();
+      document.querySelectorAll('#paquetes-body tr[data-search]').forEach((row) => {
+        row.style.display = row.dataset.search.includes(term) ? '' : 'none';
+      });
+    }
+
+    async function cargar() {
+      refresh.disabled = true;
+      showStatus('Consultando paquetes en Odoo…');
+      try {
+        const response = await apiFetch('/api/v1/data-packages');
+        if (!response.ok) {
+          let detail = `Error ${response.status}`;
+          try {
+            const data = await response.json();
+            detail = data.detail || detail;
+          } catch (_) { /* respuesta no JSON */ }
+          throw new Error(detail);
+        }
+        const data = await response.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        render(items);
+        showStatus(`${items.length} paquete(s) encontrados.`);
+        applyFilter();
+      } catch (error) {
+        render([]);
+        showStatus(
+          `No se pudieron cargar los paquetes: ${error?.message || error}`,
+          true
+        );
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+
+    refresh.addEventListener('click', cargar);
+    search.addEventListener('input', applyFilter);
+    cargar();
   </script>
 </AdminLayout>

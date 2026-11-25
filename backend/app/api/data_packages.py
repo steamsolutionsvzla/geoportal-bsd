@@ -15,10 +15,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.deps import auth_guard, bearer_token
+from app.api.deps import auth_guard, bearer_token, role_guard
 from app.api.search import _validar_geometria
 from app.config import settings
-from app.models.user import CurrentUser
+from app.models.user import CurrentUser, Rol
 from app.services import download_service as svc
 
 logger = logging.getLogger("app.api.data_packages")
@@ -57,6 +57,35 @@ def _detail(response: httpx.Response) -> str:
     except ValueError:
         pass
     return (response.text or "").strip()[:500] or f"Error {response.status_code}"
+
+
+@router.get("")
+async def list_data_packages(
+    user: CurrentUser = Depends(role_guard(Rol.ADMIN, Rol.GERENTE)),
+    token: str = Depends(bearer_token),
+):
+    """Lista los paquetes de datos reales para la vista de gerencia."""
+    timeout = httpx.Timeout(connect=15.0, read=60.0, write=30.0, pool=30.0)
+    try:
+        async with httpx.AsyncClient(
+                timeout=timeout, follow_redirects=True) as client:
+            response = await client.get(
+                _odoo_url(),
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/json",
+                },
+            )
+    except httpx.HTTPError as exc:
+        logger.exception("No se pudo listar los paquetes desde Odoo")
+        raise HTTPException(
+            502, f"No se pudo contactar a Odoo: {exc}") from exc
+    if response.status_code != 200:
+        raise HTTPException(
+            response.status_code if response.status_code < 500 else 502,
+            _detail(response),
+        )
+    return response.json()
 
 
 @router.post("")
