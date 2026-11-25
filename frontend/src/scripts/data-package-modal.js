@@ -58,12 +58,12 @@ export function openDataPackageModal(data, source = 'area') {
         <label>
           Entidad de la poligonal
           <input type="text" name="polygon_entity" maxlength="200"
-                 value="${escapeHtml(polygonEntity)}">
+                 value="${escapeHtml(polygonEntity)}" placeholder="No aplica">
         </label>
         <label class="data-package-optional">
           Estado / entidad de la intersección
           <input type="text" name="state_entity" maxlength="200"
-                 value="${escapeHtml(stateEntity)}">
+                 value="${escapeHtml(stateEntity)}" placeholder="No aplica">
         </label>
         <div class="data-package-summary">
           <span><strong>${layers.length}</strong> capas en el filtro</span>
@@ -126,8 +126,10 @@ export function openDataPackageModal(data, source = 'area') {
         maskGeometry: data.mask_geometry || null,
         layers,
         label,
-        polygonEntity: String(formData.get('polygon_entity') || '').trim(),
-        stateEntity: String(formData.get('state_entity') || '').trim(),
+        polygonEntity: String(formData.get('polygon_entity') || '').trim()
+          || 'No aplica',
+        stateEntity: String(formData.get('state_entity') || '').trim()
+          || 'No aplica',
       });
       const count = result.document_count || result.file_count || 0;
       setStatus(
