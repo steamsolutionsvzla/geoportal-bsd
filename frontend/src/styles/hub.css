@@ -282,12 +282,19 @@ body.hub-body {
 }
 .hub-modes-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  max-width: 880px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  max-width: 1120px;
   margin: 24px auto 0;
   position: relative;
   z-index: 3;
+}
+
+@media (max-width: 900px) {
+  .hub-modes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 880px;
+  }
 }
 
 @media (max-width: 640px) {
