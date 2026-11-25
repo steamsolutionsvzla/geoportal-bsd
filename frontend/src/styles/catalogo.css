@@ -19,25 +19,6 @@
   margin-bottom: 22px;
 }
 
-.cat-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--ink-400);
-  margin-bottom: 14px;
-  transition: color 0.15s ease, transform 0.15s ease;
-}
-.cat-back:hover {
-  color: var(--navy-700);
-  transform: translateX(-2px);
-}
-.cat-back svg {
-  width: 14px;
-  height: 14px;
-}
-
 .cat-headline h1 {
   font-family: 'Fraunces', serif;
   font-weight: 600;
@@ -826,8 +807,7 @@
     animation: none;
   }
   .cat-btn,
-  .cat-chevron,
-  .cat-back {
+  .cat-chevron {
     transition: none;
   }
 }

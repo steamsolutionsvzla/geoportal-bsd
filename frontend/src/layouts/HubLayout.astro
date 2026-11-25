@@ -20,11 +20,17 @@ import { APP_VERSION } from '../consts';
 interface Props {
   title?: string;
   subtitle?: string;
+  /** Si se indica, muestra el botón de inicio (casita) en la topbar. */
+  homeHref?: string;
+  /** Destino del botón de inicio para el rol gerente (por defecto homeHref). */
+  homeHrefGerente?: string;
 }
 
 const {
   title = 'Hub · BSD Geoportal',
-  subtitle = 'Selecciona el modo de operación'
+  subtitle = 'Selecciona el modo de operación',
+  homeHref,
+  homeHrefGerente
 } = Astro.props;
 ---
 
@@ -55,6 +61,21 @@ const {
         </a>
 
         <div class="hub-topbar-actions">
+          {homeHref && (
+            <a
+              href={homeHref}
+              class="hub-icon-btn hub-home-btn"
+              title="Ir al inicio"
+              aria-label="Ir al inicio"
+              data-href-admin={homeHref}
+              data-href-gerente={homeHrefGerente || homeHref}
+            >
+              <svg viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12l9-9 9 9"></path>
+                <path d="M5 10v10h14V10"></path>
+              </svg>
+            </a>
+          )}
           <div class="hub-user-chip" title="Sesión iniciada">
             <div class="hub-user-info">
               <span class="hub-u-name">Juan Fernández</span>
