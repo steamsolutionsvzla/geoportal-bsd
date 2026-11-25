@@ -61,6 +61,13 @@ const {
         </a>
 
         <div class="hub-topbar-actions">
+          <div class="hub-user-chip" title="Sesión iniciada">
+            <div class="hub-user-info">
+              <span class="hub-u-name">Juan Fernández</span>
+              <span class="hub-u-role">Dpto. de Datos Digitales</span>
+            </div>
+            <div class="hub-avatar">JF</div>
+          </div>
           {homeHref && (
             <a
               href={homeHref}
@@ -76,13 +83,6 @@ const {
               </svg>
             </a>
           )}
-          <div class="hub-user-chip" title="Sesión iniciada">
-            <div class="hub-user-info">
-              <span class="hub-u-name">Juan Fernández</span>
-              <span class="hub-u-role">Dpto. de Datos Digitales</span>
-            </div>
-            <div class="hub-avatar">JF</div>
-          </div>
           <button
             type="button"
             class="hub-icon-btn hub-logout-btn"
