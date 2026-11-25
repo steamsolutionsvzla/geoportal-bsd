@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import '../styles/login.css';
+import { APP_VERSION } from '../consts';
 // Fuentes self-hosted (sin Google Fonts / sin internet)
 import '@fontsource/fraunces/400.css';
 import '@fontsource/fraunces/500.css';
@@ -60,7 +61,7 @@ import Footer from '../components/Footer.astro';
       <div class="login-wrapper">
 
         <div class="login-topline mono">
-          <span><span class="dot"></span>GEOPORTAL v0.1</span>
+          <span><span class="dot"></span>GEOPORTAL v{APP_VERSION}</span>
           <span>SESIÓN SEGURA</span>
         </div>
 
