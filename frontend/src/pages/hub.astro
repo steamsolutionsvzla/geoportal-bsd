@@ -20,11 +20,20 @@ const modes = [
     accent: 'blue',
     icon: `<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>`,
   },
+  {
+    href: '/catalogo',
+    tag: 'Datos',
+    title: 'Catálogo',
+    desc: 'Diccionario vivo de las capas PostGIS y sus campos: tipos, nulabilidad, documentación y exportación a Excel.',
+    accent: 'amber',
+    icon: `<path d="M3 7h18"/><path d="M3 12h18"/><path d="M3 17h18"/><rect x="3" y="3" width="18" height="18" rx="2"/>`,
+  },
 ];
 
 const accents = {
   blue: { acc: '#2d5296', rgb: '45, 82, 150' },
   teal: { acc: '#0f766e', rgb: '15, 118, 110' },
+  amber: { acc: '#b45309', rgb: '180, 83, 9' },
 };
 
 const modesWithAccent = modes.map((m) => ({
@@ -55,8 +64,8 @@ const modesWithAccent = modes.map((m) => ({
       </h1>
 
       <p>
-        Dos modos de operación sobre el mismo banco de datos soberano:
-        consulta del geoportal y configuración de sus capas.
+        Tres modos de operación sobre el mismo banco de datos soberano:
+        consulta del geoportal, configuración de sus capas y catálogo de datos.
       </p>
     </div>
   </section>
@@ -123,6 +132,7 @@ const modesWithAccent = modes.map((m) => ({
     }
     .hub-card:nth-child(1) { animation-delay: .38s; }
     .hub-card:nth-child(2) { animation-delay: .5s; }
+    .hub-card:nth-child(3) { animation-delay: .62s; }
 
     @keyframes hubRise {
       from { opacity: 0; transform: translateY(20px); }

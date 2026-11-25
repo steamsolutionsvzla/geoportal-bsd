@@ -16,6 +16,7 @@ import '@fontsource/inter/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '../../styles/geoportal.css';
+import { APP_VERSION } from '../../consts';
 import '../../styles/metadata-qgis.css';
 import '../../styles/org-panel.css';
 import Footer from '../../components/Footer.astro';
@@ -91,6 +92,7 @@ import Footer from '../../components/Footer.astro';
       <div class="brand-text">
         <span class="name">Geoportal</span>
       </div>
+      <span class="app-version">v{APP_VERSION}</span>
 
       <!-- Filtro por coordenadas (topbar) -->
       <div class="coord-filter" id="coordFilter">

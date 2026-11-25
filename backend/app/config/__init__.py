@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     GEODATA_CACHE_TTL: float = 900.0      # segundos (15 min)
     GEODATA_CACHE_MAX_MB: int = 512       # tope de memoria para GeoJSON
     CATALOG_CACHE_TTL: float = 300.0      # segundos (5 min)
+    # Catálogo de campos (esquemas gis_*): TTL corto; el botón "Actualizar"
+    # del frontend fuerza la recarga con ?refresh=1.
+    DICCIONARIO_CACHE_TTL: float = 60.0
     # Gzip: solo se comprimen respuestas menores o iguales a este tamaño.
     # Las capas GeoJSON grandes viajan sin comprimir para no bloquear el backend.
     GZIP_MAX_MB: int = 20

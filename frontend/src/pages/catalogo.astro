@@ -1,0 +1,157 @@
+---
+import HubLayout from '../layouts/HubLayout.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/catalogo.css';
+---
+
+<HubLayout
+  title="Catálogo de datos · BSD Geoportal"
+  subtitle="Diccionario de campos de los esquemas gis_*"
+>
+  <div class="cat-shell">
+    <header class="cat-header">
+      <div class="cat-headline">
+        <a
+          class="cat-back"
+          href="/hub"
+          data-href-admin="/hub"
+          data-href-gerente="/admin"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Volver
+        </a>
+
+        <span class="eyebrow">Catálogo de datos</span>
+
+        <h1>Diccionario de <em>campos</em></h1>
+        <p>
+          Inventario vivo de las capas PostGIS y de sus atributos. Se analizan
+          automáticamente todos los esquemas cuyo nombre empieza por
+          <code>gis_</code>: si se crea uno nuevo, aparece aquí al actualizar.
+        </p>
+      </div>
+
+      <div class="cat-actions">
+        <button type="button" class="cat-btn cat-btn-ghost" id="cat-refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          <span>Actualizar</span>
+        </button>
+
+        <button type="button" class="cat-btn cat-btn-primary" id="cat-export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Exportar Excel</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="cat-banner" id="cat-error" hidden role="alert">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span id="cat-error-text">No se pudo cargar el catálogo.</span>
+      <button type="button" id="cat-retry">Reintentar</button>
+    </div>
+
+    <section class="cat-kpis" id="cat-kpis" aria-label="Resumen del catálogo">
+      <article class="cat-kpi" style="--kpi-accent:#2d5296">
+        <div class="cat-kpi-label">Esquemas</div>
+        <div class="cat-kpi-value is-muted" id="kpi-schemas">—</div>
+        <div class="cat-kpi-hint">con prefijo gis_</div>
+      </article>
+      <article class="cat-kpi" style="--kpi-accent:#0f766e">
+        <div class="cat-kpi-label">Capas</div>
+        <div class="cat-kpi-value is-muted" id="kpi-layers">—</div>
+        <div class="cat-kpi-hint">tablas y vistas espaciales</div>
+      </article>
+      <article class="cat-kpi" style="--kpi-accent:#b45309">
+        <div class="cat-kpi-label">Campos</div>
+        <div class="cat-kpi-value is-muted" id="kpi-fields">—</div>
+        <div class="cat-kpi-hint">columnas catalogadas</div>
+      </article>
+      <article class="cat-kpi" style="--kpi-accent:#7c3aed">
+        <div class="cat-kpi-label">Documentados</div>
+        <div class="cat-kpi-value is-muted" id="kpi-documented">—</div>
+        <div class="cat-kpi-hint" id="kpi-documented-hint">según metadatos</div>
+      </article>
+      <article class="cat-kpi" style="--kpi-accent:#c1584a">
+        <div class="cat-kpi-label">Sin documentar</div>
+        <div class="cat-kpi-value is-muted" id="kpi-undocumented">—</div>
+        <div class="cat-kpi-hint">campos por completar</div>
+      </article>
+    </section>
+
+    <div class="cat-toolbar-wrap">
+      <div class="cat-toolbar">
+        <div class="cat-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            id="cat-q"
+            type="search"
+            placeholder="Buscar capa, tabla o campo…"
+            autocomplete="off"
+            aria-label="Buscar capa, tabla o campo"
+          />
+        </div>
+
+        <select id="cat-schema" class="cat-select" aria-label="Filtrar por esquema">
+          <option value="">Todos los esquemas</option>
+        </select>
+
+        <label class="cat-switch">
+          <input type="checkbox" id="cat-undoc" />
+          Solo sin documentar
+        </label>
+
+        <span class="cat-status" id="cat-status" aria-live="polite">Cargando catálogo…</span>
+      </div>
+
+      <div class="cat-toolbar">
+        <button type="button" class="cat-link" id="cat-toggle-all">Contraer todo</button>
+        <span class="cat-hint">
+          Cada banda con color separa una capa. Los campos sin documentar se resaltan en ámbar.
+        </span>
+      </div>
+    </div>
+
+    <div class="cat-list" id="cat-list">
+      <div class="cat-skeleton"></div>
+      <div class="cat-skeleton"></div>
+      <div class="cat-skeleton"></div>
+    </div>
+
+    <div class="cat-empty" id="cat-empty" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 7h18M3 12h18M3 17h18"></path>
+      </svg>
+      <strong>Sin resultados</strong>
+      <span>Prueba con otro término o quita los filtros aplicados.</span>
+    </div>
+  </div>
+
+  <Footer slot="footer" />
+</HubLayout>
+
+<script>
+  import '../scripts/catalogo.js';
+</script>

@@ -1,4 +1,6 @@
 ---
+import { APP_VERSION } from '../consts';
+
 interface Props {
   sections?: { href: string; label: string }[];
 }
@@ -24,6 +26,8 @@ const { sections = [] } = Astro.props;
       <span>Plataforma de demostración con fines ilustrativos · Datos de ejemplo</span>
       <span class="footer-dot" aria-hidden="true"></span>
       <span>© 2026 <strong>Steam Solutions</strong></span>
+      <span class="footer-dot" aria-hidden="true"></span>
+      <span class="footer-version">Geoportal v{APP_VERSION}</span>
     </div>
   </div>
 </footer>
@@ -70,6 +74,11 @@ const { sections = [] } = Astro.props;
     font-family:'JetBrains Mono',monospace;
     font-size:.68rem;font-weight:600;letter-spacing:.03em;
     color:rgba(255,255,255,.60);
+  }
+  .footer-version{
+    font-family:'JetBrains Mono',monospace;
+    font-size:.68rem;font-weight:500;letter-spacing:.04em;
+    color:rgba(255,255,255,.45);
   }
 
   @media (max-width:640px){

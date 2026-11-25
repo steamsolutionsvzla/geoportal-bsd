@@ -121,6 +121,21 @@ input { font-family: inherit; }
   letter-spacing: 0.01em;
   color: var(--accent-navy-dim);
 }
+.app-version {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #2d5296;
+  background: #eef3fb;
+  border: 1px solid #dbe4f3;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 .topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 
 .icon-btn {

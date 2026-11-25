@@ -13,6 +13,7 @@ export const ROUTES = [
   ['/analista-mapa',       [ROL.ADMIN, ROL.ANALISTA]],          // editor de estilos sobre el mapa
   ['/analista',            [ROL.ADMIN, ROL.ANALISTA]],          // personalización de capas del geoportal
   ['/admin',               [ROL.ADMIN, ROL.GERENTE]],           // admin.astro + acompañantes
+  ['/catalogo',            [ROL.ADMIN, ROL.ANALISTA, ROL.GERENTE]], // diccionario de campos
   ['/hub',                 [ROL.ADMIN, ROL.ANALISTA]],          // hub + acompañantes
   ['/geoportal',           [ROL.ADMIN, ROL.ANALISTA, ROL.GERENTE]], // geoportal (agregado gerente)
   ['/showroom',            []],                                 // ruta bloqueada (Showroom oculto)

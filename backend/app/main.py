@@ -11,6 +11,7 @@ from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.catalog import router as catalog_router
 from app.api.data_packages import router as data_packages_router
+from app.api.diccionario import router as diccionario_router
 from app.api.downloads import router as downloads_router
 from app.api.layers import router as layers_router
 from app.api.manager import router as manager_router
@@ -92,7 +93,7 @@ async def _download_cleanup_loop(service):
 
 app = FastAPI(
     title="Geoportal API Backend",
-    version="1.0.0",
+    version="1.0",
     debug=settings.DEBUG,
     lifespan=lifespan,
     # Swagger/ReDoc/OpenAPI solo con DEBUG=True (nunca expuestos en producción).
@@ -130,6 +131,7 @@ app.include_router(search_router)
 app.include_router(admin_router)
 app.include_router(settings_router)
 app.include_router(catalog_router)
+app.include_router(diccionario_router)
 app.include_router(downloads_router)
 app.include_router(data_packages_router)
 
