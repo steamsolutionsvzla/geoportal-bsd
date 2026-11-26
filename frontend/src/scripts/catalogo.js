@@ -6,7 +6,6 @@ const state = {
   data: null,
   query: '',
   schema: '',
-  onlyUndocumented: false,
   collapsed: new Set(),
   loading: false,
 };
@@ -23,7 +22,6 @@ const refreshBtn = $('cat-refresh');
 const exportBtn = $('cat-export');
 const qInput = $('cat-q');
 const schemaSelect = $('cat-schema');
-const undocInput = $('cat-undoc');
 const toggleAllBtn = $('cat-toggle-all');
 
 const nf = new Intl.NumberFormat('es-VE');
@@ -46,13 +44,6 @@ function schemaColor(name) {
   return PALETTE[hash % PALETTE.length];
 }
 
-function docBadge(documented, total) {
-  if (!total) return 'doc-none';
-  if (documented === total) return 'doc-ok';
-  if (documented === 0) return 'doc-none';
-  return 'doc-low';
-}
-
 function clock(iso) {
   try {
     return new Date(iso).toLocaleTimeString('es-VE', {
@@ -70,14 +61,9 @@ function clock(iso) {
 function renderKpis() {
   const t = state.data?.totals;
   if (!t) return;
-  const pct = t.fields ? Math.round((t.fields_documented / t.fields) * 100) : 0;
-
   $('kpi-schemas').textContent = fmt(t.schemas);
   $('kpi-layers').textContent = fmt(t.layers);
   $('kpi-fields').textContent = fmt(t.fields);
-  $('kpi-documented').textContent = fmt(t.fields_documented);
-  $('kpi-documented-hint').textContent = `${pct}% del total`;
-  $('kpi-undocumented').textContent = fmt(t.fields_undocumented);
 
   document.querySelectorAll('.cat-kpi-value').forEach((el) => el.classList.remove('is-muted'));
 }
@@ -115,7 +101,7 @@ function fieldHaystack(field) {
 
 function filteredSchemas() {
   const q = state.query.trim().toLowerCase();
-  const filtering = Boolean(q || state.onlyUndocumented);
+  const filtering = Boolean(q);
 
   return (state.data?.schemas || [])
     .filter((schema) => !state.schema || schema.name === state.schema)
@@ -125,9 +111,6 @@ function filteredSchemas() {
         const layerMatches = !q || haystack(layer).includes(q);
         let fields = layer.fields;
 
-        if (state.onlyUndocumented) {
-          fields = fields.filter((field) => !field.documented);
-        }
         if (q && !layerMatches) {
           fields = fields.filter((field) => fieldHaystack(field).includes(q));
         }
@@ -145,9 +128,8 @@ function filteredSchemas() {
 /* ------------------------------------------------------------------ */
 /* Tabla                                                               */
 /* ------------------------------------------------------------------ */
-function fieldRow(field) {
+function fieldRow(field, source) {
   const length = field.length ?? '—';
-  const precision = field.precision ?? '—';
   const example = field.doc_example || field.comment || '';
   const role =
     field.role === 'geometry' ? 'geometría' : field.role === 'id' ? 'clave' : 'atributo';
@@ -164,22 +146,8 @@ function fieldRow(field) {
       </td>
       <td data-label="Tipo"><span class="cat-type">${esc(field.type || '—')}</span></td>
       <td class="num" data-label="Longitud">${esc(length)}</td>
-      <td class="num" data-label="Precisión">${esc(precision)}</td>
-      <td data-label="Nulos">
-        <span class="cat-flag neutral">
-          <span class="cat-dot"></span>${field.nullable ? 'sí' : 'no'}
-        </span>
-      </td>
-      <td data-label="Únicos">
-        <span class="cat-flag neutral ${field.doc_uniques === null || field.doc_uniques === undefined ? 'is-empty' : ''}">
-          <span class="cat-dot"></span>${field.doc_uniques === null || field.doc_uniques === undefined ? '—' : field.doc_uniques ? 'sí' : 'no'}
-        </span>
-      </td>
-      <td data-label="Documentado">
-        <span class="cat-flag ${field.documented ? 'yes' : 'no'}">
-          <span class="cat-dot"></span>${field.documented ? 'Sí' : 'No'}
-        </span>
-        ${field.doc_type ? `<span class="cat-doc-type">${esc(field.doc_type)}</span>` : ''}
+      <td data-label="Fuente">
+        <span class="cat-source">${esc(source || 'Datos heredados')}</span>
       </td>
       <td data-label="Ejemplo">
         <span class="cat-example ${example ? '' : 'is-empty'}" title="${esc(example)}">
@@ -192,7 +160,6 @@ function fieldRow(field) {
 function groupHtml(layer) {
   const accent = schemaColor(layer.schema);
   const collapsed = state.collapsed.has(layer.key);
-  const docClass = docBadge(layer.fields_documented, layer.fields_total);
   const warnings = layer.warnings || [];
 
   return `
@@ -220,8 +187,8 @@ function groupHtml(layer) {
           ${layer.geom ? `<span class="cat-badge geom">${esc(layer.geom)}</span>` : ''}
           ${layer.epsg ? `<span class="cat-badge">EPSG:${esc(layer.epsg)}</span>` : ''}
           <span class="cat-badge">${fmt(layer.features)} objetos</span>
-          <span class="cat-badge ${docClass}">
-            ${fmt(layer.fields_documented)}/${fmt(layer.fields_total)} campos doc.
+          <span class="cat-badge" title="Fuente de la capa">
+            ${esc(layer.fuente || 'Datos heredados')}
           </span>
           ${warnings.length ? `<span class="cat-badge warn" title="${esc(warnings.join(' · '))}">⚠ ${warnings.length}</span>` : ''}
         </span>
@@ -254,15 +221,12 @@ function groupHtml(layer) {
               <th scope="col">Campo</th>
               <th scope="col">Tipo</th>
               <th scope="col">Long.</th>
-              <th scope="col">Prec.</th>
-              <th scope="col">Nulos</th>
-              <th scope="col">Únicos</th>
-              <th scope="col">Documentado</th>
+              <th scope="col">Fuente</th>
               <th scope="col">Ejemplo</th>
             </tr>
           </thead>
           <tbody>
-            ${layer.fields.map(fieldRow).join('')}
+            ${layer.fields.map((field) => fieldRow(field, layer.fuente)).join('')}
           </tbody>
         </table>
       </div>
@@ -314,7 +278,7 @@ function renderList() {
   emptyEl.hidden = hasResults;
 
   if (hasResults) {
-    const filtered = Boolean(state.query.trim() || state.schema || state.onlyUndocumented);
+    const filtered = Boolean(state.query.trim() || state.schema);
     const updated = clock(state.data.generated_at);
     statusEl.classList.remove('is-error');
     statusEl.textContent = filtered
@@ -447,11 +411,6 @@ function wireEvents() {
 
   schemaSelect.addEventListener('change', () => {
     state.schema = schemaSelect.value;
-    renderList();
-  });
-
-  undocInput.addEventListener('change', () => {
-    state.onlyUndocumented = undocInput.checked;
     renderList();
   });
 

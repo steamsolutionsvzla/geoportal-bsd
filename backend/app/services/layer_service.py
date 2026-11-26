@@ -96,10 +96,21 @@ async def get_layer_metadata(pool, table_name: str):
             """
             SELECT *
             FROM metadatos.metadata_capa
-            WHERE identificador     = $1
-               OR nombre_tabla_capa = $1
-               OR identificador     = $2
-               OR nombre_tabla_capa = $2
+            WHERE lower(trim(identificador)) = lower(trim($1))
+               OR lower(trim(nombre_tabla_capa)) = lower(trim($1))
+               OR lower(trim(titulo)) = lower(trim($1))
+               OR lower(trim(identificador)) = lower(trim($2))
+               OR lower(trim(nombre_tabla_capa)) = lower(trim($2))
+               OR lower(trim(titulo)) = lower(trim($2))
+               OR lower(trim(regexp_replace(identificador, '^[^.]+[.]', ''))) = lower(trim($1))
+               OR lower(trim(regexp_replace(identificador, '^[^.]+[.]', ''))) = lower(trim($2))
+            ORDER BY
+                CASE
+                    WHEN lower(trim(nombre_tabla_capa)) = lower(trim($2)) THEN 1
+                    WHEN lower(trim(identificador)) = lower(trim($2)) THEN 2
+                    WHEN lower(trim(titulo)) = lower(trim($2)) THEN 3
+                    ELSE 4
+                END
             LIMIT 1;
             """,
             table_name,

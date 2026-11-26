@@ -198,7 +198,7 @@ async def _metadata(pool) -> Dict[str, Dict[str, Any]]:
         SELECT id, esquema_capa, nombre_tabla_capa, titulo, resumen,
                palabras_clave, licencias, restricciones, num_entidades,
                tipo_geometria, crs_epsg, fecha_carga, fecha_creado,
-               fecha_publicado, fecha_revisado, identificador
+               fecha_publicado, fecha_revisado, identificador, fuente
         FROM metadatos.metadata_capa;
         """,
     )
@@ -327,6 +327,7 @@ async def build_catalog(pool) -> Dict[str, Any]:
             "keywords": (meta or {}).get("palabras_clave") or "",
             "license": (meta or {}).get("licencias") or "",
             "identifier": (meta or {}).get("identificador") or "",
+            "fuente": (meta or {}).get("fuente") or "Datos heredados",
             "geom": (geom.get("type") or "").upper(),
             "geometry_column": geom["f_geometry_column"],
             "srid": srid,

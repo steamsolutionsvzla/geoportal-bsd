@@ -126,6 +126,11 @@ def build_qmd(meta: Dict[str, Any]) -> bytes:
 
     _sub(root, "credit", f"Generado por el Geoportal BSD el {_date_str(meta) or '—'}.")
     _sub(root, "dataItems", meta.get("archivo_origen"))
+
+    lineage = _sub(root, "lineage")
+    _sub(lineage, "statement",
+         meta.get("fuente") or "Datos heredados")
+
     _sub(root, "encoding", "UTF-8")
 
     if meta.get("historial"):

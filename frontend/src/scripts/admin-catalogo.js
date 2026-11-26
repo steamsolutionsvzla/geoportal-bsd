@@ -58,12 +58,12 @@ function filaCapa(capa) {
          aria-label="${capa.enabled ? 'Apagar' : 'Publicar'} ${esc(capa.name)}"></button>`;
 
   return `<tr>
-    <td class="cat-name">${esc(capa.name)}</td>
     <td>${tablaBadge(capa)}</td>
     <td class="cat-type">${esc(TIPO[capa.type] || capa.type || '')}</td>
     <td class="cat-num">${fmt(capa.rows)}</td>
     ${state.zone ? `<td class="cat-num${enZona > 0 ? ' cat-hit' : ''}">${fmt(enZona ?? 0)}</td>` : ''}
     <td>${estadoBadge(capa)}</td>
+    <td class="cat-name">${esc(capa.name)}</td>
     <td class="cat-action">${switchEl}</td>
   </tr>`;
 }
@@ -99,12 +99,12 @@ function render() {
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Capa GeoServer</th>
                 <th>Tabla PostGIS</th>
                 <th>Tipo</th>
                 <th>Registros</th>
                 ${state.zone ? '<th>En zona</th>' : ''}
                 <th>Estado</th>
+                <th>Capa GeoServer</th>
                 <th>Acción</th>
               </tr>
             </thead>

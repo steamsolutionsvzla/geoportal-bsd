@@ -72,16 +72,6 @@ import '../styles/catalogo.css';
         <div class="cat-kpi-value is-muted" id="kpi-fields">—</div>
         <div class="cat-kpi-hint">columnas catalogadas</div>
       </article>
-      <article class="cat-kpi" style="--kpi-accent:#7c3aed">
-        <div class="cat-kpi-label">Documentados</div>
-        <div class="cat-kpi-value is-muted" id="kpi-documented">—</div>
-        <div class="cat-kpi-hint" id="kpi-documented-hint">según metadatos</div>
-      </article>
-      <article class="cat-kpi" style="--kpi-accent:#c1584a">
-        <div class="cat-kpi-label">Sin documentar</div>
-        <div class="cat-kpi-value is-muted" id="kpi-undocumented">—</div>
-        <div class="cat-kpi-hint">campos por completar</div>
-      </article>
     </section>
 
     <div class="cat-toolbar-wrap">
@@ -105,18 +95,13 @@ import '../styles/catalogo.css';
           <option value="">Todos los esquemas</option>
         </select>
 
-        <label class="cat-switch">
-          <input type="checkbox" id="cat-undoc" />
-          Solo sin documentar
-        </label>
-
         <span class="cat-status" id="cat-status" aria-live="polite">Cargando catálogo…</span>
       </div>
 
       <div class="cat-toolbar">
         <button type="button" class="cat-link" id="cat-toggle-all">Contraer todo</button>
         <span class="cat-hint">
-          Cada banda con color separa una capa. Los campos sin documentar se resaltan en ámbar.
+          Cada banda con color separa una capa. La columna Fuente indica el origen de la capa.
         </span>
       </div>
     </div>

@@ -181,26 +181,20 @@ def build_workbook(data: Dict[str, Any]) -> bytes:
     wf = wb.create_sheet("Campos")
     headers = [
         "Esquema", "Tabla", "Capa", "Campo", "Rol", "Tipo", "Longitud",
-        "Precisión", "Nulos", "Únicos", "Documentado", "Tipo documentado",
-        "Ejemplo", "Comentario en BD",
+        "Fuente", "Ejemplo", "Comentario en BD",
     ]
-    widths = [16, 42, 30, 28, 10, 22, 8, 8, 7, 7, 11, 16, 34, 40]
+    widths = [16, 42, 30, 28, 10, 22, 8, 24, 34, 40]
     _header(wf, headers, widths)
     for layer in layers:
         for field in layer.get("fields", []):
             wf.append([
                 layer["schema"], layer["table"], layer.get("title") or "",
                 field["name"], field.get("role"), field.get("type"),
-                field.get("length"), field.get("precision"),
-                _yesno(field.get("nullable")), _yesno(field.get("doc_uniques")),
-                "sí" if field.get("documented") else "no",
-                field.get("doc_type"), field.get("doc_example"),
-                field.get("comment") or "",
+                field.get("length"), layer.get("fuente") or "Datos heredados",
+                field.get("doc_example"), field.get("comment") or "",
             ])
     for row in wf.iter_rows(min_row=2, max_row=wf.max_row):
-        row[10].alignment = WRAP
-        if row[10].value == "no":
-            row[10].fill = AMBAR
+        row[7].alignment = WRAP
 
     buffer = io.BytesIO()
     wb.save(buffer)
